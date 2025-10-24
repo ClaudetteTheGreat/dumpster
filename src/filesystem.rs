@@ -566,6 +566,8 @@ pub async fn save_field_as_temp_file(field: &mut Field) -> Result<Option<UploadP
         filename,
         tmp_path: filepath, // Warning: This is deleted at the end of processing.
         hash: hasher.finalize(),
-        mime: field.content_type().to_owned(),
+        mime: field.content_type()
+            .map(|m| m.to_owned())
+            .unwrap_or_else(|| "application/octet-stream".parse().unwrap()),
     }))
 }
