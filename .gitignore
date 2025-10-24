@@ -43,5 +43,10 @@ yarn-error.log*
 *.backup
 /backups/
 
-# Personal CLAUDE.md (per user instructions)
+# Assistants
 CLAUDE.md
+.github/copilot-instructions.md
+AGENTS.md
+TODO.md
+todo/
+docs/
