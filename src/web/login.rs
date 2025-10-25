@@ -13,7 +13,9 @@ use serde::Deserialize;
 use validator::Validate;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
-    conf.service(post_login).service(view_login);
+    conf.service(post_login)
+        .service(post_login_2fa)
+        .service(view_login);
 }
 
 #[derive(Template)]
@@ -24,6 +26,13 @@ pub struct LoginTemplate<'a> {
     pub user_id: Option<i32>,
     pub username: Option<&'a str>,
     pub token: Option<&'a str>,
+}
+
+#[derive(Template)]
+#[template(path = "login_2fa.html")]
+pub struct Login2FATemplate<'a> {
+    pub client: ClientCtx,
+    pub error: Option<&'a str>,
 }
 
 #[derive(Deserialize, Validate)]
@@ -47,6 +56,12 @@ fn validate_totp(code: &str) -> Result<(), validator::ValidationError> {
         return Err(validator::ValidationError::new("totp_format"));
     }
     Ok(())
+}
+
+#[derive(Deserialize, Validate)]
+pub struct TotpFormData {
+    #[validate(custom = "validate_totp")]
+    totp: String,
 }
 
 #[derive(Debug)]
@@ -161,7 +176,8 @@ pub async fn login<S: AsRef<str>>(
             let secret = user_2fa::Entity::find_by_id(user_id).one(db).await?;
             if let Some(secret) = secret {
                 let auth = GoogleAuthenticator::new();
-                let verify = auth.verify_code(&secret.secret, totp.as_ref(), 60, 0);
+                // Trim secret (DB uses CHAR which pads with spaces)
+                let verify = auth.verify_code(secret.secret.trim(), totp.as_ref(), 60, 0);
                 if verify {
                     // Reset failed login attempts on successful login
                     if user.failed_login_attempts > 0 || user.locked_until.is_some() {
@@ -175,7 +191,12 @@ pub async fn login<S: AsRef<str>>(
                 return Ok(LoginResult::fail(LoginResultStatus::Bad2FA));
             }
         }
-        return Ok(LoginResult::fail(LoginResultStatus::Missing2FA));
+        // User has 2FA enabled but didn't provide code
+        // Include user_id for pending auth state
+        return Ok(LoginResult {
+            result: LoginResultStatus::Missing2FA,
+            user_id: Some(user.id),
+        });
     }
 
     // Reset failed login attempts on successful login
@@ -215,7 +236,17 @@ pub async fn post_login(
         LoginResultStatus::Success => user_id.user_id.unwrap(),
         LoginResultStatus::Missing2FA => {
             // User has 2FA enabled but didn't provide TOTP code
-            return Err(error::ErrorForbidden("Two-factor authentication required. Please enter your 6-digit code."));
+            // Store pending auth state in session
+            cookies
+                .insert("pending_2fa_user_id", user_id.user_id.unwrap())
+                .map_err(|_| error::ErrorInternalServerError("Session error"))?;
+
+            // Show 2FA input form
+            return Ok(Login2FATemplate {
+                client,
+                error: None,
+            }
+            .to_response());
         }
         LoginResultStatus::AccountLocked => {
             log::warn!("Login attempt on locked account: {}", form.username);
@@ -253,6 +284,101 @@ pub async fn post_login(
         user_id: Some(user_id),
         logged_in: true,
         username: Some(&form.username),
+        token: Some(&uuid),
+    }
+    .to_response())
+}
+
+#[post("/login/2fa")]
+pub async fn post_login_2fa(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<TotpFormData>,
+) -> Result<impl Responder, Error> {
+    // Validate TOTP format
+    form.validate().map_err(|e| {
+        log::debug!("2FA form validation failed: {}", e);
+        error::ErrorBadRequest("Invalid authentication code format")
+    })?;
+
+    // Get pending auth state from session
+    let user_id: i32 = match cookies.get("pending_2fa_user_id") {
+        Ok(Some(id)) => id,
+        _ => {
+            log::warn!("2FA attempt without pending auth state");
+            return Err(error::ErrorBadRequest("No pending authentication. Please login again."));
+        }
+    };
+
+    // Get user's 2FA secret from database
+    let db = get_db_pool();
+    let secret = user_2fa::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Database error fetching 2FA secret: {:?}", e);
+            error::ErrorInternalServerError("Authentication error")
+        })?;
+
+    let secret = match secret {
+        Some(s) => s,
+        None => {
+            log::error!("User {} has no 2FA secret but reached 2FA flow", user_id);
+            cookies.remove("pending_2fa_user_id");
+            return Err(error::ErrorInternalServerError("Authentication configuration error"));
+        }
+    };
+
+    // Verify TOTP code
+    let auth = GoogleAuthenticator::new();
+    // Trim secret (DB uses CHAR which pads with spaces)
+    if !auth.verify_code(secret.secret.trim(), &form.totp, 60, 0) {
+        log::debug!("Invalid 2FA code for user {}", user_id);
+        return Ok(Login2FATemplate {
+            client,
+            error: Some("Invalid authentication code. Please try again."),
+        }
+        .to_response());
+    }
+
+    // TOTP verification successful - clear pending state
+    cookies.remove("pending_2fa_user_id");
+
+    // Reset any failed login attempts (user successfully authenticated)
+    use sea_orm::ActiveValue::Set;
+    use users::Entity as Users;
+    if let Ok(Some(user)) = Users::find_by_id(user_id).one(db).await {
+        if user.failed_login_attempts > 0 || user.locked_until.is_some() {
+            let mut active_user: users::ActiveModel = user.into();
+            active_user.failed_login_attempts = Set(0);
+            active_user.locked_until = Set(None);
+            let _ = active_user.update(db).await;
+        }
+    }
+
+    // Create session
+    let uuid = session::new_session(get_sess(), user_id)
+        .await
+        .map_err(|e| {
+            log::error!("Error creating session: {:?}", e);
+            error::ErrorInternalServerError("Session creation error")
+        })?
+        .to_string();
+
+    cookies
+        .insert("logged_in", true)
+        .map_err(|_| error::ErrorInternalServerError("Session error"))?;
+
+    cookies
+        .insert("token", uuid.to_owned())
+        .map_err(|_| error::ErrorInternalServerError("Session error"))?;
+
+    // Redirect to home or show success
+    Ok(LoginTemplate {
+        client: ClientCtx::from_session(&cookies, client.get_permissions().clone()).await,
+        user_id: Some(user_id),
+        logged_in: true,
+        username: None,
         token: Some(&uuid),
     }
     .to_response())
