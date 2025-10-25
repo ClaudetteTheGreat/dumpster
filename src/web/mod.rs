@@ -1,6 +1,7 @@
 pub mod account;
 pub mod asset;
 pub mod chat;
+pub mod email_verification;
 pub mod error;
 pub mod forum;
 pub mod index;
@@ -21,6 +22,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     account::configure(conf);
     asset::configure(conf);
     chat::configure(conf);
+    email_verification::configure(conf);
     forum::configure(conf);
     login::configure(conf);
     logout::configure(conf);

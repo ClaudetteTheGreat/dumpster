@@ -76,6 +76,7 @@ pub enum LoginResultStatus {
     Bad2FA,
     Missing2FA,
     AccountLocked,
+    EmailNotVerified,
 }
 
 pub struct LoginResult {
@@ -167,6 +168,12 @@ pub async fn login<S: AsRef<str>>(
 
         active_user.update(db).await?;
         return Ok(LoginResult::fail(LoginResultStatus::BadPassword));
+    }
+
+    // Check if email is verified (only if email exists)
+    if user.email.is_some() && !user.email_verified {
+        log::info!("Login blocked - email not verified: user_id={}", user.id);
+        return Ok(LoginResult::fail(LoginResultStatus::EmailNotVerified));
     }
 
     let totp_exists = user_2fa::Entity::find()
@@ -271,6 +278,10 @@ pub async fn post_login(
         LoginResultStatus::AccountLocked => {
             log::warn!("Login attempt on locked account: {}", form.username);
             return Err(error::ErrorForbidden("Account locked due to too many failed login attempts. Please try again in 15 minutes."));
+        }
+        LoginResultStatus::EmailNotVerified => {
+            log::info!("Login attempt with unverified email: {}", form.username);
+            return Err(error::ErrorForbidden("Please verify your email address before logging in. Check your email for a verification link, or <a href=\"/verify-email/resend\">request a new one</a>."));
         }
         LoginResultStatus::Bad2FA => {
             log::debug!("login failure: invalid 2FA code for {}", form.username);

@@ -12,16 +12,22 @@ use askama_actix::TemplateToResponse;
 use chrono::Utc;
 use sea_orm::{entity::*, DbErr, InsertResult, TransactionTrait};
 use serde::Deserialize;
+use validator::Validate;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct FormData {
+    #[validate(length(min = 1, max = 255))]
     username: String,
+    #[validate(length(min = 8, max = 1000))]
     password: String,
+    #[validate(email)]
+    email: String,
 }
 
 async fn insert_new_user(
     name: &str,
     pass: &str,
+    email: &str,
 ) -> Result<InsertResult<users::ActiveModel>, DbErr> {
     use crate::orm::{user_name_history, user_names};
     use futures::join;
@@ -35,6 +41,8 @@ async fn insert_new_user(
         created_at: Set(now),
         password: Set(pass.to_owned()),
         password_cipher: Set(users::Cipher::Argon2id),
+        email: Set(Some(email.to_owned())),
+        email_verified: Set(false),
         ..Default::default() // all other attributes are `Unset`
     };
     let res = users::Entity::insert(user).exec(db).await?;
@@ -81,16 +89,76 @@ pub async fn create_user_get(client: ClientCtx) -> impl Responder {
 }
 #[post("/create_user")]
 pub async fn create_user_post(form: web::Form<FormData>) -> Result<HttpResponse, Error> {
-    // don't forget to sanitize kek and add error handling
+    // Validate form input
+    form.validate().map_err(|e| {
+        log::debug!("User registration validation failed: {}", e);
+        error::ErrorBadRequest("Invalid registration data")
+    })?;
+
+    // Sanitize inputs
+    let username = form.username.trim();
+    let email = form.email.trim().to_lowercase();
+
+    // Hash password
     let password_hash = get_argon2()
         .hash_password(form.password.as_bytes(), &SaltString::generate(&mut OsRng))
-        .unwrap()
+        .map_err(|e| {
+            log::error!("Failed to hash password: {}", e);
+            error::ErrorInternalServerError("Failed to create user")
+        })?
         .to_string();
-    insert_new_user(&form.username, &password_hash)
+
+    // Create user
+    let result = insert_new_user(username, &password_hash, &email)
         .await
         .map_err(|e| {
-            log::error!("{}", e);
-            error::ErrorInternalServerError("user not found or bad password")
+            log::error!("Failed to create user: {}", e);
+            error::ErrorInternalServerError("Failed to create user")
         })?;
-    Ok(HttpResponse::Ok().finish())
+
+    let user_id = result.last_insert_id;
+
+    // Create verification token
+    let token = crate::web::email_verification::create_verification_token(user_id, &email)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to create verification token: {}", e);
+            error::ErrorInternalServerError("Failed to create user")
+        })?;
+
+    // Send verification email
+    let base_url = std::env::var("BASE_URL")
+        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    if let Err(e) = crate::email::templates::send_verification_email(
+        &email,
+        username,
+        &token,
+        &base_url,
+    )
+    .await
+    {
+        log::error!("Failed to send verification email: {}", e);
+        // Don't fail registration - token is saved, user can request resend
+    }
+
+    log::info!("New user registered: {} (user_id: {})", username, user_id);
+
+    // Return success - could redirect to a "check your email" page
+    Ok(HttpResponse::Ok()
+        .content_type("text/html")
+        .body(format!(
+            r#"
+            <html>
+                <head><title>Registration Successful</title></head>
+                <body>
+                    <h1>Registration Successful!</h1>
+                    <p>A verification email has been sent to <strong>{}</strong>.</p>
+                    <p>Please check your email and click the verification link to activate your account.</p>
+                    <p><a href="/login">Go to Login</a></p>
+                </body>
+            </html>
+            "#,
+            email
+        )))
 }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resend Verification Email - Ruforo</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="verification-page">
+            <h1>Resend Verification Email</h1>
+
+            {% if let Some(error_msg) = error %}
+                <div class="message error">
+                    <p>{{ error_msg }}</p>
+                </div>
+            {% endif %}
+
+            {% if let Some(success_msg) = success %}
+                <div class="message success">
+                    <p>{{ success_msg }}</p>
+                </div>
+            {% else %}
+                <form action="/verify-email/resend" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+
+                    <div class="form-group">
+                        <label for="email">Email Address:</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="your@email.com"
+                            required
+                        >
+                    </div>
+
+                    <button type="submit">Send Verification Email</button>
+                </form>
+
+                <p class="help-text">
+                    Enter the email address you used during registration.
+                    If an account exists, you'll receive a new verification link.
+                </p>
+            {% endif %}
+
+            <p><a href="/login">Back to Login</a></p>
+        </div>
+    </div>
+</body>
+</html>

@@ -4,9 +4,11 @@
 <h2>Create User</h2>
 <form action="/create_user" method="post">
     <label for="username">username:</label><br>
-    <input type="text" id="username" name="username" placeholder="username"><br>
+    <input type="text" id="username" name="username" placeholder="username" required><br>
+    <label for="email">email:</label><br>
+    <input type="email" id="email" name="email" placeholder="your@email.com" required><br>
     <label for="password">password:</label><br>
-    <input type="password" id="password" name="password" placeholder="password"><br>
-    <input type="submit">
+    <input type="password" id="password" name="password" placeholder="password" minlength="8" required><br>
+    <input type="submit" value="Create Account">
 </form>
 {% endblock %}

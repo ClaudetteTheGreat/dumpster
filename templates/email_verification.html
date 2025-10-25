@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification - Ruforo</title>
+    <link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="verification-page">
+            <h1>Email Verification</h1>
+
+            {% if success %}
+                <div class="message success">
+                    {% if let Some(msg) = message %}
+                        <p>{{ msg }}</p>
+                    {% endif %}
+                    <p><a href="/login">Click here to log in</a></p>
+                </div>
+            {% else %}
+                <div class="message error">
+                    {% if let Some(err) = error %}
+                        <p>{{ err }}</p>
+                    {% endif %}
+                    <p><a href="/verify-email/resend">Click here to request a new verification link</a></p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
