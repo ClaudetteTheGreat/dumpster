@@ -181,9 +181,22 @@ pub async fn authenticate_by_uuid(ses_map: &SessionMap, uuid: &Uuid) -> Option<S
 }
 
 pub async fn new_session(ses_map: &SessionMap, user_id: i32) -> Result<Uuid, DbErr> {
-    // TODO make the expiration duration configurable
-    // 20 seconds for testing purposes
-    let expires_at = Utc::now().naive_utc() + *get_session_time();
+    new_session_with_duration(ses_map, user_id, false).await
+}
+
+pub async fn new_session_with_duration(
+    ses_map: &SessionMap,
+    user_id: i32,
+    remember_me: bool,
+) -> Result<Uuid, DbErr> {
+    // Default session duration from config, or 30 days if remember_me is checked
+    let duration = if remember_me {
+        chrono::Duration::days(30)
+    } else {
+        *get_session_time()
+    };
+
+    let expires_at = Utc::now().naive_utc() + duration;
     let ses = Session {
         user_id,
         expires_at,

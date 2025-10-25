@@ -47,6 +47,9 @@ pub struct FormData {
     totp: Option<String>,
 
     csrf_token: String,
+
+    #[serde(default)]
+    remember_me: bool,
 }
 
 /// Validate TOTP code format (must be exactly 6 digits)
@@ -268,6 +271,11 @@ pub async fn post_login(
                 .insert("pending_2fa_user_id", user_id.user_id.unwrap())
                 .map_err(|_| error::ErrorInternalServerError("Session error"))?;
 
+            // Store remember_me preference for after 2FA completes
+            cookies
+                .insert("pending_2fa_remember_me", form.remember_me)
+                .map_err(|_| error::ErrorInternalServerError("Session error"))?;
+
             // Show 2FA input form
             return Ok(Login2FATemplate {
                 client,
@@ -294,7 +302,7 @@ pub async fn post_login(
         }
     };
 
-    let uuid = session::new_session(get_sess(), user_id)
+    let uuid = session::new_session_with_duration(get_sess(), user_id, form.remember_me)
         .await
         .map_err(|e| {
             log::error!("error {:?}", e);
@@ -403,8 +411,17 @@ pub async fn post_login_2fa(
         }
     }
 
-    // Create session
-    let uuid = session::new_session(get_sess(), user_id)
+    // Retrieve remember_me preference from session (stored during initial login)
+    let remember_me = cookies
+        .get::<bool>("pending_2fa_remember_me")
+        .unwrap_or(Some(false))
+        .unwrap_or(false);
+
+    // Clear pending 2FA state
+    let _ = cookies.remove("pending_2fa_remember_me");
+
+    // Create session with remember_me preference
+    let uuid = session::new_session_with_duration(get_sess(), user_id, remember_me)
         .await
         .map_err(|e| {
             log::error!("Error creating session: {:?}", e);
