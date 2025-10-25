@@ -33,6 +33,8 @@ pub async fn create_test_user(
         password_cipher: Set(users::Cipher::Argon2id),
         failed_login_attempts: Set(0),
         locked_until: Set(None),
+        email: Set(Some(format!("{}@test.com", username))),
+        email_verified: Set(true), // Auto-verify test users
         ..Default::default()
     };
     let user = user.insert(db).await?;
@@ -99,6 +101,8 @@ pub async fn create_locked_test_user(
         password_cipher: Set(users::Cipher::Argon2id),
         failed_login_attempts: Set(5), // Max attempts reached
         locked_until: Set(Some(lock_until)),
+        email: Set(Some(format!("{}@test.com", username))),
+        email_verified: Set(true), // Auto-verify test users
         ..Default::default()
     };
     let user = user.insert(db).await?;
