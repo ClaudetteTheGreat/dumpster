@@ -221,6 +221,14 @@ pub async fn create_reply(
     // Require authentication for posting replies
     let authenticated_user_id = client.require_login()?;
 
+    // Rate limiting - prevent post spam
+    if let Err(e) = crate::rate_limit::check_post_rate_limit(authenticated_user_id) {
+        log::warn!("Rate limit exceeded for post creation: user_id={}", authenticated_user_id);
+        return Err(error::ErrorTooManyRequests(
+            format!("You're posting too quickly. Please wait {} seconds.", e.retry_after_seconds)
+        ));
+    }
+
     use crate::filesystem::{insert_field_as_attachment, UploadResponse};
     use crate::orm::{posts, threads, ugc_attachments};
     use crate::ugc::{create_ugc, NewUgcPartial};

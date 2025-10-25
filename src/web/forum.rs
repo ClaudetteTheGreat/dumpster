@@ -40,6 +40,14 @@ pub async fn create_thread(
     // Require authentication for thread creation
     let user_id = client.require_login()?;
 
+    // Rate limiting - prevent thread spam
+    if let Err(e) = crate::rate_limit::check_thread_rate_limit(user_id) {
+        log::warn!("Rate limit exceeded for thread creation: user_id={}", user_id);
+        return Err(error::ErrorTooManyRequests(
+            format!("You're creating threads too quickly. Please wait {} seconds.", e.retry_after_seconds)
+        ));
+    }
+
     use crate::ugc::{create_ugc, NewUgcPartial};
     let forum_id = path.into_inner();
 

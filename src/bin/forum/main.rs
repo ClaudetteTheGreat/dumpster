@@ -10,6 +10,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use ruforo::db::{get_db_pool, init_db};
 use ruforo::middleware::ClientCtx;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -40,6 +41,16 @@ async fn main() -> std::io::Result<()> {
     let chat = ruforo::web::chat::server::ChatServer::new(layer.clone())
         .await
         .start();
+
+    // Spawn rate limiter cleanup task
+    actix_web::rt::spawn(async {
+        let mut interval = actix_web::rt::time::interval(Duration::from_secs(300)); // Every 5 minutes
+        loop {
+            interval.tick().await;
+            ruforo::rate_limit::cleanup_old_entries_public();
+            log::debug!("Rate limiter cleanup completed");
+        }
+    });
 
     HttpServer::new(move || {
         let layer_data: Data<Arc<dyn ruforo::web::chat::implement::ChatLayer>> =

@@ -218,6 +218,7 @@ pub async fn login<S: AsRef<str>>(
 pub async fn post_login(
     client: ClientCtx,
     cookies: actix_session::Session,
+    req: actix_web::HttpRequest,
     form: web::Form<FormData>,
 ) -> Result<impl Responder, Error> {
     // Validate CSRF token
@@ -231,6 +232,18 @@ pub async fn post_login(
 
     // Sanitize username (trim whitespace, prevent injection)
     let username = form.username.trim();
+
+    // Rate limiting - prevent brute force attacks
+    let ip = req.peer_addr()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    if let Err(e) = crate::rate_limit::check_login_rate_limit(&ip, username) {
+        log::warn!("Rate limit exceeded for login: ip={}, username={}", ip, username);
+        return Err(error::ErrorTooManyRequests(
+            format!("Too many login attempts. Please try again in {} seconds.", e.retry_after_seconds)
+        ));
+    }
 
     let user_id = login(username, &form.password, &form.totp)
         .await
@@ -300,6 +313,7 @@ pub async fn post_login(
 pub async fn post_login_2fa(
     client: ClientCtx,
     cookies: actix_session::Session,
+    req: actix_web::HttpRequest,
     form: web::Form<TotpFormData>,
 ) -> Result<impl Responder, Error> {
     // Validate CSRF token
@@ -310,6 +324,18 @@ pub async fn post_login_2fa(
         log::debug!("2FA form validation failed: {}", e);
         error::ErrorBadRequest("Invalid authentication code format")
     })?;
+
+    // Rate limiting for 2FA attempts
+    let ip = req.peer_addr()
+        .map(|addr| addr.ip().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    if let Err(e) = crate::rate_limit::check_login_rate_limit(&ip, "2fa") {
+        log::warn!("Rate limit exceeded for 2FA: ip={}", ip);
+        return Err(error::ErrorTooManyRequests(
+            format!("Too many 2FA attempts. Please try again in {} seconds.", e.retry_after_seconds)
+        ));
+    }
 
     // Get pending auth state from session
     let user_id: i32 = match cookies.get("pending_2fa_user_id") {
