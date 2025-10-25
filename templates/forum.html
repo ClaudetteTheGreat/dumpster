@@ -34,6 +34,7 @@
 
 {% if client.can_post_in_forum() %}
 <form action="/forums/{{ forum.id }}/post-thread" method="post">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <h2>New Thread</h2>
     <input type="text" name="title" placeholder="Title" />
     <input type="text" name="subtitle" placeholder="Subtitle (optional)" />

@@ -5,6 +5,7 @@
 <p>You registered on {{ profile.created_at }}.</p>
 
 <form action="/account/avatar" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <h2>Avatar</h2>
     <input type="file" name="avatar" />
     <button>Upload</button><button>Delete</button>

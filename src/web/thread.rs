@@ -41,6 +41,7 @@ pub struct NewThreadFormData {
     pub title: String,
     pub subtitle: Option<String>,
     pub content: String,
+    pub csrf_token: String,
 }
 
 #[derive(Template)]
@@ -213,6 +214,7 @@ pub async fn update_thread_after_reply_is_deleted(id: i32) -> Result<(), DbErr> 
 #[post("/threads/{thread_id}/post-reply")]
 pub async fn create_reply(
     client: ClientCtx,
+    cookies: actix_session::Session,
     path: web::Path<(i32,)>,
     mutipart: Option<Multipart>,
 ) -> Result<impl Responder, Error> {
@@ -226,6 +228,7 @@ pub async fn create_reply(
 
     let mut content: String = String::new();
     let mut uploads: Vec<(_, UploadResponse)> = Vec::new();
+    let mut csrf_token: Option<String> = None;
 
     // interpret user input
     // iterate over multipart stream
@@ -233,6 +236,17 @@ pub async fn create_reply(
         while let Ok(Some(mut field)) = fields.try_next().await {
             if let Some(field_name) = field.content_disposition().get_name() {
                 match field_name {
+                    "csrf_token" => {
+                        let mut buf: Vec<u8> = Vec::with_capacity(128);
+                        while let Some(chunk) = field.next().await {
+                            let bytes = chunk.map_err(|e| {
+                                log::error!("create_reply: multipart read error: {}", e);
+                                actix_web::error::ErrorBadRequest("Error interpreting user input.")
+                            })?;
+                            buf.extend(bytes.to_owned());
+                        }
+                        csrf_token = Some(str::from_utf8(&buf).unwrap().to_owned());
+                    }
                     "content" => {
                         // Stream multipart data to string.
                         // TODO: Cap this at a config option for post size.
@@ -269,6 +283,10 @@ pub async fn create_reply(
             }
         }
     }
+
+    // Validate CSRF token
+    let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
 
     // Begin Transaction
     let db = get_db_pool();
@@ -391,5 +409,6 @@ pub fn validate_thread_form(
         title,
         subtitle,
         content: form.content.to_owned(),
+        csrf_token: form.csrf_token.to_owned(),
     })
 }

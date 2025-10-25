@@ -3,6 +3,7 @@
 {% block content %}
 <h1>Post Revision History</h1>
 <form method="post" action="/posts/{{ post.id }}/history">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <table>
         <thead>
             <tr>

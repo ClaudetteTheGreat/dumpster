@@ -30,9 +30,13 @@ pub struct ForumIndexTemplate<'a> {
 #[post("/forums/{forum}/post-thread")]
 pub async fn create_thread(
     client: ClientCtx,
+    cookies: actix_session::Session,
     form: web::Form<NewThreadFormData>,
     path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     // Require authentication for thread creation
     let user_id = client.require_login()?;
 

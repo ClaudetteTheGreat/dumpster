@@ -1,4 +1,5 @@
 <form action="/posts/{{ post.id }}/delete" method="post">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <h2>Delete Post</h2>
     <p>Confirm that you would like to delete this post.</p>
     <button>Confirm</button> <a href="/posts/{{ post.id }}">Go Back</a>

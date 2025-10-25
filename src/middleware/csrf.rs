@@ -10,7 +10,7 @@
 /// - Validated in handlers before processing state-changing requests
 ///
 /// Usage in templates:
-/// ```html
+/// ```html,ignore
 /// <form method="post">
 ///     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
 ///     <!-- other form fields -->
@@ -18,7 +18,7 @@
 /// ```
 ///
 /// Usage in handlers:
-/// ```rust
+/// ```rust,ignore
 /// use crate::middleware::csrf::validate_csrf_token;
 ///
 /// #[post("/some-endpoint")]
@@ -36,7 +36,7 @@
 use actix_web::{error, Error};
 use rand::{distributions::Alphanumeric, Rng};
 
-const CSRF_TOKEN_LENGTH: usize = 32;
+pub const CSRF_TOKEN_LENGTH: usize = 32;
 const CSRF_SESSION_KEY: &str = "csrf_token";
 
 /// Generate a new CSRF token

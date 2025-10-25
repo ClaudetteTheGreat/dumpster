@@ -19,12 +19,13 @@ pub struct AccountTemplate {
 }
 
 #[post("/account/avatar")]
-async fn update_avatar(client: ClientCtx, mutipart: Option<Multipart>) -> impl Responder {
+async fn update_avatar(client: ClientCtx, cookies: actix_session::Session, mutipart: Option<Multipart>) -> impl Responder {
     use crate::filesystem::{
         deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file,
     };
     use crate::orm::user_avatars;
-    use futures::TryStreamExt;
+    use futures::{StreamExt, TryStreamExt};
+    use std::str;
 
     if !client.is_user() {
         return Err(error::ErrorUnauthorized(
@@ -34,12 +35,34 @@ async fn update_avatar(client: ClientCtx, mutipart: Option<Multipart>) -> impl R
 
     // TODO: Button to delete avatars.
 
+    let mut csrf_token: Option<String> = None;
+    let mut avatar_processed = false;
+
     if let Some(mut fields) = mutipart {
         while let Ok(Some(mut field)) = fields.try_next().await {
             let disposition = field.content_disposition();
             if let Some(field_name) = disposition.get_name() {
                 match field_name {
+                    "csrf_token" => {
+                        let mut buf: Vec<u8> = Vec::with_capacity(128);
+                        while let Some(chunk) = field.next().await {
+                            let bytes = chunk.map_err(|e| {
+                                log::error!("update_avatar: multipart read error: {}", e);
+                                actix_web::error::ErrorBadRequest("Error interpreting user input.")
+                            })?;
+                            buf.extend(bytes.to_owned());
+                        }
+                        csrf_token = Some(str::from_utf8(&buf).unwrap().to_owned());
+                    }
                     "avatar" => {
+                        // Validate CSRF token before processing avatar
+                        if csrf_token.is_none() {
+                            return Err(error::ErrorBadRequest("CSRF token must be provided before file upload"));
+                        }
+                        let token = csrf_token.as_ref().unwrap();
+                        crate::middleware::csrf::validate_csrf_token(&cookies, token)?;
+
+                        avatar_processed = true;
                         // Save the file to a temporary location and get payload data.
                         let payload = match save_field_as_temp_file(&mut field).await? {
                             Some(payload) => payload,
@@ -82,6 +105,12 @@ async fn update_avatar(client: ClientCtx, mutipart: Option<Multipart>) -> impl R
                 }
             }
         }
+    }
+
+    // Validate CSRF token if avatar wasn't processed (token might come after avatar in stream)
+    if !avatar_processed {
+        let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+        crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
     }
 
     Ok(HttpResponse::Found()

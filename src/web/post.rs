@@ -25,6 +25,12 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
 #[derive(Deserialize)]
 pub struct NewPostFormData {
     pub content: String,
+    pub csrf_token: String,
+}
+
+#[derive(Deserialize)]
+pub struct DeletePostFormData {
+    pub csrf_token: String,
 }
 
 /// A fully joined struct representing the post model and its relational d&ata.
@@ -92,6 +98,7 @@ pub struct UgcRevisionLineItem {
 pub struct UgcRevisionDiffFormData {
     pub new: i32,
     pub old: i32,
+    pub csrf_token: String,
 }
 
 impl UgcRevisionLineItem {
@@ -133,8 +140,13 @@ pub async fn delete_post(client: ClientCtx, path: web::Path<i32>) -> Result<impl
 #[post("/posts/{post_id}/delete")]
 pub async fn destroy_post(
     client: ClientCtx,
+    cookies: actix_session::Session,
     path: web::Path<i32>,
+    form: web::Form<DeletePostFormData>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     let db = get_db_pool();
     let (post, user) = get_post_and_author_for_template(db, path.into_inner())
         .await
@@ -217,9 +229,13 @@ pub async fn edit_post(client: ClientCtx, path: web::Path<i32>) -> Result<impl R
 #[post("/posts/{post_id}/edit")]
 pub async fn update_post(
     client: ClientCtx,
+    cookies: actix_session::Session,
     path: web::Path<i32>,
     form: web::Form<NewPostFormData>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     let db = get_db_pool();
     let (post, user) = get_post_and_author_for_template(db, path.into_inner())
         .await
@@ -291,9 +307,13 @@ pub async fn view_post_history(
 #[post("/posts/{post_id}/history")]
 pub async fn view_post_history_diff(
     client: ClientCtx,
+    cookies: actix_session::Session,
     path: web::Path<i32>,
     form: web::Form<UgcRevisionDiffFormData>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     let db = get_db_pool();
     let (post, user) = get_post_and_author_for_template(db, path.into_inner())
         .await
