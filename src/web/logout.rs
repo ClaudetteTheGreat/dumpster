@@ -19,7 +19,7 @@ pub async fn view_logout(
     client: ClientCtx,
     cookies: actix_session::Session,
 ) -> Result<impl Responder, Error> {
-    // TODO: Needs mechanism to alter the HttpRequest.extensions stored Context and Client during this request cycle.
+    // Remove session from database and session cache
     match cookies.get::<String>("token") {
         Ok(Some(uuid)) => match Uuid::parse_str(&uuid) {
             Ok(uuid) => {
@@ -32,14 +32,23 @@ pub async fn view_logout(
             }
         },
         Ok(None) => {
-            log::error!("view_logout: missing token");
+            log::debug!("view_logout: missing token (already logged out?)");
         }
         Err(e) => {
             log::error!("view_logout: cookies.get() {}", e);
         }
     }
 
+    // Remove session cookies
     cookies.remove("logged_in");
     cookies.remove("token");
-    Ok(LogoutTemplate { client }.to_response())
+
+    // Create a new guest context for the logout page
+    // This ensures the template shows the user as logged out
+    let guest_client = ClientCtx::from_session(&cookies, client.get_permissions().clone()).await;
+
+    Ok(LogoutTemplate {
+        client: guest_client,
+    }
+    .to_response())
 }
