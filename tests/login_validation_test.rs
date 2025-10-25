@@ -2,11 +2,13 @@
 /// Tests that malformed input is properly rejected
 
 mod common;
+use serial_test::serial;
 
 use common::*;
 use ruforo::web::login::{login, LoginResultStatus};
 
 #[actix_rt::test]
+#[serial]
 async fn test_valid_credentials_accepted() {
     let db = setup_test_database()
         .await
@@ -32,6 +34,7 @@ async fn test_valid_credentials_accepted() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_username_whitespace_trimmed() {
     let db = setup_test_database()
         .await
@@ -57,6 +60,7 @@ async fn test_username_whitespace_trimmed() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_very_long_username_handled() {
     let db = setup_test_database()
         .await
@@ -84,6 +88,7 @@ async fn test_very_long_username_handled() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_nonexistent_very_long_username() {
     let db = setup_test_database()
         .await
@@ -106,6 +111,7 @@ async fn test_nonexistent_very_long_username() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_long_password_handled() {
     let db = setup_test_database()
         .await
@@ -133,6 +139,7 @@ async fn test_long_password_handled() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_unicode_username_supported() {
     let db = setup_test_database()
         .await
@@ -160,6 +167,7 @@ async fn test_unicode_username_supported() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_special_characters_in_password() {
     let db = setup_test_database()
         .await

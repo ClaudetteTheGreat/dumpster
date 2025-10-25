@@ -66,13 +66,45 @@ pub async fn setup_test_database() -> Result<DatabaseConnection, DbErr> {
 }
 
 /// Cleanup function to remove test data
+///
+/// Truncates all tables that might contain test data in the correct order
+/// to avoid foreign key constraint violations.
 pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
     use sea_orm::*;
 
     // Clean up tables in reverse dependency order
+    // Using CASCADE ensures child records are also removed
+    // RESTART IDENTITY resets sequences (id counters) to 1
+    //
+    // Order matters: child tables (with foreign keys) must be listed before parent tables
     db.execute(Statement::from_string(
         db.get_database_backend(),
-        "TRUNCATE TABLE user_names, user_2fa, sessions, posts, threads, ugc_revisions, ugc_deletions, ugc_attachments, users RESTART IDENTITY CASCADE;".to_string()
+        "TRUNCATE TABLE
+            chat_messages,
+            chat_rooms,
+            forum_permissions,
+            permission_values,
+            permission_collections,
+            user_groups,
+            user_name_history,
+            user_names,
+            user_2fa,
+            user_avatars,
+            sessions,
+            posts,
+            threads,
+            ugc_deletions,
+            ugc_attachments,
+            ugc_revisions,
+            attachments,
+            attachment_thumbnails,
+            users,
+            forums,
+            groups,
+            permissions,
+            permission_categories,
+            ip
+        RESTART IDENTITY CASCADE;".to_string()
     )).await?;
 
     Ok(())

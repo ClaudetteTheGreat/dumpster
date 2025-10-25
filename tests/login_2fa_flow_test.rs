@@ -2,11 +2,13 @@
 /// Tests that users with 2FA enabled go through proper authentication flow
 
 mod common;
+use serial_test::serial;
 
 use common::*;
 use ruforo::web::login::{login, LoginResultStatus};
 
 #[actix_rt::test]
+#[serial]
 async fn test_2fa_user_without_code_returns_missing_2fa() {
     let db = setup_test_database()
         .await
@@ -40,6 +42,7 @@ async fn test_2fa_user_without_code_returns_missing_2fa() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_2fa_user_with_wrong_code_returns_bad_2fa() {
     let db = setup_test_database()
         .await
@@ -67,6 +70,7 @@ async fn test_2fa_user_with_wrong_code_returns_bad_2fa() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_2fa_user_with_valid_code_succeeds() {
     let db = setup_test_database()
         .await
@@ -102,6 +106,7 @@ async fn test_2fa_user_with_valid_code_succeeds() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_2fa_flow_resets_failed_attempts_on_success() {
     let db = setup_test_database()
         .await
@@ -150,6 +155,7 @@ async fn test_2fa_flow_resets_failed_attempts_on_success() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_2fa_wrong_password_increments_failed_attempts() {
     let db = setup_test_database()
         .await

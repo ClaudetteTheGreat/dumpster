@@ -71,6 +71,7 @@ validator = { version = "0.16", features = ["derive"] }
 actix-rt = "2.10"
 actix-test = "0.1"
 awc = "3.5"
+serial_test = "3.0"  # Force integration tests to run serially (prevents DB conflicts)
 
 [profile.debugo]
 debug = true

@@ -3,6 +3,7 @@ mod common;
 use actix_session::Session;
 use actix_web::{test, web, App};
 use ruforo::middleware::ClientCtx;
+use serial_test::serial;
 
 #[actix_rt::test]
 async fn test_csrf_token_generation() {
@@ -24,6 +25,7 @@ async fn test_csrf_token_generation() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_csrf_login_without_token() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
@@ -31,8 +33,11 @@ async fn test_csrf_login_without_token() {
 
     let db = setup_test_database().await.unwrap();
 
+    // Clean up before test to ensure clean state
+    cleanup_test_data(&db).await.unwrap();
+
     // Create a test user
-    let _user = create_test_user(&db, "testuser", "password123")
+    let _user = create_test_user(&db, "csrf_test_user1", "password123")
         .await
         .unwrap();
 
@@ -44,6 +49,7 @@ async fn test_csrf_login_without_token() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_csrf_login_with_valid_credentials() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
@@ -51,13 +57,16 @@ async fn test_csrf_login_with_valid_credentials() {
 
     let db = setup_test_database().await.unwrap();
 
+    // Clean up before test to ensure clean state
+    cleanup_test_data(&db).await.unwrap();
+
     // Create a test user
-    let _user = create_test_user(&db, "testuser", "password123")
+    let _user = create_test_user(&db, "csrf_test_user2", "password123")
         .await
         .unwrap();
 
     // Test that login with valid credentials succeeds
-    let result = login("testuser", "password123", &None::<String>)
+    let result = login("csrf_test_user2", "password123", &None::<String>)
         .await
         .unwrap();
 

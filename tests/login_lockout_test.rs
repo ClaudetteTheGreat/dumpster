@@ -2,11 +2,13 @@
 /// Tests the security feature that locks accounts after too many failed login attempts
 
 mod common;
+use serial_test::serial;
 
 use common::*;
 use ruforo::web::login::{login, LoginResultStatus};
 
 #[actix_rt::test]
+#[serial]
 async fn test_failed_login_increments_counter() {
     let db = setup_test_database()
         .await
@@ -50,6 +52,7 @@ async fn test_failed_login_increments_counter() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_account_locks_after_max_attempts() {
     let db = setup_test_database()
         .await
@@ -103,6 +106,7 @@ async fn test_account_locks_after_max_attempts() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_locked_account_rejects_login() {
     let db = setup_test_database()
         .await
@@ -136,6 +140,7 @@ async fn test_locked_account_rejects_login() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_successful_login_resets_counter() {
     let db = setup_test_database()
         .await
@@ -186,6 +191,7 @@ async fn test_successful_login_resets_counter() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_expired_lock_allows_login() {
     let db = setup_test_database()
         .await
@@ -234,6 +240,7 @@ async fn test_expired_lock_allows_login() {
 }
 
 #[actix_rt::test]
+#[serial]
 async fn test_nonexistent_user_returns_bad_name() {
     let db = setup_test_database()
         .await
