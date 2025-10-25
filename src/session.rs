@@ -4,7 +4,7 @@ use crate::orm::sessions;
 use crate::user::Profile;
 use actix_web::{get, HttpResponse, Responder};
 use argon2::{
-    password_hash::{rand_core::OsRng, SaltString},
+    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2,
 };
 use chrono::{NaiveDateTime, Utc};
@@ -37,6 +37,14 @@ pub fn get_sess() -> &'static SessionMap {
 #[inline(always)]
 pub fn get_start_time() -> &'static NaiveDateTime {
     unsafe { START_TIME.get_unchecked() }
+}
+
+/// Hash a password using Argon2
+pub fn hash_password(password: &str) -> Result<String, argon2::password_hash::Error> {
+    let salt = SaltString::generate(&mut OsRng);
+    let argon2 = get_argon2();
+    let hash = argon2.hash_password(password.as_bytes(), &salt)?;
+    Ok(hash.to_string())
 }
 
 /// MUST be called ONCE before using functions in this module

@@ -1,5 +1,9 @@
 -- Email verification and password reset tokens
 
+-- Add email column to users table (required for password reset and verification)
+ALTER TABLE users ADD COLUMN email VARCHAR(255);
+CREATE INDEX idx_users_email ON users(email);
+
 -- Email verification tokens table
 CREATE TABLE email_verification_tokens (
     token VARCHAR(64) PRIMARY KEY,

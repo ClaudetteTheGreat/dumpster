@@ -10,6 +10,7 @@ pub mod forum_permissions;
 pub mod forums;
 pub mod groups;
 pub mod ip;
+pub mod password_reset_tokens;
 pub mod permission_categories;
 pub mod permission_collections;
 pub mod permission_values;

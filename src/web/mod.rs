@@ -7,6 +7,7 @@ pub mod index;
 pub mod login;
 pub mod logout;
 pub mod member;
+pub mod password_reset;
 pub mod post;
 pub mod thread;
 
@@ -24,6 +25,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     login::configure(conf);
     logout::configure(conf);
     member::configure(conf);
+    password_reset::configure(conf);
     post::configure(conf);
     thread::configure(conf);
 

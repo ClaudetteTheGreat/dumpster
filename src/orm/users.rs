@@ -13,6 +13,8 @@ pub struct Model {
     pub password_cipher: Cipher,
     pub failed_login_attempts: i32,
     pub locked_until: Option<DateTime>,
+    pub email: Option<String>,
+    pub email_verified: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

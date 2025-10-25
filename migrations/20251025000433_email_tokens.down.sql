@@ -3,6 +3,9 @@
 DROP INDEX IF EXISTS idx_users_email_verified;
 ALTER TABLE users DROP COLUMN IF EXISTS email_verified;
 
+DROP INDEX IF EXISTS idx_users_email;
+ALTER TABLE users DROP COLUMN IF EXISTS email;
+
 DROP INDEX IF EXISTS idx_password_reset_tokens_expires_at;
 DROP INDEX IF EXISTS idx_password_reset_tokens_user_id;
 DROP TABLE IF EXISTS password_reset_tokens;
