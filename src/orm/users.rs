@@ -11,6 +11,8 @@ pub struct Model {
     #[sea_orm(column_type = "Text")]
     pub password: String,
     pub password_cipher: Cipher,
+    pub failed_login_attempts: i32,
+    pub locked_until: Option<DateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

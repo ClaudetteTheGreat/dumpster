@@ -1,0 +1,23 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h2>Two-Factor Authentication</h2>
+
+{% match error %}
+    {% when Some with (msg) %}
+    <div class="error">
+        {{ msg }}
+    </div>
+    {% when None %}
+{% endmatch %}
+
+<p>Enter your 6-digit authentication code from your authenticator app.</p>
+
+<form action="/login/2fa" method="post">
+    <input type="text" id="totp" name="totp" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus><br>
+    <input type="submit" value="Verify">
+</form>
+
+<p><a href="/login">Back to login</a></p>
+
+{% endblock %}
