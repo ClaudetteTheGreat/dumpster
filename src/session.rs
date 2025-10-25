@@ -310,7 +310,10 @@ pub async fn task_expire_sessions(
 #[get("/task/expire_sessions")]
 pub async fn view_task_expire_sessions(client: crate::middleware::ClientCtx) -> impl Responder {
     // This is an administrative maintenance task - require authentication
-    // TODO: Add specific admin permission check when admin permissions are defined
+    // TODO: Add specific admin permission check once permissions are defined in migrations
+    //       This endpoint should use: client.require_permission("admin.system_maintenance")?
+    //       Current status: Permission system exists but no permissions defined in DB yet
+    //       See: migrations/20220520110031_groups_and_permissions.up.sql
     if let Err(_e) = client.require_login() {
         return HttpResponse::Unauthorized()
             .content_type(mime::TEXT_PLAIN_UTF_8)

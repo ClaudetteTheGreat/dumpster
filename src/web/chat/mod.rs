@@ -30,17 +30,14 @@ pub async fn view_chat_socket(
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
+    // Require authentication for chat access
+    let user_id = client.require_login()?;
+
     let layer = req
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
 
-    let session = if let Some(id) = client.get_id() {
-        layer.get_session_from_user_id(id as u32).await
-    } else {
-        let token = layer.get_session_key_from_request(&req);
-        let user_id = layer.get_user_id_from_token(token).await;
-        layer.get_session_from_user_id(user_id).await
-    };
+    let session = layer.get_session_from_user_id(user_id as u32).await;
 
     ws::start(
         connection::Connection {
@@ -100,15 +97,18 @@ struct ChatTemplate {
 
 /// Live chat in full application
 #[get("/chat")]
-pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> impl Responder {
+pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> Result<impl Responder, Error> {
+    // Require authentication for chat access
+    let user_id = client.require_login()?;
+
     let layer = req
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
     let session = layer
-        .get_session_from_user_id(client.get_id().unwrap_or(0) as u32)
+        .get_session_from_user_id(user_id as u32)
         .await;
 
-    ChatTemplate {
+    Ok(ChatTemplate {
         client,
         app_json: format!(
             "{{
@@ -119,7 +119,7 @@ pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> impl Responder {
             serde_json::to_string(&session).expect("XfSession stringify failed"),
         ),
         rooms: layer.get_room_list().await,
-    }
+    })
 }
 
 #[derive(Template)]
@@ -137,9 +137,25 @@ pub struct ChatTestData {
     pub style: Option<String>,
 }
 
-/// Chat shim
+/// Chat shim for testing/development
+///
+/// SECURITY WARNING: This endpoint is for testing and XenForo compatibility only.
+/// It should NOT be registered in production ruforo applications.
+/// Currently only used in the xf_chat binary (see src/bin/xf_chat/main.rs).
+///
+/// This endpoint does not require authentication and should be disabled in production
+/// by setting ENABLE_TEST_ENDPOINTS=false in environment variables.
 #[get("/test-chat")]
-pub async fn view_chat_shim(req: HttpRequest, query: web::Query<ChatTestData>) -> impl Responder {
+pub async fn view_chat_shim(req: HttpRequest, query: web::Query<ChatTestData>) -> Result<impl Responder, Error> {
+    // Check if test endpoints are enabled (default: disabled)
+    let test_endpoints_enabled = std::env::var("ENABLE_TEST_ENDPOINTS")
+        .unwrap_or_else(|_| "false".to_string())
+        .parse::<bool>()
+        .unwrap_or(false);
+
+    if !test_endpoints_enabled {
+        return Err(actix_web::error::ErrorNotFound("Endpoint not available"));
+    }
     let webpack_time: u64 = match std::fs::metadata(format!(
         "{}/chat.js",
         std::env::var("CHAT_ASSET_DIR").unwrap_or_else(|_| ".".to_string())
@@ -192,7 +208,7 @@ pub async fn view_chat_shim(req: HttpRequest, query: web::Query<ChatTestData>) -
         None => hasher.update("NO_SESSION_TO_HASH".as_bytes()),
     };
 
-    ChatTestTemplate {
+    Ok(ChatTestTemplate {
         rooms: layer.get_room_list().await,
         app_json: format!(
             "{{
@@ -210,5 +226,5 @@ pub async fn view_chat_shim(req: HttpRequest, query: web::Query<ChatTestData>) -
             "light"
         }
         .to_string(),
-    }
+    })
 }

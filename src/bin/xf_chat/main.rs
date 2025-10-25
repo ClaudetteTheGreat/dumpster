@@ -31,6 +31,9 @@ async fn main() -> std::io::Result<()> {
     dotenv::dotenv().expect("DotEnv failed to initialize.");
     env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
 
+    // Enable test endpoints for XenForo compatibility mode
+    std::env::set_var("ENABLE_TEST_ENDPOINTS", "true");
+
     let mysql = get_database_connection()
         .await
         .expect("Unable to connect to the MySQL database.");
