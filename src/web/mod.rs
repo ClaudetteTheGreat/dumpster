@@ -10,6 +10,7 @@ pub mod logout;
 pub mod member;
 pub mod password_reset;
 pub mod post;
+pub mod search;
 pub mod thread;
 
 /// Configures the web app by adding services from each web file.
@@ -29,6 +30,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     member::configure(conf);
     password_reset::configure(conf);
     post::configure(conf);
+    search::configure(conf);
     thread::configure(conf);
 
     conf.service(crate::create_user::create_user_get)

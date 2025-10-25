@@ -1,0 +1,49 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h2>Search</h2>
+
+<form action="/search/results" method="get">
+    <input type="text" id="q" name="q" placeholder="Search threads and posts..." value="{{ query.as_deref().unwrap_or("") }}" autofocus>
+    <input type="submit" value="Search">
+</form>
+
+{% if let Some(q) = query %}
+    {% if let Some(results) = results %}
+        <h3>Search Results for "{{ q }}"</h3>
+        <p>Found {{ results.total_count }} result(s)</p>
+
+        {% if !results.threads.is_empty() %}
+            <h4>Threads</h4>
+            <ul>
+            {% for thread in results.threads %}
+                <li>
+                    <a href="/threads/{{ thread.id }}">{{ thread.title }}</a>
+                    <br>
+                    <small>Posted {{ thread.created_at }}</small>
+                </li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if !results.posts.is_empty() %}
+            <h4>Posts</h4>
+            <ul>
+            {% for post in results.posts %}
+                <li>
+                    <a href="/posts/{{ post.id }}">View Post</a>
+                    <br>
+                    <p>{{ post.content }}...</p>
+                    <small>Posted {{ post.created_at }}</small>
+                </li>
+            {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% if results.total_count == 0 %}
+            <p>No results found for "{{ q }}".</p>
+            <p>Try different keywords or check your spelling.</p>
+        {% endif %}
+    {% endif %}
+{% endif %}
+{% endblock %}
