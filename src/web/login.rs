@@ -43,8 +43,8 @@ pub enum LoginResultStatus {
 }
 
 pub struct LoginResult {
-    result: LoginResultStatus,
-    user_id: Option<i32>,
+    pub result: LoginResultStatus,
+    pub user_id: Option<i32>,
 }
 
 impl LoginResult {
