@@ -15,6 +15,7 @@
 
 <h2>Login</h2>
 <form action="/login" method="post" onsubmit="return login(this);">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <input type="text" id="username" name="username" placeholder="username"><br>
     <input type="password" id="password" name="password" placeholder="password"><br>
     <input type="text" id="totp" name="totp" placeholder="2FA Code (optional)"><br>
