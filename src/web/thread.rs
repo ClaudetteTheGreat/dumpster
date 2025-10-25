@@ -307,6 +307,13 @@ pub async fn create_reply(
         .map_err(|_| error::ErrorInternalServerError("Could not look up thread."))?
         .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
 
+    // Check if thread is locked
+    if our_thread.is_locked {
+        return Err(error::ErrorForbidden(
+            "This thread is locked and no longer accepting replies.",
+        ));
+    }
+
     // Insert ugc and first revision
     let ugc_revision = create_ugc(
         &txn,

@@ -153,6 +153,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         //.column_as(users::Column::Name, "username")
         // Execute
         .filter(threads::Column::ForumId.eq(forum_id))
+        .order_by_desc(threads::Column::IsPinned)
         .order_by_desc(threads::Column::LastPostAt)
         .into_model::<ThreadForTemplate>()
         .all(get_db_pool())

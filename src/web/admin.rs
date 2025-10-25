@@ -35,8 +35,8 @@ pub async fn lock_thread(
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
-    // TODO: Check moderator permissions
-    // For now, any logged-in user can moderate (development only!)
+    // Check moderation permission
+    client.require_permission("moderate.thread.lock")?;
 
     let db = get_db_pool();
     let thread_id = thread_id.into_inner();
@@ -88,6 +88,9 @@ pub async fn unlock_thread(
 
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Check moderation permission
+    client.require_permission("moderate.thread.unlock")?;
 
     let db = get_db_pool();
     let thread_id = thread_id.into_inner();
@@ -144,6 +147,9 @@ pub async fn pin_thread(
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
+    // Check moderation permission
+    client.require_permission("moderate.thread.pin")?;
+
     let db = get_db_pool();
     let thread_id = thread_id.into_inner();
 
@@ -194,6 +200,9 @@ pub async fn unpin_thread(
 
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Check moderation permission
+    client.require_permission("moderate.thread.unpin")?;
 
     let db = get_db_pool();
     let thread_id = thread_id.into_inner();
