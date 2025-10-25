@@ -45,6 +45,8 @@ pub struct FormData {
 
     #[validate(custom = "validate_totp")]
     totp: Option<String>,
+
+    csrf_token: String,
 }
 
 /// Validate TOTP code format (must be exactly 6 digits)
@@ -62,6 +64,8 @@ fn validate_totp(code: &str) -> Result<(), validator::ValidationError> {
 pub struct TotpFormData {
     #[validate(custom = "validate_totp")]
     totp: String,
+
+    csrf_token: String,
 }
 
 #[derive(Debug)]
@@ -216,6 +220,9 @@ pub async fn post_login(
     cookies: actix_session::Session,
     form: web::Form<FormData>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     // Validate input
     form.validate().map_err(|e| {
         log::debug!("Login form validation failed: {}", e);
@@ -295,6 +302,9 @@ pub async fn post_login_2fa(
     cookies: actix_session::Session,
     form: web::Form<TotpFormData>,
 ) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
     // Validate TOTP format
     form.validate().map_err(|e| {
         log::debug!("2FA form validation failed: {}", e);

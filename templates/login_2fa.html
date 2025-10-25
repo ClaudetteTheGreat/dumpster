@@ -14,6 +14,7 @@
 <p>Enter your 6-digit authentication code from your authenticator app.</p>
 
 <form action="/login/2fa" method="post">
+    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <input type="text" id="totp" name="totp" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required autofocus><br>
     <input type="submit" value="Verify">
 </form>
