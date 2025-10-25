@@ -32,13 +32,13 @@ ffmpeg-next = "8.0"
 futures = { version = "0.3.19", default-features = false }
 futures-util = { version = "0.3.19", default-features = false }
 google-authenticator = { version = "0.3.0", features = ["with-qrcode"] }
-#lettre = { version = "0.10.0-rc.4", default-features = false, features = [
-#    "rustls",
-#    "smtp-transport",
-#    "pool",
-#    "hostname",
-#    "builder",
-#] }
+lettre = { version = "0.11", default-features = false, features = [
+    "tokio1-rustls-tls",
+    "smtp-transport",
+    "pool",
+    "hostname",
+    "builder",
+] }
 linkify = "^0.9" # BbCode parser
 log = "0.4.14"
 mime = "0.3.16"

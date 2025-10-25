@@ -7,6 +7,7 @@ pub mod auth_2fa;
 pub mod bbcode;
 pub mod create_user;
 pub mod db;
+pub mod email;
 pub mod ffmpeg;
 pub mod filesystem;
 pub mod global;
