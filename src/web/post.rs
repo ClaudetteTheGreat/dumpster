@@ -272,7 +272,9 @@ pub async fn view_post_history(
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
 
-    // TODO: Auth
+    // Require authentication to view post edit history
+    // This prevents exposing edit history to anonymous users
+    client.require_login()?;
 
     let revisions = UgcRevisionLineItem::get_for_ugc_id(db, post.ugc_id)
         .await
@@ -307,7 +309,9 @@ pub async fn view_post_history_diff(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    // TODO: Auth
+    // Require authentication to view post diff history
+    // This prevents exposing edit history to anonymous users
+    client.require_login()?;
 
     if revisions.len() < 2 {
         return Err(error::ErrorBadRequest(

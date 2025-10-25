@@ -216,6 +216,9 @@ pub async fn create_reply(
     path: web::Path<(i32,)>,
     mutipart: Option<Multipart>,
 ) -> Result<impl Responder, Error> {
+    // Require authentication for posting replies
+    let authenticated_user_id = client.require_login()?;
+
     use crate::filesystem::{insert_field_as_attachment, UploadResponse};
     use crate::orm::{posts, threads, ugc_attachments};
     use crate::ugc::{create_ugc, NewUgcPartial};
@@ -279,12 +282,11 @@ pub async fn create_reply(
         .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
 
     // Insert ugc and first revision
-    let user_id = client.get_id();
     let ugc_revision = create_ugc(
         &txn,
         NewUgcPartial {
             ip_id: None,
-            user_id,
+            user_id: Some(authenticated_user_id),
             content: &content,
         },
     )

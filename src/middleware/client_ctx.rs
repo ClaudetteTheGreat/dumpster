@@ -199,6 +199,48 @@ impl ClientCtx {
             format!("{}μs", us)
         }
     }
+
+    /// Require user to be logged in. Returns user_id or ErrorUnauthorized.
+    pub fn require_login(&self) -> Result<i32, actix_web::Error> {
+        self.get_id()
+            .ok_or_else(|| actix_web::error::ErrorUnauthorized("Login required"))
+    }
+
+    /// Require specific permission. Returns () or ErrorForbidden.
+    pub fn require_permission(&self, permission: &str) -> Result<(), actix_web::Error> {
+        if !self.can(permission) {
+            return Err(actix_web::error::ErrorForbidden("Insufficient permissions"));
+        }
+        Ok(())
+    }
+
+    /// Check if user can modify content (owner or has permission).
+    /// This is a more flexible version of can_delete_post/can_update_post.
+    pub fn can_modify(&self, resource_user_id: Option<i32>, permission: &str) -> bool {
+        // Check if user has the permission (e.g., moderator)
+        if self.can(permission) {
+            return true;
+        }
+
+        // Check if user owns the resource
+        if let Some(user_id) = self.get_id() {
+            if let Some(owner_id) = resource_user_id {
+                return user_id == owner_id;
+            }
+        }
+
+        false
+    }
+
+    /// Require ownership of a resource. Returns () or ErrorForbidden.
+    pub fn require_ownership(&self, resource_user_id: Option<i32>) -> Result<(), actix_web::Error> {
+        let user_id = self.require_login()?;
+
+        match resource_user_id {
+            Some(owner_id) if owner_id == user_id => Ok(()),
+            _ => Err(actix_web::error::ErrorForbidden("You don't own this resource")),
+        }
+    }
 }
 
 /// This implementation is what actually provides the `client: ClientCtx` in the parameters of route functions.

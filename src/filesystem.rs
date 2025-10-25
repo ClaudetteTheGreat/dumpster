@@ -196,7 +196,10 @@ pub async fn post_file_hash(form: web::Json<FileHashFormData>) -> Result<impl Re
 }
 
 #[post("/fs/upload-file")]
-pub async fn put_file(mut mutipart: Multipart) -> Result<impl Responder, Error> {
+pub async fn put_file(client: crate::middleware::ClientCtx, mut mutipart: Multipart) -> Result<impl Responder, Error> {
+    // Require authentication for file uploads
+    client.require_login()?;
+
     // see: https://users.rust-lang.org/t/file-upload-in-actix-web/64871/3
     let mut responses: Vec<UploadResponse> = Vec::new();
 

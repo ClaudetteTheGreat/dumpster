@@ -50,7 +50,8 @@ pub async fn user_enable_2fa(client: ClientCtx) -> Result<impl Responder, Error>
             error::ErrorInternalServerError("Error Generating QR Code")
         })?;
 
-    let user_id = client.get_id().unwrap(); // TODO tmp unwrap
+    // Require authentication - 2FA setup only for logged-in users
+    let user_id = client.require_login()?;
     let result = db_user_enable_2fa(user_id, &secret, false)
         .await
         .map_err(|e| {

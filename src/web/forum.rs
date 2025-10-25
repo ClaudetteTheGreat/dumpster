@@ -33,6 +33,9 @@ pub async fn create_thread(
     form: web::Form<NewThreadFormData>,
     path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
+    // Require authentication for thread creation
+    let user_id = client.require_login()?;
+
     use crate::ugc::{create_ugc, NewUgcPartial};
     let forum_id = path.into_inner();
 
@@ -50,7 +53,7 @@ pub async fn create_thread(
         &txn,
         NewUgcPartial {
             ip_id: None,
-            user_id: None,
+            user_id: Some(user_id),
             content: &form.content,
         },
     )
@@ -59,7 +62,7 @@ pub async fn create_thread(
 
     // Step 2. Create a thread.
     let thread = threads::ActiveModel {
-        user_id: Set(client.get_id()),
+        user_id: Set(Some(user_id)),
         forum_id: Set(forum_id),
         created_at: Set(revision.created_at),
         title: Set(form.title.trim().to_owned()),
