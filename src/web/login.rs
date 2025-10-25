@@ -8,8 +8,9 @@ use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use askama::Template;
 use askama_actix::TemplateToResponse;
 use google_authenticator::GoogleAuthenticator;
-use sea_orm::{entity::*, query::*, DbErr, FromQueryResult, QueryFilter};
+use sea_orm::{entity::*, query::*, DbErr, QueryFilter};
 use serde::Deserialize;
+use validator::Validate;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(post_login).service(view_login);
@@ -25,11 +26,27 @@ pub struct LoginTemplate<'a> {
     pub token: Option<&'a str>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct FormData {
+    #[validate(length(min = 1, max = 255))]
     username: String,
+
+    #[validate(length(min = 1, max = 1000))]
     password: String,
+
+    #[validate(custom = "validate_totp")]
     totp: Option<String>,
+}
+
+/// Validate TOTP code format (must be exactly 6 digits)
+fn validate_totp(code: &str) -> Result<(), validator::ValidationError> {
+    if code.len() != 6 {
+        return Err(validator::ValidationError::new("totp_length"));
+    }
+    if !code.chars().all(|c| c.is_ascii_digit()) {
+        return Err(validator::ValidationError::new("totp_format"));
+    }
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -72,6 +89,9 @@ pub async fn login<S: AsRef<str>>(
 
     const MAX_FAILED_ATTEMPTS: i32 = 5;
     const LOCKOUT_DURATION_MINUTES: i64 = 15;
+
+    // Trim whitespace from username for consistent lookups
+    let name = name.trim();
 
     let db = get_db_pool();
     let user_id = user_names::Entity::find()
@@ -175,8 +195,16 @@ pub async fn post_login(
     cookies: actix_session::Session,
     form: web::Form<FormData>,
 ) -> Result<impl Responder, Error> {
-    // TODO: Sanitize input and check for errors.
-    let user_id = login(&form.username, &form.password, &form.totp)
+    // Validate input
+    form.validate().map_err(|e| {
+        log::debug!("Login form validation failed: {}", e);
+        error::ErrorBadRequest("Invalid login credentials format")
+    })?;
+
+    // Sanitize username (trim whitespace, prevent injection)
+    let username = form.username.trim();
+
+    let user_id = login(username, &form.password, &form.totp)
         .await
         .map_err(|e| {
             log::error!("error {:?}", e);
