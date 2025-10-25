@@ -115,10 +115,12 @@ This session focused on implementing critical missing features for the forum, wi
 - `mod_log` - Moderation action audit log
 - Added columns to `threads`: is_locked, is_pinned, is_announcement
 
+**Completed:**
+- Permission checks added to all moderation endpoints
+- Thread locking enforced in post creation
+- Pinned threads sorted first in forum listings
+
 **TODO:**
-- Add permission checks (currently requires login only)
-- Enforce thread locking in post creation
-- Sort pinned threads first in listings
 - Admin panel UI for viewing logs
 - User ban/unban interface
 
@@ -129,8 +131,9 @@ This session focused on implementing critical missing features for the forum, wi
 2. `20251025004315_account_lockout` - Account lockout fields
 3. `20251025045648_full_text_search` - Full-text search indexes
 4. `20251025050231_moderation_tools` - Moderation tables
+5. `20251025051358_seed_permissions` - Permission system seeds (groups and permissions)
 
-**Total Migrations Applied:** 16
+**Total Migrations Applied:** 17
 
 ## Statistics
 
@@ -198,9 +201,6 @@ BASE_URL=http://localhost:8080
 - No advanced search filters
 
 ### Moderation
-- **CRITICAL:** No permission checks yet (any logged-in user can moderate!)
-- Thread locking not enforced in post creation yet
-- Pinned thread sorting not implemented
 - No admin panel UI
 - No user ban interface
 - No content reports system
@@ -213,24 +213,22 @@ BASE_URL=http://localhost:8080
 ## Next Steps (Recommended Priority)
 
 ### High Priority
-1. **Add permission checks to moderation endpoints** - SECURITY CRITICAL
-2. **Enforce thread locking** - Prevent posts in locked threads
-3. **Implement pinned thread sorting** - Display pinned threads first
-4. **Add tests for authentication flows** - Email verification, password reset
-5. **Add tests for search** - Ensure queries work correctly
+1. **Add tests for authentication flows** - Email verification, password reset
+2. **Add tests for search** - Ensure queries work correctly
+3. **Add tests for moderation** - Lock/pin enforcement, permission checks
 
 ### Medium Priority
-6. Create admin panel UI for viewing moderation logs
-7. Implement user ban/unban interface
-8. Add email queue for reliability
-9. Add search pagination
-10. Add more comprehensive error handling
+4. Create admin panel UI for viewing moderation logs
+5. Implement user ban/unban interface
+6. Add email queue for reliability
+7. Add search pagination
+8. Add more comprehensive error handling
 
 ### Low Priority
-11. Internationalization for search
-12. Advanced search filters
-13. Content reporting system
-14. Word filter/auto-moderation
+9. Internationalization for search
+10. Advanced search filters
+11. Content reporting system
+12. Word filter/auto-moderation
 
 ## Documentation Updates Needed
 
@@ -251,6 +249,11 @@ BASE_URL=http://localhost:8080
 This session delivered 6 major features that significantly improve the forum's functionality:
 - Complete authentication flow (email verification, password reset, remember me)
 - Full-text search capability
-- Basic moderation infrastructure
+- Basic moderation infrastructure with permission system
 
-The forum now has production-ready authentication and the foundation for content moderation. Key next steps are adding proper permission checks to moderation endpoints and testing the new features thoroughly.
+The forum now has production-ready authentication and secure content moderation with proper permission checks. Moderation features are fully enforced:
+- Thread locking prevents new replies
+- Pinned threads appear first in listings
+- Permission system restricts moderation actions to authorized users
+
+Key next steps are adding comprehensive tests for the new features and building out the admin panel UI.
