@@ -39,6 +39,7 @@ pub enum LoginResultStatus {
     BadPassword,
     Bad2FA,
     Missing2FA,
+    AccountLocked,
 }
 
 pub struct LoginResult {
@@ -66,11 +67,11 @@ pub async fn login<S: AsRef<str>>(
     pass: &str,
     totp: &Option<S>,
 ) -> Result<LoginResult, DbErr> {
-    #[derive(Debug, FromQueryResult)]
-    struct SelectResult {
-        id: i32,
-        password: String,
-    }
+    use chrono::Utc;
+    use sea_orm::ActiveValue::Set;
+
+    const MAX_FAILED_ATTEMPTS: i32 = 5;
+    const LOCKOUT_DURATION_MINUTES: i64 = 15;
 
     let db = get_db_pool();
     let user_id = user_names::Entity::find()
@@ -84,7 +85,6 @@ pub async fn login<S: AsRef<str>>(
     };
 
     let user = users::Entity::find_by_id(user_id)
-        .into_model::<SelectResult>()
         .one(db)
         .await?;
 
@@ -93,11 +93,40 @@ pub async fn login<S: AsRef<str>>(
         None => return Ok(LoginResult::fail(LoginResultStatus::BadName)),
     };
 
+    // Check if account is locked
+    if let Some(locked_until) = user.locked_until {
+        if locked_until > Utc::now().naive_utc() {
+            return Ok(LoginResult::fail(LoginResultStatus::AccountLocked));
+        } else {
+            // Lock has expired, reset failed attempts
+            let mut active_user: users::ActiveModel = user.clone().into();
+            active_user.failed_login_attempts = Set(0);
+            active_user.locked_until = Set(None);
+            active_user.update(db).await?;
+        }
+    }
+
     let parsed_hash = PasswordHash::new(&user.password).unwrap();
     if get_argon2()
         .verify_password(pass.as_bytes(), &parsed_hash)
         .is_err()
     {
+        // Increment failed login attempts
+        let mut active_user: users::ActiveModel = user.clone().into();
+        let new_attempts = user.failed_login_attempts + 1;
+        active_user.failed_login_attempts = Set(new_attempts);
+
+        // Lock account if max attempts reached
+        if new_attempts >= MAX_FAILED_ATTEMPTS {
+            let lock_until = Utc::now().naive_utc() + chrono::Duration::minutes(LOCKOUT_DURATION_MINUTES);
+            active_user.locked_until = Set(Some(lock_until));
+            log::warn!(
+                "Account locked due to {} failed login attempts: user_id={}",
+                new_attempts, user.id
+            );
+        }
+
+        active_user.update(db).await?;
         return Ok(LoginResult::fail(LoginResultStatus::BadPassword));
     }
 
@@ -114,6 +143,13 @@ pub async fn login<S: AsRef<str>>(
                 let auth = GoogleAuthenticator::new();
                 let verify = auth.verify_code(&secret.secret, totp.as_ref(), 60, 0);
                 if verify {
+                    // Reset failed login attempts on successful login
+                    if user.failed_login_attempts > 0 || user.locked_until.is_some() {
+                        let mut active_user: users::ActiveModel = user.clone().into();
+                        active_user.failed_login_attempts = Set(0);
+                        active_user.locked_until = Set(None);
+                        active_user.update(db).await?;
+                    }
                     return Ok(LoginResult::success(user.id));
                 }
                 return Ok(LoginResult::fail(LoginResultStatus::Bad2FA));
@@ -122,7 +158,15 @@ pub async fn login<S: AsRef<str>>(
         return Ok(LoginResult::fail(LoginResultStatus::Missing2FA));
     }
 
-    Ok(LoginResult::success(user.id))
+    // Reset failed login attempts on successful login
+    if user.failed_login_attempts > 0 || user.locked_until.is_some() {
+        let mut active_user: users::ActiveModel = user.into();
+        active_user.failed_login_attempts = Set(0);
+        active_user.locked_until = Set(None);
+        active_user.update(db).await?;
+    }
+
+    Ok(LoginResult::success(user_id))
 }
 
 #[post("/login")]
@@ -142,14 +186,21 @@ pub async fn post_login(
     let user_id = match user_id.result {
         LoginResultStatus::Success => user_id.user_id.unwrap(),
         LoginResultStatus::Missing2FA => {
-            // TODO: finish this
-            return Err(error::ErrorForbidden("2FA required."));
+            // User has 2FA enabled but didn't provide TOTP code
+            return Err(error::ErrorForbidden("Two-factor authentication required. Please enter your 6-digit code."));
         }
-        _ => {
-            log::debug!("login failure: {:?}", user_id.result);
-            return Err(error::ErrorInternalServerError(
-                "User not found or password is incorrect.",
-            ));
+        LoginResultStatus::AccountLocked => {
+            log::warn!("Login attempt on locked account: {}", form.username);
+            return Err(error::ErrorForbidden("Account locked due to too many failed login attempts. Please try again in 15 minutes."));
+        }
+        LoginResultStatus::Bad2FA => {
+            log::debug!("login failure: invalid 2FA code for {}", form.username);
+            return Err(error::ErrorUnauthorized("Invalid two-factor authentication code."));
+        }
+        LoginResultStatus::BadName | LoginResultStatus::BadPassword => {
+            log::debug!("login failure: {:?} for {}", user_id.result, form.username);
+            // Use generic message to avoid username enumeration
+            return Err(error::ErrorUnauthorized("Invalid username or password."));
         }
     };
 
