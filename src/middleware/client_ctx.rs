@@ -23,6 +23,8 @@ pub struct ClientCtxInner {
     pub permissions: Data<PermissionData>,
     /// Randomly generated string for CSR.
     pub nonce: String,
+    /// CSRF token for form protection
+    pub csrf_token: String,
     /// Time the request started for page load statistics.
     pub request_start: Instant,
 }
@@ -37,6 +39,7 @@ impl Default for ClientCtxInner {
             client: None,
             // Generally left default.
             nonce: Self::nonce(),
+            csrf_token: String::new(), // Will be populated from session
             request_start: Instant::now(),
         }
     }
@@ -45,16 +48,21 @@ impl Default for ClientCtxInner {
 impl ClientCtxInner {
     pub async fn from_session(session: &Session, permissions: Data<PermissionData>) -> Self {
         use crate::group::get_group_ids_for_client;
+        use crate::middleware::csrf::get_or_create_csrf_token;
         use crate::session::authenticate_client_by_session;
 
         let db = get_db_pool();
         let client = authenticate_client_by_session(session).await;
         let groups = get_group_ids_for_client(db, &client).await;
 
+        // Get or create CSRF token for this session
+        let csrf_token = get_or_create_csrf_token(session).unwrap_or_else(|_| String::new());
+
         ClientCtxInner {
             client,
             groups,
             permissions,
+            csrf_token,
             ..Default::default()
         }
     }
@@ -145,6 +153,10 @@ impl ClientCtx {
 
     pub fn get_user(&self) -> Option<&Profile> {
         self.0.client.as_ref()
+    }
+
+    pub fn get_csrf_token(&self) -> &str {
+        &self.0.csrf_token
     }
 
     pub fn is_user(&self) -> bool {
