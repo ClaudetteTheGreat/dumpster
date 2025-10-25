@@ -19,6 +19,9 @@ pub struct Model {
     pub first_post_id: Option<i32>,
     pub last_post_id: Option<i32>,
     pub last_post_at: Option<DateTime>,
+    pub is_locked: bool,
+    pub is_pinned: bool,
+    pub is_announcement: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -1,4 +1,5 @@
 pub mod account;
+pub mod admin;
 pub mod asset;
 pub mod chat;
 pub mod email_verification;
@@ -21,6 +22,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     // Route resolution will stop at the first match.
     index::configure(conf);
     account::configure(conf);
+    admin::configure(conf);
     asset::configure(conf);
     chat::configure(conf);
     email_verification::configure(conf);
