@@ -61,6 +61,12 @@
                 </ul>
                 <ul class="nav-side">
                     {% if let Some(user) = client.get_user() %}
+                    <li><a href="/notifications" class="nav-link">
+                            Notifications
+                            {% if client.get_unread_notifications() > 0 %}
+                            <span class="notification-badge">{{ client.get_unread_notifications() }}</span>
+                            {% endif %}
+                        </a></li>
                     <li><a href="/account" class="nav-link">
                             {{ user.get_avatar_html(crate::attachment::AttachmentSize::S)|safe }}
                             <span class="username">{{ user.name }}</span>

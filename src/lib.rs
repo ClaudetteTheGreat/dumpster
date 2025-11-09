@@ -13,6 +13,7 @@ pub mod filesystem;
 pub mod global;
 pub mod group;
 pub mod middleware;
+pub mod notifications;
 pub mod orm;
 pub mod permission;
 pub mod rate_limit;

@@ -1,0 +1,101 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h2>Notifications</h2>
+
+<div class="notification-header">
+    <div class="notification-count">
+        {% if unread_count > 0 %}
+            <p>You have <strong>{{ unread_count }}</strong> unread notification(s)</p>
+        {% else %}
+            <p>No unread notifications</p>
+        {% endif %}
+    </div>
+
+    <div class="notification-actions">
+        {% if unread_count > 0 %}
+            <form action="/notifications/mark-all-read" method="post" style="display: inline;">
+                <input type="submit" value="Mark All Read">
+            </form>
+        {% endif %}
+        <a href="/notifications?show_read=true">Show all</a>
+    </div>
+</div>
+
+{% if notifications.is_empty() %}
+    <p>No notifications to display.</p>
+{% else %}
+    <div class="notification-list">
+        {% for notif in notifications %}
+            <div class="notification-item {% if !notif.is_read %}unread{% endif %}">
+                <div class="notification-content">
+                    <h4>{{ notif.title }}</h4>
+                    <p>{{ notif.message }}</p>
+                    {% if let Some(url) = notif.url %}
+                        <p><a href="{{ url }}">View</a></p>
+                    {% endif %}
+                    <small class="notification-time">{{ notif.created_at }}</small>
+                </div>
+
+                {% if !notif.is_read %}
+                    <div class="notification-actions">
+                        <form action="/notifications/{{ notif.id }}/read" method="post">
+                            <input type="submit" value="Mark as Read">
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<style>
+    .notification-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .notification-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .notification-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .notification-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+    }
+
+    .notification-item.unread {
+        background: #f0f8ff;
+        border-color: #4a90e2;
+    }
+
+    .notification-content h4 {
+        margin: 0 0 5px 0;
+        font-size: 1.1em;
+    }
+
+    .notification-content p {
+        margin: 5px 0;
+    }
+
+    .notification-time {
+        color: #666;
+        font-size: 0.9em;
+    }
+</style>
+{% endblock %}

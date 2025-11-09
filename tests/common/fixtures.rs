@@ -37,21 +37,59 @@ pub async fn create_test_user(
         email_verified: Set(true), // Auto-verify test users
         ..Default::default()
     };
-    let user = user.insert(db).await?;
+    let user_model = user.insert(db).await?;
 
     // Create username
     let user_name = user_names::ActiveModel {
-        user_id: Set(user.id),
+        user_id: Set(user_model.id),
         name: Set(username.to_string()),
         ..Default::default()
     };
     user_name.insert(db).await?;
 
     Ok(TestUser {
-        id: user.id,
+        id: user_model.id,
         username: username.to_string(),
         password: password.to_string(),
     })
+}
+
+/// Create a test user with custom email and verification status
+pub async fn create_test_user_with_email(
+    db: &DatabaseConnection,
+    username: &str,
+    email: &str,
+    email_verified: bool,
+) -> Result<ruforo::orm::users::Model, DbErr> {
+    use ruforo::orm::{user_names, users};
+
+    let salt = SaltString::generate(&mut OsRng);
+    let password_hash = ruforo::session::get_argon2()
+        .hash_password("password123".as_bytes(), &salt)
+        .map_err(|e| DbErr::Custom(format!("Password hashing failed: {}", e)))?
+        .to_string();
+
+    let user = users::ActiveModel {
+        created_at: Set(Utc::now().naive_utc()),
+        password: Set(password_hash),
+        password_cipher: Set(users::Cipher::Argon2id),
+        failed_login_attempts: Set(0),
+        locked_until: Set(None),
+        email: Set(Some(email.to_string())),
+        email_verified: Set(email_verified),
+        ..Default::default()
+    };
+    let user_model = user.insert(db).await?;
+
+    // Create username
+    let user_name = user_names::ActiveModel {
+        user_id: Set(user_model.id),
+        name: Set(username.to_string()),
+        ..Default::default()
+    };
+    user_name.insert(db).await?;
+
+    Ok(user_model)
 }
 
 /// Create a test user with 2FA enabled
@@ -148,4 +186,38 @@ pub async fn is_user_locked(db: &DatabaseConnection, user_id: i32) -> Result<boo
     } else {
         Ok(false)
     }
+}
+
+/// Create a test forum and thread for testing
+pub async fn create_test_forum_and_thread(
+    db: &DatabaseConnection,
+    user_id: i32,
+    thread_title: &str,
+) -> Result<(ruforo::orm::forums::Model, ruforo::orm::threads::Model), DbErr> {
+    use ruforo::orm::{forums, threads};
+
+    // Create a forum
+    let forum = forums::ActiveModel {
+        label: Set("Test Forum".to_string()),
+        description: Set(Some("A test forum".to_string())),
+        last_post_id: Set(None),
+        last_thread_id: Set(None),
+        ..Default::default()
+    };
+    let forum_model = forum.insert(db).await?;
+
+    // Create a thread
+    let thread = threads::ActiveModel {
+        forum_id: Set(forum_model.id),
+        title: Set(thread_title.to_string()),
+        user_id: Set(Some(user_id)),
+        post_count: Set(0),
+        created_at: Set(Utc::now().naive_utc()),
+        is_locked: Set(false),
+        is_pinned: Set(false),
+        ..Default::default()
+    };
+    let thread_model = thread.insert(db).await?;
+
+    Ok((forum_model, thread_model))
 }

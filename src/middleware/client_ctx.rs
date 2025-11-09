@@ -25,6 +25,8 @@ pub struct ClientCtxInner {
     pub nonce: String,
     /// CSRF token for form protection
     pub csrf_token: String,
+    /// Unread notification count for the user
+    pub unread_notifications: i64,
     /// Time the request started for page load statistics.
     pub request_start: Instant,
 }
@@ -40,6 +42,7 @@ impl Default for ClientCtxInner {
             // Generally left default.
             nonce: Self::nonce(),
             csrf_token: String::new(), // Will be populated from session
+            unread_notifications: 0,
             request_start: Instant::now(),
         }
     }
@@ -58,11 +61,21 @@ impl ClientCtxInner {
         // Get or create CSRF token for this session
         let csrf_token = get_or_create_csrf_token(session).unwrap_or_else(|_| String::new());
 
+        // Get unread notification count for logged-in users
+        let unread_notifications = if let Some(ref user) = client {
+            crate::notifications::count_unread_notifications(user.id)
+                .await
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
         ClientCtxInner {
             client,
             groups,
             permissions,
             csrf_token,
+            unread_notifications,
             ..Default::default()
         }
     }
@@ -157,6 +170,10 @@ impl ClientCtx {
 
     pub fn get_csrf_token(&self) -> &str {
         &self.0.csrf_token
+    }
+
+    pub fn get_unread_notifications(&self) -> i64 {
+        self.0.unread_notifications
     }
 
     pub fn is_user(&self) -> bool {

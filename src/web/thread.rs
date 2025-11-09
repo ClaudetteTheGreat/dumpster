@@ -379,6 +379,33 @@ pub async fn create_reply(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Send notifications asynchronously (don't block on errors)
+    let post_content = content.clone();
+    actix::spawn(async move {
+        // Detect and notify mentions
+        if let Err(e) = crate::notifications::dispatcher::detect_and_notify_mentions(
+            &post_content,
+            post_id,
+            thread_id,
+            authenticated_user_id,
+        )
+        .await
+        {
+            log::error!("Failed to send mention notifications: {}", e);
+        }
+
+        // Notify thread participants
+        if let Err(e) = crate::notifications::dispatcher::notify_thread_reply(
+            thread_id,
+            post_id,
+            authenticated_user_id,
+        )
+        .await
+        {
+            log::error!("Failed to send thread reply notifications: {}", e);
+        }
+    });
+
     Ok(HttpResponse::Found()
         .append_header((
             "Location",
