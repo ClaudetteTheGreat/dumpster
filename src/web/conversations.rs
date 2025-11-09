@@ -1,0 +1,299 @@
+//! Conversation (private messaging) routes
+
+use crate::conversations;
+use crate::middleware::ClientCtx;
+use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use askama_actix::{Template, TemplateToResponse};
+use serde::Deserialize;
+
+pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
+    conf.service(view_inbox)
+        .service(view_conversation)
+        .service(new_conversation_form)
+        .service(create_conversation)
+        .service(send_message_handler);
+}
+
+/// Template for inbox (conversation list)
+#[derive(Template)]
+#[template(path = "conversations/inbox.html")]
+struct InboxTemplate {
+    client: ClientCtx,
+    conversations: Vec<conversations::ConversationPreview>,
+    unread_count: i64,
+}
+
+/// Template for conversation view
+#[derive(Template)]
+#[template(path = "conversations/view.html")]
+struct ConversationViewTemplate {
+    client: ClientCtx,
+    conversation_id: i32,
+    messages: Vec<conversations::MessageDisplay>,
+    participants: Vec<String>,
+    title: Option<String>,
+}
+
+/// Template for new conversation form
+#[derive(Template)]
+#[template(path = "conversations/new.html")]
+struct NewConversationTemplate {
+    client: ClientCtx,
+}
+
+/// GET /conversations - View inbox with all conversations
+#[get("/conversations")]
+pub async fn view_inbox(client: ClientCtx) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Get user's conversations
+    let conversations = conversations::get_user_conversations(user_id, 50)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get unread count
+    let unread_count = conversations::count_unread_conversations(user_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(InboxTemplate {
+        client,
+        conversations,
+        unread_count,
+    }
+    .to_response())
+}
+
+/// GET /conversations/{id} - View a specific conversation
+#[get("/conversations/{id}")]
+pub async fn view_conversation(
+    client: ClientCtx,
+    conversation_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Verify user is participant
+    conversations::verify_participant(crate::db::get_db_pool(), user_id, conv_id)
+        .await
+        .map_err(|_| error::ErrorForbidden("You are not a participant in this conversation"))?;
+
+    // Get messages
+    let messages = conversations::get_conversation_messages(conv_id, 100, 0)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get participants
+    use crate::orm::conversation_participants;
+    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+
+    let db = crate::db::get_db_pool();
+    let participants_data = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conv_id))
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let mut participant_names = Vec::new();
+    for participant in participants_data {
+        use crate::user::Profile;
+        if let Ok(Some(profile)) = Profile::get_by_id(db, participant.user_id).await {
+            participant_names.push(profile.name);
+        }
+    }
+
+    // Get conversation title
+    use crate::orm::conversations as conv_orm;
+    let conversation = conv_orm::Entity::find_by_id(conv_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let title = conversation.and_then(|c| c.title);
+
+    // Mark as read
+    conversations::mark_conversation_read(user_id, conv_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(ConversationViewTemplate {
+        client,
+        conversation_id: conv_id,
+        messages,
+        participants: participant_names,
+        title,
+    }
+    .to_response())
+}
+
+/// GET /conversations/new - Show new conversation form
+#[get("/conversations/new")]
+pub async fn new_conversation_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_login()?;
+
+    Ok(NewConversationTemplate { client }.to_response())
+}
+
+/// Form data for creating a new conversation
+#[derive(Deserialize)]
+pub struct NewConversationForm {
+    recipient_usernames: String, // Comma-separated usernames
+    title: Option<String>,
+    message: String,
+}
+
+/// POST /conversations/new - Create a new conversation
+#[post("/conversations/new")]
+pub async fn create_conversation(
+    client: ClientCtx,
+    form: web::Form<NewConversationForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Parse recipient usernames
+    let usernames: Vec<&str> = form
+        .recipient_usernames
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if usernames.is_empty() {
+        return Err(error::ErrorBadRequest("At least one recipient is required"));
+    }
+
+    // Look up user IDs
+    use crate::orm::user_names;
+    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+
+    let db = crate::db::get_db_pool();
+    let mut recipient_ids = Vec::new();
+
+    for username in usernames {
+        let user = user_names::Entity::find()
+            .filter(user_names::Column::Name.eq(username))
+            .one(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+
+        if let Some(user_name) = user {
+            recipient_ids.push(user_name.user_id);
+        } else {
+            return Err(error::ErrorBadRequest(format!(
+                "User '{}' not found",
+                username
+            )));
+        }
+    }
+
+    // Create conversation
+    let conversation_id = conversations::create_conversation(
+        user_id,
+        &recipient_ids,
+        form.title.as_deref(),
+    )
+    .await
+    .map_err(error::ErrorInternalServerError)?;
+
+    // Send first message
+    conversations::send_message(conversation_id, user_id, &form.message)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Send notifications to recipients
+    for recipient_id in recipient_ids {
+        if recipient_id != user_id {
+            // Get sender name
+            use crate::user::Profile;
+            let sender_name = Profile::get_by_id(db, user_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|p| p.name)
+                .unwrap_or_else(|| "Someone".to_string());
+
+            // Create notification
+            let _ = crate::notifications::create_notification(
+                recipient_id,
+                crate::notifications::NotificationType::PrivateMessage,
+                format!("New message from {}", sender_name),
+                "You have received a new private message".to_string(),
+                Some(format!("/conversations/{}", conversation_id)),
+                Some(user_id),
+                Some("conversation".to_string()),
+                Some(conversation_id),
+            )
+            .await;
+        }
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conversation_id)))
+        .finish())
+}
+
+/// Form data for sending a message
+#[derive(Deserialize)]
+pub struct SendMessageForm {
+    message: String,
+}
+
+/// POST /conversations/{id}/send - Send a message in a conversation
+#[post("/conversations/{id}/send")]
+pub async fn send_message_handler(
+    client: ClientCtx,
+    conversation_id: web::Path<i32>,
+    form: web::Form<SendMessageForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    if form.message.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Message cannot be empty"));
+    }
+
+    // Send message
+    conversations::send_message(conv_id, user_id, &form.message)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get participants to notify
+    use crate::orm::conversation_participants;
+    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+
+    let db = crate::db::get_db_pool();
+    let participants = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conv_id))
+        .filter(conversation_participants::Column::UserId.ne(user_id))
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get sender name
+    use crate::user::Profile;
+    let sender_name = Profile::get_by_id(db, user_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|p| p.name)
+        .unwrap_or_else(|| "Someone".to_string());
+
+    // Send notifications
+    for participant in participants {
+        let _ = crate::notifications::create_notification(
+            participant.user_id,
+            crate::notifications::NotificationType::PrivateMessage,
+            format!("New message from {}", sender_name),
+            "You have a new message in a conversation".to_string(),
+            Some(format!("/conversations/{}", conv_id)),
+            Some(user_id),
+            Some("message".to_string()),
+            None,
+        )
+        .await;
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}

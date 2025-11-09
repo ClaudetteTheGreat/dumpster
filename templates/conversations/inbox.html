@@ -1,0 +1,143 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h2>Private Messages</h2>
+
+<div class="pm-header">
+    <div class="pm-count">
+        {% if unread_count > 0 %}
+            <p>You have <strong>{{ unread_count }}</strong> unread conversation(s)</p>
+        {% else %}
+            <p>No unread conversations</p>
+        {% endif %}
+    </div>
+    <div class="pm-actions">
+        <a href="/conversations/new" class="button">New Conversation</a>
+    </div>
+</div>
+
+{% if conversations.is_empty() %}
+    <p>No conversations yet. <a href="/conversations/new">Start one!</a></p>
+{% else %}
+    <div class="conversation-list">
+        {% for conv in conversations %}
+            <div class="conversation-item {% if conv.is_unread %}unread{% endif %}">
+                <a href="/conversations/{{ conv.id }}">
+                    <div class="conversation-content">
+                        <h4>
+                            {% if let Some(title) = conv.title %}
+                                {{ title }}
+                            {% else %}
+                                Conversation with {% for participant in conv.participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
+                            {% endif %}
+                            {% if conv.is_unread %}
+                                <span class="unread-badge">NEW</span>
+                            {% endif %}
+                        </h4>
+                        <p class="participants">With:
+                            {% for participant in conv.participants %}
+                                {{ participant }}{% if !loop.last %}, {% endif %}
+                            {% endfor %}
+                        </p>
+                        {% if let Some(preview) = conv.last_message_content %}
+                            <p class="preview">{{ preview }}</p>
+                        {% endif %}
+                        {% if let Some(last_at) = conv.last_message_at %}
+                            <small class="timestamp">{{ last_at }}</small>
+                        {% endif %}
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<style>
+    .pm-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .conversation-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .conversation-item {
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+        transition: background 0.2s;
+    }
+
+    .conversation-item:hover {
+        background: #f9f9f9;
+    }
+
+    .conversation-item.unread {
+        background: #f0f8ff;
+        border-color: #4a90e2;
+        border-left-width: 4px;
+    }
+
+    .conversation-item a {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .conversation-content h4 {
+        margin: 0 0 5px 0;
+        font-size: 1.1em;
+    }
+
+    .participants {
+        color: #666;
+        font-size: 0.9em;
+        margin: 5px 0;
+    }
+
+    .preview {
+        color: #333;
+        margin: 10px 0 5px 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .timestamp {
+        color: #999;
+        font-size: 0.85em;
+    }
+
+    .unread-badge {
+        background: #4a90e2;
+        color: white;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.75em;
+        font-weight: bold;
+        margin-left: 10px;
+    }
+
+    .button {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #4a90e2;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+
+    .button:hover {
+        background: #357abd;
+    }
+</style>
+{% endblock %}

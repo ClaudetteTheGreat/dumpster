@@ -16,6 +16,8 @@ pub enum Relation {
     ChatMessages,
     #[sea_orm(has_many = "super::posts::Entity")]
     Posts,
+    #[sea_orm(has_many = "super::private_messages::Entity")]
+    PrivateMessages,
     #[sea_orm(has_many = "super::ugc_attachments::Entity")]
     UgcAttachments,
     #[sea_orm(
@@ -45,6 +47,12 @@ impl Related<super::chat_messages::Entity> for Entity {
 impl Related<super::posts::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Posts.def()
+    }
+}
+
+impl Related<super::private_messages::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::PrivateMessages.def()
     }
 }
 

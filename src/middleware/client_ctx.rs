@@ -27,6 +27,8 @@ pub struct ClientCtxInner {
     pub csrf_token: String,
     /// Unread notification count for the user
     pub unread_notifications: i64,
+    /// Unread message count for the user
+    pub unread_messages: i64,
     /// Time the request started for page load statistics.
     pub request_start: Instant,
 }
@@ -43,6 +45,7 @@ impl Default for ClientCtxInner {
             nonce: Self::nonce(),
             csrf_token: String::new(), // Will be populated from session
             unread_notifications: 0,
+            unread_messages: 0,
             request_start: Instant::now(),
         }
     }
@@ -70,12 +73,22 @@ impl ClientCtxInner {
             0
         };
 
+        // Get unread message count for logged-in users
+        let unread_messages = if let Some(ref user) = client {
+            crate::conversations::count_unread_conversations(user.id)
+                .await
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
         ClientCtxInner {
             client,
             groups,
             permissions,
             csrf_token,
             unread_notifications,
+            unread_messages,
             ..Default::default()
         }
     }
@@ -174,6 +187,10 @@ impl ClientCtx {
 
     pub fn get_unread_notifications(&self) -> i64 {
         self.0.unread_notifications
+    }
+
+    pub fn get_unread_messages(&self) -> i64 {
+        self.0.unread_messages
     }
 
     pub fn is_user(&self) -> bool {
