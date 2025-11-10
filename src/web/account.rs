@@ -36,8 +36,6 @@ async fn update_avatar(client: ClientCtx, cookies: actix_session::Session, mutip
         ));
     }
 
-    // TODO: Button to delete avatars.
-
     let mut csrf_token: Option<String> = None;
     let mut avatar_processed = false;
 
