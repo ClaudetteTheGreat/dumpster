@@ -1,9 +1,148 @@
 {% if paginator.has_pages() %}
 <nav class="paginated-nav">
-    <a href="{{ paginator.base_url }}">1</a>
-    {% for iter in paginator.get_first_pages() %}
-    {% let page = iter+1 %}
-    <a href="{{ paginator.base_url }}page-{{ page }}">{{ page }}</a>
-    {% endfor %}
+    <div class="pagination">
+        {# Previous button #}
+        {% if paginator.this_page > 1 %}
+        <a href="{% if paginator.this_page == 2 %}{{ paginator.base_url }}{% else %}{{ paginator.base_url }}page-{{ paginator.this_page - 1 }}{% endif %}" class="page-link page-link--prev">← Previous</a>
+        {% else %}
+        <span class="page-link page-link--prev page-link--disabled">← Previous</span>
+        {% endif %}
+
+        {# First page #}
+        {% if paginator.this_page == 1 %}
+        <span class="page-link page-link--current">1</span>
+        {% else %}
+        <a href="{{ paginator.base_url }}" class="page-link">1</a>
+        {% endif %}
+
+        {# First pages (pages 2-4) #}
+        {% let first_pages = paginator.get_first_pages() %}
+        {% for page in first_pages %}
+        {% if paginator.is_current_page(page) %}
+        <span class="page-link page-link--current">{{ page }}</span>
+        {% else %}
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        {% endif %}
+        {% endfor %}
+
+        {# Ellipsis before inner pages #}
+        {% match paginator.get_inner_pages() %}
+        {% when Some with (inner_pages) %}
+        {% if !inner_pages.is_empty() %}
+        <span class="page-link page-link--ellipsis">…</span>
+
+        {# Inner pages (around current page) #}
+        {% for page in inner_pages %}
+        {% if paginator.is_current_page(page) %}
+        <span class="page-link page-link--current">{{ page }}</span>
+        {% else %}
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% when None %}{% endmatch %}
+
+        {# Ellipsis before last pages #}
+        {% match paginator.get_last_pages() %}
+        {% when Some with (last_pages) %}
+        {% if !last_pages.is_empty() %}
+        <span class="page-link page-link--ellipsis">…</span>
+
+        {# Last pages #}
+        {% for page in last_pages %}
+        {% if paginator.is_current_page(page) %}
+        <span class="page-link page-link--current">{{ page }}</span>
+        {% else %}
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% when None %}{% endmatch %}
+
+        {# Next button #}
+        {% if paginator.this_page < paginator.page_count %}
+        <a href="{{ paginator.base_url }}page-{{ paginator.this_page + 1 }}" class="page-link page-link--next">Next →</a>
+        {% else %}
+        <span class="page-link page-link--next page-link--disabled">Next →</span>
+        {% endif %}
+    </div>
 </nav>
+
+<style>
+    .paginated-nav {
+        margin: 20px 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .page-link {
+        display: inline-block;
+        padding: 8px 12px;
+        text-decoration: none;
+        color: #0066cc;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        transition: background-color 0.2s, border-color 0.2s;
+        font-size: 0.9em;
+        min-width: 40px;
+        text-align: center;
+    }
+
+    .page-link:hover:not(.page-link--current):not(.page-link--disabled):not(.page-link--ellipsis) {
+        background-color: #e9ecef;
+        border-color: #adb5bd;
+    }
+
+    .page-link--current {
+        background-color: #0066cc;
+        color: white;
+        border-color: #0066cc;
+        font-weight: bold;
+        cursor: default;
+    }
+
+    .page-link--disabled {
+        color: #6c757d;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .page-link--ellipsis {
+        border: none;
+        background: none;
+        cursor: default;
+        pointer-events: none;
+        color: #6c757d;
+    }
+
+    .page-link--prev,
+    .page-link--next {
+        font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+        .pagination {
+            gap: 2px;
+        }
+
+        .page-link {
+            padding: 6px 10px;
+            font-size: 0.85em;
+            min-width: 35px;
+        }
+
+        .page-link--prev,
+        .page-link--next {
+            font-size: 0.8em;
+        }
+    }
+</style>
 {% endif %}

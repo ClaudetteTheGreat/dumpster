@@ -27,9 +27,10 @@ struct PaginatorTemplate<'a> {
 pub trait PaginatorToHtml {
     fn as_html(&self) -> String;
     fn has_pages(&self) -> bool;
-    fn get_first_pages(&self) -> Range<i32>;
-    fn get_inner_pages(&self) -> Option<Range<i32>>;
-    fn get_last_pages(&self) -> Option<Range<i32>>;
+    fn is_current_page(&self, page: &i32) -> bool;
+    fn get_first_pages(&self) -> Vec<i32>;
+    fn get_inner_pages(&self) -> Option<Vec<i32>>;
+    fn get_last_pages(&self) -> Option<Vec<i32>>;
 }
 
 impl PaginatorToHtml for Paginator {
@@ -37,8 +38,12 @@ impl PaginatorToHtml for Paginator {
         self.page_count > 1
     }
 
-    fn get_first_pages(&self) -> Range<i32> {
-        if 1 + PAGINATOR_LOOK_AHEAD < self.this_page - PAGINATOR_LOOK_AHEAD {
+    fn is_current_page(&self, page: &i32) -> bool {
+        *page == self.this_page
+    }
+
+    fn get_first_pages(&self) -> Vec<i32> {
+        let range = if 1 + PAGINATOR_LOOK_AHEAD < self.this_page - PAGINATOR_LOOK_AHEAD {
             // if 1+lookahead is less than page-lookahead, we only show page 1
             // i.e. any page starting with 6
             1..1
@@ -50,10 +55,11 @@ impl PaginatorToHtml for Paginator {
             // otherwise, just show all pages.
             // i.e. 5 of 9 is the greatest extent possible
             1..self.page_count
-        }
+        };
+        range.collect()
     }
 
-    fn get_inner_pages(&self) -> Option<Range<i32>> {
+    fn get_inner_pages(&self) -> Option<Vec<i32>> {
         // if our lookahead is gt/eq the lookbehind of the last page, we merge our cursor to the last pages
         if (1 + PAGINATOR_LOOK_AHEAD >= self.this_page - PAGINATOR_LOOK_AHEAD) ||
             // if 1+lookahead is less than page-lookahead, we only have first pages
@@ -63,20 +69,23 @@ impl PaginatorToHtml for Paginator {
         } else {
             // otherwise, show the lookahead and look behind
             // i.e. 1 .. 4 5 [6] 7 8 .. 11 (minimum number)
-            Some((self.this_page - PAGINATOR_LOOK_AHEAD)..(self.this_page + PAGINATOR_LOOK_AHEAD))
+            let range = (self.this_page - PAGINATOR_LOOK_AHEAD)..(self.this_page + PAGINATOR_LOOK_AHEAD);
+            Some(range.collect())
         }
     }
 
-    fn get_last_pages(&self) -> Option<Range<i32>> {
+    fn get_last_pages(&self) -> Option<Vec<i32>> {
         if 1 + PAGINATOR_LOOK_AHEAD >= self.this_page - PAGINATOR_LOOK_AHEAD {
             // if 1+lookahead is less than page-lookahead, we only have first pages
             None
         } else if self.this_page + PAGINATOR_LOOK_AHEAD < self.page_count - PAGINATOR_LOOK_AHEAD {
             // if our lookahead is less than the lookbehind of the last page, show the last page
-            Some(self.page_count..self.page_count)
+            let range = self.page_count..self.page_count;
+            Some(range.collect())
         } else {
             // otherwise, show from the lookbehind of the cursor to the last page.
-            Some((self.this_page - PAGINATOR_LOOK_AHEAD)..self.page_count)
+            let range = (self.this_page - PAGINATOR_LOOK_AHEAD)..self.page_count;
+            Some(range.collect())
         }
     }
 
