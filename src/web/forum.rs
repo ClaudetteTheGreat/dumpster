@@ -18,6 +18,7 @@ pub struct ForumTemplate<'a> {
     pub client: ClientCtx,
     pub forum: &'a crate::orm::forums::Model,
     pub threads: &'a Vec<ThreadForTemplate>,
+    pub breadcrumbs: Vec<super::thread::Breadcrumb>,
 }
 
 #[derive(Template)]
@@ -173,10 +174,23 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         Err(_) => Default::default(),
     };
 
+    // Build breadcrumbs
+    let breadcrumbs = vec![
+        super::thread::Breadcrumb {
+            title: "Forums".to_string(),
+            url: Some("/forums".to_string()),
+        },
+        super::thread::Breadcrumb {
+            title: forum.label.clone(),
+            url: None, // Current page, no link
+        },
+    ];
+
     Ok(ForumTemplate {
         client: client.to_owned(),
         forum: &forum,
         threads: &threads,
+        breadcrumbs,
     }
     .to_response())
 }

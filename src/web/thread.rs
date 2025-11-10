@@ -20,6 +20,13 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_thread_page);
 }
 
+/// Breadcrumb item for navigation
+#[derive(Debug, Clone)]
+pub struct Breadcrumb {
+    pub title: String,
+    pub url: Option<String>,
+}
+
 #[derive(Debug, FromQueryResult)]
 pub struct ThreadForTemplate {
     pub id: i32,
@@ -54,6 +61,7 @@ pub struct ThreadTemplate<'a> {
     pub posts: &'a Vec<(PostForTemplate, Option<UserProfile>)>,
     pub attachments: &'a HashMap<i32, Vec<AttachmentForTemplate>>,
     pub is_watching: bool,
+    pub breadcrumbs: Vec<Breadcrumb>,
 }
 
 mod filters {
@@ -160,6 +168,22 @@ async fn get_thread_and_replies_for_page(
         page_count: get_pages_in_thread(thread.post_count, posts_per_page),
     };
 
+    // Build breadcrumbs
+    let breadcrumbs = vec![
+        Breadcrumb {
+            title: "Forums".to_string(),
+            url: Some("/forums".to_string()),
+        },
+        Breadcrumb {
+            title: forum.label.clone(),
+            url: Some(format!("/forums/{}/", forum.id)),
+        },
+        Breadcrumb {
+            title: thread.title.clone(),
+            url: None, // Current page, no link
+        },
+    ];
+
     Ok(ThreadTemplate {
         client,
         forum,
@@ -168,6 +192,7 @@ async fn get_thread_and_replies_for_page(
         paginator,
         attachments: &attachments,
         is_watching,
+        breadcrumbs,
     }
     .to_response())
 }

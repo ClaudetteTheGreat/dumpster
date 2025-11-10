@@ -1,5 +1,9 @@
 {% extends "container/public.html" %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" %}
+{% endblock %}
+
 {% block content %}
 <h1>{{ forum.label }}</h1>
 <h2>Threads</h2>
