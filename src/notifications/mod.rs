@@ -4,7 +4,7 @@ pub mod dispatcher;
 pub mod types;
 
 use crate::db::get_db_pool;
-use crate::orm::{notifications, notification_preferences};
+use crate::orm::{notifications, notification_preferences, watched_threads};
 use sea_orm::{entity::*, query::*, sea_query::Expr, DbErr, Set};
 
 pub use types::NotificationType;
@@ -172,4 +172,83 @@ pub async fn get_user_notifications(
     }
 
     query.all(db).await
+}
+
+// Thread Watching Functions
+
+/// Add a thread to user's watch list
+pub async fn watch_thread(user_id: i32, thread_id: i32) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Check if already watching
+    let existing = watched_threads::Entity::find()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await?;
+
+    if existing.is_some() {
+        return Ok(()); // Already watching
+    }
+
+    // Create watch record
+    let watch = watched_threads::ActiveModel {
+        user_id: Set(user_id),
+        thread_id: Set(thread_id),
+        notify_on_reply: Set(true),
+        ..Default::default()
+    };
+
+    watch.insert(db).await?;
+    Ok(())
+}
+
+/// Remove a thread from user's watch list
+pub async fn unwatch_thread(user_id: i32, thread_id: i32) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    watched_threads::Entity::delete_many()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+/// Check if a user is watching a thread
+pub async fn is_watching_thread(user_id: i32, thread_id: i32) -> Result<bool, DbErr> {
+    let db = get_db_pool();
+
+    let watch = watched_threads::Entity::find()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await?;
+
+    Ok(watch.is_some())
+}
+
+/// Get all threads a user is watching
+pub async fn get_watched_threads(user_id: i32) -> Result<Vec<i32>, DbErr> {
+    let db = get_db_pool();
+
+    let watches = watched_threads::Entity::find()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .all(db)
+        .await?;
+
+    Ok(watches.iter().map(|w| w.thread_id).collect())
+}
+
+/// Count how many threads a user is watching
+pub async fn count_watched_threads(user_id: i32) -> Result<i64, DbErr> {
+    let db = get_db_pool();
+
+    let count = watched_threads::Entity::find()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .count(db)
+        .await?;
+
+    Ok(count as i64)
 }

@@ -2,8 +2,25 @@
 
 {% block content %}
 <div class="thread">
-    <h1>{{ thread.title }}{% match thread.subtitle %}
-        {% when Some with (subtitle) %}<span class="subtitle"> - {{subtitle}}</span>{% when None %}{% endmatch %}</h1>
+    <div class="thread-header">
+        <div class="thread-title-section">
+            <h1>{{ thread.title }}{% match thread.subtitle %}
+                {% when Some with (subtitle) %}<span class="subtitle"> - {{subtitle}}</span>{% when None %}{% endmatch %}</h1>
+        </div>
+        {% if client.is_user() %}
+        <div class="thread-actions">
+            {% if is_watching %}
+            <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
+                <button type="submit" class="watch-button">Unwatch Thread</button>
+            </form>
+            {% else %}
+            <form method="post" action="/threads/{{ thread.id }}/watch" style="display: inline;">
+                <button type="submit" class="watch-button watching">Watch Thread</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
     {{ paginator.as_html()|safe }}
 
     {% for (post, user) in posts %}
@@ -26,4 +43,45 @@
     </form>
 </div>
 {% endif %}
+
+<style>
+    .thread-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+    }
+
+    .thread-title-section {
+        flex: 1;
+    }
+
+    .thread-actions {
+        margin-left: 20px;
+        padding-top: 10px;
+    }
+
+    .watch-button {
+        padding: 8px 16px;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.2s;
+    }
+
+    .watch-button:hover {
+        background: #5a6268;
+    }
+
+    .watch-button.watching {
+        background: #4a90e2;
+    }
+
+    .watch-button.watching:hover {
+        background: #357abd;
+    }
+</style>
 {% endblock %}

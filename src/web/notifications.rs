@@ -12,7 +12,10 @@ use serde::Deserialize;
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_notifications)
         .service(mark_read)
-        .service(mark_all_read);
+        .service(mark_all_read)
+        .service(watch_thread)
+        .service(unwatch_thread)
+        .service(view_watched_threads);
 }
 
 /// Template for notification list
@@ -116,4 +119,113 @@ pub async fn mark_all_read(client: ClientCtx) -> Result<impl Responder, Error> {
     Ok(HttpResponse::Found()
         .append_header(("Location", "/notifications"))
         .finish())
+}
+
+// Thread Watching Routes
+
+/// POST /threads/{id}/watch - Watch a thread
+#[post("/threads/{id}/watch")]
+pub async fn watch_thread(
+    client: ClientCtx,
+    thread_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    notifications::watch_thread(user_id, *thread_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to the thread
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .finish())
+}
+
+/// POST /threads/{id}/unwatch - Unwatch a thread
+#[post("/threads/{id}/unwatch")]
+pub async fn unwatch_thread(
+    client: ClientCtx,
+    thread_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    notifications::unwatch_thread(user_id, *thread_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to the thread
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .finish())
+}
+
+/// Template for watched threads page
+#[derive(Template)]
+#[template(path = "watched_threads.html")]
+struct WatchedThreadsTemplate {
+    client: ClientCtx,
+    threads: Vec<WatchedThreadDisplay>,
+}
+
+/// Display struct for watched thread
+#[derive(Debug)]
+struct WatchedThreadDisplay {
+    id: i32,
+    title: String,
+    forum_id: i32,
+    forum_name: String,
+    reply_count: i32,
+    last_post_at: Option<chrono::NaiveDateTime>,
+}
+
+/// GET /watched-threads - View all watched threads
+#[get("/watched-threads")]
+pub async fn view_watched_threads(client: ClientCtx) -> Result<impl Responder, Error> {
+    use crate::orm::{forums, threads};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+
+    let user_id = client.require_login()?;
+    let db = crate::db::get_db_pool();
+
+    // Get thread IDs that user is watching
+    let watched_thread_ids = notifications::get_watched_threads(user_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if watched_thread_ids.is_empty() {
+        return Ok(WatchedThreadsTemplate {
+            client,
+            threads: vec![],
+        }
+        .to_response());
+    }
+
+    // Fetch thread details
+    let threads_result = threads::Entity::find()
+        .filter(threads::Column::Id.is_in(watched_thread_ids))
+        .find_also_related(forums::Entity)
+        .order_by_desc(threads::Column::LastPostAt)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let thread_displays: Vec<WatchedThreadDisplay> = threads_result
+        .into_iter()
+        .filter_map(|(thread, forum)| {
+            Some(WatchedThreadDisplay {
+                id: thread.id,
+                title: thread.title,
+                forum_id: thread.forum_id,
+                forum_name: forum?.label,
+                reply_count: thread.post_count,
+                last_post_at: thread.last_post_at,
+            })
+        })
+        .collect();
+
+    Ok(WatchedThreadsTemplate {
+        client,
+        threads: thread_displays,
+    }
+    .to_response())
 }

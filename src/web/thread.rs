@@ -53,6 +53,7 @@ pub struct ThreadTemplate<'a> {
     pub paginator: Paginator,
     pub posts: &'a Vec<(PostForTemplate, Option<UserProfile>)>,
     pub attachments: &'a HashMap<i32, Vec<AttachmentForTemplate>>,
+    pub is_watching: bool,
 }
 
 mod filters {
@@ -129,6 +130,15 @@ async fn get_thread_and_replies_for_page(
     let attachments =
         get_attachments_for_ugc_by_id(posts.iter().map(|p| p.0.ugc_id).collect()).await;
 
+    // Check if user is watching this thread
+    let is_watching = if let Some(user_id) = client.get_id() {
+        crate::notifications::is_watching_thread(user_id, thread_id)
+            .await
+            .unwrap_or(false)
+    } else {
+        false
+    };
+
     let paginator = Paginator {
         base_url: format!("/threads/{}/", thread_id),
         this_page: page,
@@ -142,6 +152,7 @@ async fn get_thread_and_replies_for_page(
         posts: &posts,
         paginator,
         attachments: &attachments,
+        is_watching,
     }
     .to_response())
 }
