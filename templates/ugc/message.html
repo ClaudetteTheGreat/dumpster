@@ -16,12 +16,22 @@
     <div class="message-cell message-cell--author">
         {% if let Some(user) = user %}
         {{ user.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
-        <div class="username">{{ user.get_url_token()|safe }}</div>
-        {% if let Some(post_count) = user.post_count %}
-        <div class="user-stats">
-            <span class="post-count">{{ post_count }} posts</span>
+        <div class="username">
+            {{ user.get_url_token()|safe }}
+            {% if post.user_id == thread.user_id %}
+            <span class="user-badge user-badge--op" title="Thread Starter">OP</span>
+            {% endif %}
         </div>
-        {% endif %}
+        <div class="user-info">
+            <div class="user-joined">
+                Joined: {{ user.created_at.format("%b %Y") }}
+            </div>
+            {% if let Some(post_count) = user.post_count %}
+            <div class="user-posts">
+                Posts: {{ post_count }}
+            </div>
+            {% endif %}
+        </div>
         {% else %}
         {# TODO: l10n #}
         <div class="username">Guest</div>
