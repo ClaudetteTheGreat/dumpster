@@ -36,9 +36,9 @@ pub struct ThreadForTemplate {
     pub subtitle: Option<String>,
     pub view_count: i32,
     pub post_count: i32,
-    pub first_post_id: i32,
-    pub last_post_id: i32,
-    pub last_post_at: chrono::naive::NaiveDateTime,
+    pub first_post_id: Option<i32>,
+    pub last_post_id: Option<i32>,
+    pub last_post_at: Option<chrono::naive::NaiveDateTime>,
     // join user
     pub username: Option<String>,
 }

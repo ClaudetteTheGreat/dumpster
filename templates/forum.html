@@ -30,7 +30,22 @@
                 <dd>{{ thread.view_count }}</dd>
             </dl>
         </div>
-        <div class="struct-item-cell struct-item-cell--latest"></div>
+        <div class="struct-item-cell struct-item-cell--latest">
+            {% match thread.last_post_at %}
+            {% when Some with (last_post_at) %}
+            {% match thread.last_post_id %}
+            {% when Some with (last_post_id) %}
+            <div class="latest-info">
+                <div class="latest-time">
+                    <time datetime="{{ last_post_at }}">{{ last_post_at.format("%b %d, %Y") }}</time>
+                </div>
+                <a href="/threads/{{ thread.id }}/post-{{ last_post_id }}" class="latest-link" title="Go to latest post">
+                    Latest →
+                </a>
+            </div>
+            {% when None %}{% endmatch %}
+            {% when None %}{% endmatch %}
+        </div>
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
     </div>
     {% endfor %}
@@ -46,4 +61,42 @@
     <button>Sneed</button>
 </form>
 {% endif %}
+
+<style>
+    .latest-info {
+        text-align: center;
+        font-size: 0.85em;
+    }
+
+    .latest-time {
+        color: #666;
+        margin-bottom: 5px;
+    }
+
+    .latest-link {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #28a745;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: background 0.2s;
+    }
+
+    .latest-link:hover {
+        background: #218838;
+    }
+
+    .struct-item-cell--latest {
+        min-width: 120px;
+        padding: 10px;
+    }
+
+    @media (max-width: 768px) {
+        .struct-item-cell--latest {
+            display: none;
+        }
+    }
+</style>
 {% endblock %}

@@ -10,9 +10,21 @@
         <div class="thread-title-section">
             <h1>{{ thread.title }}{% match thread.subtitle %}
                 {% when Some with (subtitle) %}<span class="subtitle"> - {{subtitle}}</span>{% when None %}{% endmatch %}</h1>
+            <div class="thread-meta">
+                <span class="thread-posts-count">{{ thread.post_count }} posts</span>
+                <span class="thread-views-count">{{ thread.view_count }} views</span>
+            </div>
         </div>
-        {% if client.is_user() %}
         <div class="thread-actions">
+            {% if thread.post_count > 1 %}
+            {% match thread.last_post_id %}
+            {% when Some with (last_post_id) %}
+            <a href="/threads/{{ thread.id }}/post-{{ last_post_id }}" class="action-button action-button--secondary" title="Go to latest post">
+                Latest Post →
+            </a>
+            {% when None %}{% endmatch %}
+            {% endif %}
+            {% if client.is_user() %}
             {% if is_watching %}
             <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
                 <button type="submit" class="watch-button">Unwatch Thread</button>
@@ -22,8 +34,8 @@
                 <button type="submit" class="watch-button watching">Watch Thread</button>
             </form>
             {% endif %}
+            {% endif %}
         </div>
-        {% endif %}
     </div>
     {{ paginator.as_html()|safe }}
 
@@ -54,15 +66,57 @@
         justify-content: space-between;
         align-items: flex-start;
         margin-bottom: 20px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
     }
 
     .thread-title-section {
         flex: 1;
     }
 
+    .thread-meta {
+        margin-top: 8px;
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .thread-meta span {
+        margin-right: 15px;
+    }
+
     .thread-actions {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
         margin-left: 20px;
         padding-top: 10px;
+    }
+
+    .action-button {
+        padding: 8px 16px;
+        background: #0066cc;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: background 0.2s;
+        display: inline-block;
+        border: none;
+        cursor: pointer;
+    }
+
+    .action-button:hover {
+        background: #0052a3;
+    }
+
+    .action-button--secondary {
+        background: #28a745;
+    }
+
+    .action-button--secondary:hover {
+        background: #218838;
     }
 
     .watch-button {
@@ -86,6 +140,22 @@
 
     .watch-button.watching:hover {
         background: #357abd;
+    }
+
+    @media (max-width: 768px) {
+        .thread-header {
+            flex-direction: column;
+        }
+
+        .thread-actions {
+            margin-left: 0;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .action-button, .watch-button {
+            flex: 1;
+        }
     }
 </style>
 {% endblock %}
