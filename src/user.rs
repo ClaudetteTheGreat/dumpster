@@ -11,6 +11,9 @@ where
     E: EntityTrait<Column = C>,
     C: IntoSimpleExpr + ColumnTrait,
 {
+    use crate::orm::posts;
+    use sea_orm::sea_query::{Expr, Func, SimpleExpr};
+
     sel.select_also(users::Entity)
         .join(
             JoinType::LeftJoin,
@@ -29,6 +32,14 @@ where
         .column_as(attachments::Column::Filename, "B_avatar_filename")
         .column_as(attachments::Column::FileHeight, "B_avatar_height")
         .column_as(attachments::Column::FileWidth, "B_avatar_width")
+        // Add post count subquery
+        .column_as(
+            Expr::cust_with_values(
+                "(SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id)",
+                std::iter::empty::<sea_orm::Value>(),
+            ),
+            "B_post_count",
+        )
 }
 
 /// A struct to hold all information for a user, including relational information.
@@ -42,6 +53,7 @@ pub struct Profile {
     pub avatar_height: Option<i32>,
     pub avatar_width: Option<i32>,
     pub posts_per_page: i32,
+    pub post_count: Option<i64>,
 }
 
 impl Profile {
@@ -50,16 +62,38 @@ impl Profile {
         db: &DatabaseConnection,
         id: i32,
     ) -> Result<Option<Self>, sea_orm::DbErr> {
-        users::Entity::find_by_id(id)
-            .left_join(user_names::Entity)
-            .column_as(user_names::Column::Name, "name")
-            .left_join(attachments::Entity)
-            .column_as(attachments::Column::Filename, "avatar_filename")
-            .column_as(attachments::Column::FileHeight, "avatar_height")
-            .column_as(attachments::Column::FileWidth, "avatar_width")
-            .into_model::<Self>()
-            .one(db)
-            .await
+        use sea_orm::{sea_query::Expr, DbBackend, Statement};
+
+        // Use raw SQL to include post count
+        let sql = r#"
+            SELECT
+                u.id,
+                un.name,
+                u.created_at,
+                u.password_cipher,
+                a.filename as avatar_filename,
+                a.file_height as avatar_height,
+                a.file_width as avatar_width,
+                u.posts_per_page,
+                COUNT(p.id) as post_count
+            FROM users u
+            LEFT JOIN user_names un ON un.user_id = u.id AND un.created_at = (
+                SELECT MAX(created_at) FROM user_names WHERE user_id = u.id
+            )
+            LEFT JOIN user_avatars ua ON ua.user_id = u.id
+            LEFT JOIN attachments a ON a.id = ua.attachment_id
+            LEFT JOIN posts p ON p.user_id = u.id
+            WHERE u.id = $1
+            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page
+        "#;
+
+        Self::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            sql,
+            vec![id.into()],
+        ))
+        .one(db)
+        .await
     }
 
     /// Provides semantically correct HTML for an avatar.

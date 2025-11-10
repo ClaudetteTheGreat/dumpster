@@ -17,6 +17,11 @@
         {% if let Some(user) = user %}
         {{ user.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
         <div class="username">{{ user.get_url_token()|safe }}</div>
+        {% if let Some(post_count) = user.post_count %}
+        <div class="user-stats">
+            <span class="post-count">{{ post_count }} posts</span>
+        </div>
+        {% endif %}
         {% else %}
         {# TODO: l10n #}
         <div class="username">Guest</div>
