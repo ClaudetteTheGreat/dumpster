@@ -15,6 +15,7 @@ pub struct Model {
     pub locked_until: Option<DateTime>,
     pub email: Option<String>,
     pub email_verified: bool,
+    pub posts_per_page: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

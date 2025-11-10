@@ -378,6 +378,7 @@ pub async fn get_replies_and_author_for_template(
     db: &DatabaseConnection,
     id: i32,
     page: i32,
+    posts_per_page: i32,
 ) -> Result<Vec<(PostForTemplate, Option<UserProfile>)>, DbErr> {
     crate::user::find_also_user(
         posts::Entity::find()
@@ -394,8 +395,8 @@ pub async fn get_replies_and_author_for_template(
     )
     .filter(posts::Column::ThreadId.eq(id))
     .filter(posts::Column::Position.between(
-        (page - 1) * super::thread::POSTS_PER_PAGE + 1,
-        page * super::thread::POSTS_PER_PAGE,
+        (page - 1) * posts_per_page + 1,
+        page * posts_per_page,
     ))
     .order_by_asc(posts::Column::Position)
     .order_by_asc(posts::Column::CreatedAt)

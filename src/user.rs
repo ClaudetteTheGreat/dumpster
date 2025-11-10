@@ -41,6 +41,7 @@ pub struct Profile {
     pub avatar_filename: Option<String>,
     pub avatar_height: Option<i32>,
     pub avatar_width: Option<i32>,
+    pub posts_per_page: i32,
 }
 
 impl Profile {

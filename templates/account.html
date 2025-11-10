@@ -33,4 +33,58 @@
     {% endmatch %}
 </div>
 
+<h2>Preferences</h2>
+
+<div class="preferences-section">
+    <form action="/account/preferences" method="post">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+
+        <div class="preference-item">
+            <label for="posts_per_page">Posts per page:</label>
+            <select name="posts_per_page" id="posts_per_page">
+                <option value="10" {% if profile.posts_per_page == 10 %}selected{% endif %}>10</option>
+                <option value="25" {% if profile.posts_per_page == 25 %}selected{% endif %}>25 (default)</option>
+                <option value="50" {% if profile.posts_per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if profile.posts_per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+            <p class="help-text">Control how many posts are displayed per page in threads.</p>
+        </div>
+
+        <button type="submit">Save Preferences</button>
+    </form>
+</div>
+
+<style>
+    .preferences-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .preference-item {
+        margin-bottom: 20px;
+    }
+
+    .preference-item label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+
+    .preference-item select {
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-width: 200px;
+    }
+
+    .help-text {
+        margin-top: 5px;
+        font-size: 0.9em;
+        color: #666;
+    }
+</style>
+
 {% endblock %}

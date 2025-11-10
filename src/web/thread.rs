@@ -62,21 +62,21 @@ mod filters {
     }
 }
 
-// TODO: Dynamic page sizing.
-pub const POSTS_PER_PAGE: i32 = 20;
+pub const DEFAULT_POSTS_PER_PAGE: i32 = 25;
 
 /// Returns which human-readable page number this position will appear in.
-pub fn get_page_for_pos(pos: i32) -> i32 {
-    ((std::cmp::max(1, pos) - 1) / POSTS_PER_PAGE) + 1
+pub fn get_page_for_pos(pos: i32, posts_per_page: i32) -> i32 {
+    ((std::cmp::max(1, pos) - 1) / posts_per_page) + 1
 }
 
-pub fn get_pages_in_thread(cnt: i32) -> i32 {
-    ((std::cmp::max(1, cnt) - 1) / POSTS_PER_PAGE) + 1
+pub fn get_pages_in_thread(cnt: i32, posts_per_page: i32) -> i32 {
+    ((std::cmp::max(1, cnt) - 1) / posts_per_page) + 1
 }
 
 /// Returns the relative URL for the thread at this position.
+/// Uses default posts per page for URL generation.
 pub fn get_url_for_pos(thread_id: i32, pos: i32) -> String {
-    let page = get_page_for_pos(pos);
+    let page = get_page_for_pos(pos, DEFAULT_POSTS_PER_PAGE);
     format!(
         "/threads/{}/{}",
         thread_id,
@@ -110,7 +110,22 @@ async fn get_thread_and_replies_for_page(
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
 
+    // Get user's posts per page preference
+    let posts_per_page = if let Some(user_id) = client.get_id() {
+        use crate::orm::users;
+        users::Entity::find_by_id(user_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten()
+            .map(|u| u.posts_per_page)
+            .unwrap_or(DEFAULT_POSTS_PER_PAGE)
+    } else {
+        DEFAULT_POSTS_PER_PAGE
+    };
+
     // Update thread to include views.
+    let db_clone = db;
     actix_web::rt::spawn(async move {
         Thread::update_many()
             .col_expr(
@@ -118,12 +133,12 @@ async fn get_thread_and_replies_for_page(
                 Expr::value(thread.view_count + 1),
             )
             .filter(threads::Column::Id.eq(thread_id))
-            .exec(db)
+            .exec(db_clone)
             .await
     });
 
     // Load posts, their ugc associations, and their living revision.
-    let posts = get_replies_and_author_for_template(db, thread_id, page)
+    let posts = get_replies_and_author_for_template(db, thread_id, page, posts_per_page)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
@@ -142,7 +157,7 @@ async fn get_thread_and_replies_for_page(
     let paginator = Paginator {
         base_url: format!("/threads/{}/", thread_id),
         this_page: page,
-        page_count: get_pages_in_thread(thread.post_count),
+        page_count: get_pages_in_thread(thread.post_count, posts_per_page),
     };
 
     Ok(ThreadTemplate {

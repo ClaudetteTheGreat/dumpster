@@ -10,6 +10,7 @@ use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(update_avatar)
         .service(delete_avatar)
+        .service(update_preferences)
         .service(view_account);
 }
 
@@ -143,6 +144,56 @@ async fn delete_avatar(
     user_avatars::Entity::delete_many()
         .filter(user_avatars::Column::UserId.eq(user_id))
         .exec(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/account"))
+        .finish())
+}
+
+#[post("/account/preferences")]
+async fn update_preferences(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: actix_web::web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::users;
+
+    let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    // Get and validate posts_per_page
+    let posts_per_page_str = form
+        .get("posts_per_page")
+        .ok_or_else(|| error::ErrorBadRequest("posts_per_page missing"))?;
+
+    let posts_per_page: i32 = posts_per_page_str
+        .parse()
+        .map_err(|_| error::ErrorBadRequest("Invalid posts_per_page value"))?;
+
+    // Validate it's one of the allowed values
+    if ![10, 25, 50, 100].contains(&posts_per_page) {
+        return Err(error::ErrorBadRequest(
+            "posts_per_page must be one of: 10, 25, 50, 100"
+        ));
+    }
+
+    // Update the user's preference
+    let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
+        .one(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?
+        .into();
+
+    user.posts_per_page = Set(posts_per_page);
+    user.update(get_db_pool())
         .await
         .map_err(error::ErrorInternalServerError)?;
 
