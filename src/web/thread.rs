@@ -307,6 +307,16 @@ pub async fn create_reply(
     let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
     crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
 
+    // Validate post size
+    let max_length = crate::constants::MAX_POST_LENGTH;
+    if content.len() > max_length {
+        return Err(error::ErrorBadRequest(format!(
+            "Post is too long. Maximum length is {} characters, but your post is {} characters.",
+            max_length,
+            content.len()
+        )));
+    }
+
     // Begin Transaction
     let db = get_db_pool();
     let txn = db.begin().await.map_err(error::ErrorInternalServerError)?;
@@ -456,6 +466,16 @@ pub fn validate_thread_form(
         return Err(error::ErrorUnprocessableEntity(
             "Threads must have a title.",
         ));
+    }
+
+    // Validate post content size
+    let max_length = crate::constants::MAX_POST_LENGTH;
+    if form.content.len() > max_length {
+        return Err(error::ErrorBadRequest(format!(
+            "Post is too long. Maximum length is {} characters, but your post is {} characters.",
+            max_length,
+            form.content.len()
+        )));
     }
 
     Ok(NewThreadFormData {

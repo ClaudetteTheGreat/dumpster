@@ -5,6 +5,7 @@ extern crate linkify;
 pub mod attachment;
 pub mod auth_2fa;
 pub mod bbcode;
+pub mod constants;
 pub mod conversations;
 pub mod create_user;
 pub mod db;
