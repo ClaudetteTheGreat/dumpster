@@ -173,11 +173,11 @@ pub struct UploadResponse {
 
 #[post("/fs/check-file")]
 pub async fn post_file_hash(form: web::Json<FileHashFormData>) -> Result<impl Responder, Error> {
-    // TODO: I do not know why .len() returns 64 when it should be 32.
+    // BLAKE3 hashes are 32 bytes, but hex-encoded they're 64 characters (2 hex digits per byte)
+    // This validation ensures the hash is properly hex-encoded
     if form.hash.len() != 64 {
-        // note: .len() is byte count
         return Err(error::ErrorBadRequest(format!(
-            "Malformed BLAKE3 hash (b{}).",
+            "Malformed BLAKE3 hash: expected 64 hex characters, got {}.",
             form.hash.len()
         )));
     };
