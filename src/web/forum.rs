@@ -29,6 +29,7 @@ pub struct ForumIndexTemplate<'a> {
 
 #[post("/forums/{forum}/post-thread")]
 pub async fn create_thread(
+    req: actix_web::HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
     form: web::Form<NewThreadFormData>,
@@ -39,6 +40,15 @@ pub async fn create_thread(
 
     // Require authentication for thread creation
     let user_id = client.require_login()?;
+
+    // Extract and store IP address for moderation
+    let ip_id = if let Some(ip_addr) = crate::ip::extract_client_ip(&req) {
+        crate::ip::get_or_create_ip_id(&ip_addr)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+    } else {
+        None
+    };
 
     // Rate limiting - prevent thread spam
     if let Err(e) = crate::rate_limit::check_thread_rate_limit(user_id) {
@@ -64,7 +74,7 @@ pub async fn create_thread(
     let revision = create_ugc(
         &txn,
         NewUgcPartial {
-            ip_id: None,
+            ip_id,
             user_id: Some(user_id),
             content: &form.content,
         },

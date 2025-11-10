@@ -14,6 +14,7 @@ pub mod ffmpeg;
 pub mod filesystem;
 pub mod global;
 pub mod group;
+pub mod ip;
 pub mod middleware;
 pub mod notifications;
 pub mod orm;

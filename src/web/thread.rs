@@ -239,6 +239,7 @@ pub async fn update_thread_after_reply_is_deleted(id: i32) -> Result<(), DbErr> 
 
 #[post("/threads/{thread_id}/post-reply")]
 pub async fn create_reply(
+    req: actix_web::HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
     path: web::Path<(i32,)>,
@@ -246,6 +247,15 @@ pub async fn create_reply(
 ) -> Result<impl Responder, Error> {
     // Require authentication for posting replies
     let authenticated_user_id = client.require_login()?;
+
+    // Extract and store IP address for moderation
+    let ip_id = if let Some(ip_addr) = crate::ip::extract_client_ip(&req) {
+        crate::ip::get_or_create_ip_id(&ip_addr)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+    } else {
+        None
+    };
 
     // Rate limiting - prevent post spam
     if let Err(e) = crate::rate_limit::check_post_rate_limit(authenticated_user_id) {
@@ -354,7 +364,7 @@ pub async fn create_reply(
     let ugc_revision = create_ugc(
         &txn,
         NewUgcPartial {
-            ip_id: None,
+            ip_id,
             user_id: Some(authenticated_user_id),
             content: &content,
         },
@@ -381,7 +391,7 @@ pub async fn create_reply(
             ugc_attachments::ActiveModel {
                 attachment_id: Set(u.1.id),
                 ugc_id: Set(ugc_revision.ugc_id),
-                ip_id: Set(None), // TODO
+                ip_id: Set(ip_id),
                 user_id: Set(ugc_revision.user_id),
                 created_at: Set(ugc_revision.created_at),
                 filename: Set(u.0.to_owned()),
