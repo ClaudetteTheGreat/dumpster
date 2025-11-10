@@ -5,10 +5,12 @@ use actix_multipart::Multipart;
 use actix_web::{error, get, post, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::Utc;
-use sea_orm::entity::*;
+use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
-    conf.service(update_avatar).service(view_account);
+    conf.service(update_avatar)
+        .service(delete_avatar)
+        .service(view_account);
 }
 
 #[derive(Template)]
@@ -112,6 +114,37 @@ async fn update_avatar(client: ClientCtx, cookies: actix_session::Session, mutip
         let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
         crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
     }
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/account"))
+        .finish())
+}
+
+#[post("/account/avatar/delete")]
+async fn delete_avatar(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: actix_web::web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::user_avatars;
+
+    let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    // Delete all avatars for this user
+    // Note: We don't delete the attachment file itself because it might be
+    // deduplicated and used by other users. Attachment cleanup should be
+    // handled by a separate garbage collection process.
+    user_avatars::Entity::delete_many()
+        .filter(user_avatars::Column::UserId.eq(user_id))
+        .exec(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?;
 
     Ok(HttpResponse::Found()
         .append_header(("Location", "/account"))
