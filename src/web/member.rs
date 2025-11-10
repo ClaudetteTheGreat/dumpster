@@ -1,13 +1,46 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{attachments, user_names, users};
+use crate::orm::{attachments, posts, threads, user_names, users};
 use crate::user::Profile as UserProfile;
 use actix_web::{error, get, web, Error, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*};
+use sea_orm::{entity::*, query::*, DatabaseConnection};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_member).service(view_members);
+}
+
+/// User statistics for profile display
+#[derive(Debug, Clone)]
+pub struct UserStatistics {
+    pub post_count: i64,
+    pub thread_count: i64,
+    pub member_since: chrono::NaiveDateTime,
+}
+
+/// Get user statistics for profile display
+async fn get_user_statistics(
+    db: &DatabaseConnection,
+    user_id: i32,
+    created_at: chrono::NaiveDateTime,
+) -> Result<UserStatistics, sea_orm::DbErr> {
+    // Count posts by this user
+    let post_count = posts::Entity::find()
+        .filter(posts::Column::UserId.eq(user_id))
+        .count(db)
+        .await?;
+
+    // Count threads created by this user
+    let thread_count = threads::Entity::find()
+        .filter(threads::Column::UserId.eq(user_id))
+        .count(db)
+        .await?;
+
+    Ok(UserStatistics {
+        post_count: post_count as i64,
+        thread_count: thread_count as i64,
+        member_since: created_at,
+    })
 }
 
 #[get("/members/{user_id}/")]
@@ -20,11 +53,13 @@ pub async fn view_member(
     pub struct MemberTemplate {
         pub client: ClientCtx,
         pub user: UserProfile,
+        pub stats: UserStatistics,
     }
 
     let user_id = path.into_inner().0;
+    let db = get_db_pool();
 
-    match users::Entity::find_by_id(user_id)
+    let user = users::Entity::find_by_id(user_id)
         .left_join(user_names::Entity)
         .column_as(user_names::Column::Name, "name")
         .left_join(attachments::Entity)
@@ -32,18 +67,28 @@ pub async fn view_member(
         .column_as(attachments::Column::FileHeight, "avatar_height")
         .column_as(attachments::Column::FileWidth, "avatar_width")
         .into_model::<UserProfile>()
-        .one(get_db_pool())
+        .one(db)
         .await
-    {
-        Ok(user) => match user {
-            Some(user) => Ok(MemberTemplate { client, user }.to_response()),
-            None => Err(error::ErrorNotFound("User not found.")),
-        },
-        Err(e) => {
+        .map_err(|e| {
             log::error!("error {:?}", e);
-            Err(error::ErrorInternalServerError("Couldn't load user."))
-        }
+            error::ErrorInternalServerError("Couldn't load user.")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found."))?;
+
+    // Get user statistics
+    let stats = get_user_statistics(db, user_id, user.created_at)
+        .await
+        .map_err(|e| {
+            log::error!("error getting user stats: {:?}", e);
+            error::ErrorInternalServerError("Couldn't load user statistics.")
+        })?;
+
+    Ok(MemberTemplate {
+        client,
+        user,
+        stats,
     }
+    .to_response())
 }
 
 #[get("/members")]
