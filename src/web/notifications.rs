@@ -15,7 +15,9 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(mark_all_read)
         .service(watch_thread)
         .service(unwatch_thread)
-        .service(view_watched_threads);
+        .service(view_watched_threads)
+        .service(view_preferences)
+        .service(update_preferences);
 }
 
 /// Template for notification list
@@ -228,4 +230,67 @@ pub async fn view_watched_threads(client: ClientCtx) -> Result<impl Responder, E
         threads: thread_displays,
     }
     .to_response())
+}
+
+// Notification Preference Routes
+
+/// Template for notification preferences page
+#[derive(Template)]
+#[template(path = "notification_preferences.html")]
+struct NotificationPreferencesTemplate {
+    client: ClientCtx,
+    preferences: Vec<notifications::NotificationPreferenceDisplay>,
+}
+
+/// Form data for updating preferences
+#[derive(Deserialize)]
+struct PreferenceUpdateForm {
+    notification_type: String,
+    in_app: Option<String>,
+    email: Option<String>,
+    frequency: String,
+}
+
+/// GET /notifications/preferences - View notification preferences
+#[get("/notifications/preferences")]
+pub async fn view_preferences(client: ClientCtx) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    let preferences = notifications::get_all_user_preferences(user_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(NotificationPreferencesTemplate {
+        client,
+        preferences,
+    }
+    .to_response())
+}
+
+/// POST /notifications/preferences - Update notification preferences
+#[post("/notifications/preferences")]
+pub async fn update_preferences(
+    client: ClientCtx,
+    form: web::Form<PreferenceUpdateForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Convert checkbox values (Some("on") or None) to boolean
+    let in_app = form.in_app.is_some();
+    let email = form.email.is_some();
+
+    notifications::update_preference(
+        user_id,
+        &form.notification_type,
+        in_app,
+        email,
+        &form.frequency,
+    )
+    .await
+    .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to preferences page
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/notifications/preferences"))
+        .finish())
 }

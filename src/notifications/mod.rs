@@ -252,3 +252,96 @@ pub async fn count_watched_threads(user_id: i32) -> Result<i64, DbErr> {
 
     Ok(count as i64)
 }
+
+// Notification Preference Management
+
+/// Preference display model
+#[derive(Debug, Clone)]
+pub struct NotificationPreferenceDisplay {
+    pub notification_type: String,
+    pub type_label: String,
+    pub type_description: String,
+    pub in_app: bool,
+    pub email: bool,
+    pub frequency: String,
+}
+
+/// Get all notification preferences for a user
+pub async fn get_all_user_preferences(
+    user_id: i32,
+) -> Result<Vec<NotificationPreferenceDisplay>, DbErr> {
+    let db = get_db_pool();
+
+    // Get all existing preferences for this user
+    let prefs = notification_preferences::Entity::find()
+        .filter(notification_preferences::Column::UserId.eq(user_id))
+        .all(db)
+        .await?;
+
+    // Convert to display models with labels
+    let mut displays = Vec::new();
+
+    // Define all notification types with labels
+    let notification_types = vec![
+        ("reply", "Thread Replies", "Someone replies to your thread"),
+        ("mention", "Mentions", "Someone mentions you with @username"),
+        ("pm", "Private Messages", "Someone sends you a private message"),
+        ("quote", "Quotes", "Someone quotes your post"),
+        ("thread_watch", "Watched Threads", "New replies in threads you're watching"),
+    ];
+
+    for (type_str, label, description) in notification_types {
+        // Find existing preference or use defaults
+        let pref = prefs.iter().find(|p| p.notification_type == type_str);
+
+        displays.push(NotificationPreferenceDisplay {
+            notification_type: type_str.to_string(),
+            type_label: label.to_string(),
+            type_description: description.to_string(),
+            in_app: pref.map(|p| p.in_app).unwrap_or(true),
+            email: pref.map(|p| p.email).unwrap_or(true),
+            frequency: pref.map(|p| p.frequency.clone()).unwrap_or_else(|| "immediate".to_string()),
+        });
+    }
+
+    Ok(displays)
+}
+
+/// Update a user's notification preference
+pub async fn update_preference(
+    user_id: i32,
+    notification_type: &str,
+    in_app: bool,
+    email: bool,
+    frequency: &str,
+) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Check if preference exists
+    let existing = notification_preferences::Entity::find()
+        .filter(notification_preferences::Column::UserId.eq(user_id))
+        .filter(notification_preferences::Column::NotificationType.eq(notification_type))
+        .one(db)
+        .await?;
+
+    if let Some(pref) = existing {
+        // Update existing preference
+        let mut active: notification_preferences::ActiveModel = pref.into();
+        active.in_app = Set(in_app);
+        active.email = Set(email);
+        active.frequency = Set(frequency.to_string());
+        active.update(db).await?;
+    } else {
+        // Create new preference
+        let new_pref = notification_preferences::ActiveModel {
+            user_id: Set(user_id),
+            notification_type: Set(notification_type.to_string()),
+            in_app: Set(in_app),
+            email: Set(email),
+            frequency: Set(frequency.to_string()),
+        };
+        new_pref.insert(db).await?;
+    }
+
+    Ok(())
+}
