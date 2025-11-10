@@ -218,9 +218,19 @@ impl ClientCtx {
     }
 
     pub fn can_read_post(&self, post: &crate::web::post::PostForTemplate) -> bool {
-        // TODO: In XenForo, users cannot view their own deleted posts.
-        // This should be a moderator setting. Maybe a 'can view own deleted posts' option.
-        post.deleted_at.is_none() || self.get_id() == post.user_id
+        if post.deleted_at.is_none() {
+            // Post is not deleted, everyone can see it
+            return true;
+        }
+
+        // Post is deleted - check if user can view it
+        if crate::constants::ALLOW_VIEW_OWN_DELETED {
+            // Allow authors to see their own deleted posts
+            self.get_id() == post.user_id
+        } else {
+            // Nobody can see deleted posts (except moderators in the future)
+            false
+        }
     }
 
     pub fn get_nonce(&self) -> &String {

@@ -10,3 +10,9 @@ pub const MAX_POST_LENGTH: usize = 50_000;
 /// Maximum length for moderator posts in characters
 /// Moderators can create longer posts for announcements and documentation.
 pub const MAX_POST_LENGTH_MODERATOR: usize = 100_000;
+
+/// Whether users can view their own deleted posts
+/// When false, deleted posts are hidden from everyone including the author
+/// When true, authors can still see their own deleted posts
+/// This affects the can_read_post permission check
+pub const ALLOW_VIEW_OWN_DELETED: bool = false;

@@ -1,4 +1,17 @@
-{% if client.can_read_post(post) %}
+{% if post.deleted_at.is_some() && !client.can_read_post(post) %}
+{# Post is deleted and user cannot read it - show placeholder #}
+<div class="message message--deleted">
+    <div class="message-cell message-cell--author">
+        <div class="username">[Deleted]</div>
+    </div>
+    <div class="message-cell message-cell--main">
+        <div class="message-holder">
+            <em>This post has been deleted.</em>
+        </div>
+    </div>
+</div>
+{% else if client.can_read_post(post) %}
+{# User can read this post #}
 <div class="message">
     <div class="message-cell message-cell--author">
         {% if let Some(user) = user %}
@@ -54,7 +67,12 @@
         {% endif %}
         {% else %}
         <div class="message-holder">
-            This message was deleted.
+            <em>This message was deleted.</em>
+            {% if let Some(deleted_at) = post.deleted_at %}
+            <div style="font-size: 0.9em; color: #666; margin-top: 5px;">
+                Deleted on {{ deleted_at.format("%v %r") }}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>
