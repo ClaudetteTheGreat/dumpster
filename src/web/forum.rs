@@ -1,10 +1,10 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{posts, threads, user_names};
+use crate::orm::{forums, posts, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*, sea_query::Expr};
+use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
@@ -21,11 +21,22 @@ pub struct ForumTemplate<'a> {
     pub breadcrumbs: Vec<super::thread::Breadcrumb>,
 }
 
+#[derive(Debug, FromQueryResult)]
+pub struct ForumWithStats {
+    pub id: i32,
+    pub label: String,
+    pub description: Option<String>,
+    pub last_post_id: Option<i32>,
+    pub last_thread_id: Option<i32>,
+    pub thread_count: i64,
+    pub post_count: i64,
+}
+
 #[derive(Template)]
 #[template(path = "forums.html")]
 pub struct ForumIndexTemplate<'a> {
     pub client: ClientCtx,
-    pub forums: &'a Vec<crate::orm::forums::Model>,
+    pub forums: &'a Vec<ForumWithStats>,
 }
 
 #[post("/forums/{forum}/post-thread")]
@@ -201,12 +212,35 @@ pub async fn view_forums(client: ClientCtx) -> Result<impl Responder, Error> {
 }
 
 pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Error> {
-    use crate::orm::forums;
+    use sea_orm::sea_query::{Alias, Expr as SeaExpr, Query};
+    use sea_orm::{DbBackend, Statement};
 
-    let forums = match forums::Entity::find().all(get_db_pool()).await {
-        Ok(forums) => forums,
-        Err(_) => Default::default(),
-    };
+    let db = get_db_pool();
+
+    // Query forums with thread and post counts using subqueries
+    let sql = r#"
+        SELECT
+            f.id,
+            f.label,
+            f.description,
+            f.last_post_id,
+            f.last_thread_id,
+            COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
+            COALESCE(COUNT(DISTINCT p.id), 0) as post_count
+        FROM forums f
+        LEFT JOIN threads t ON t.forum_id = f.id
+        LEFT JOIN posts p ON p.thread_id = t.id
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id
+        ORDER BY f.id
+    "#;
+
+    let forums = ForumWithStats::find_by_statement(Statement::from_string(
+        DbBackend::Postgres,
+        sql.to_string(),
+    ))
+    .all(db)
+    .await
+    .unwrap_or_default();
 
     Ok(ForumIndexTemplate {
         client: client.to_owned(),

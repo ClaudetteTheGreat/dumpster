@@ -1,33 +1,120 @@
 {% extends "container/public.html" %}
 
 {% block content %}
+<h1>Forums</h1>
 <div class="struct-container">
     {% if forums.len() > 0 %}
     {% for forum in forums %}
     <div class="struct-item struct-item--forum" data-id="{{ forum.id }}">
-        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart"></div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <span class="forum-icon">📁</span>
+        </div>
         <div class="struct-item-cell struct-item-cell--main">
-            <a href="/forums/{{ forum.id }}/">{{ forum.label }}</a><br />
-            {% if let Some(description) = forum.description %}{{ description }}<br />{% endif %}
+            <div class="forum-title">
+                <a href="/forums/{{ forum.id }}/">{{ forum.label }}</a>
+            </div>
+            {% if let Some(description) = forum.description %}
+            <div class="forum-description">{{ description }}</div>
+            {% endif %}
         </div>
-        {#
-        <div class="struct-item-cell struct-item-cell--meta">
+        <div class="struct-item-cell struct-item-cell--stats">
             <dl>
-                <dt>Replies:</dt>
-                <dd>{{ thread.post_count }}</dd>
+                <dt>Threads:</dt>
+                <dd>{{ forum.thread_count }}</dd>
             </dl>
             <dl>
-                <dt>Views:</dt>
-                <dd>{{ thread.view_count }}</dd>
+                <dt>Posts:</dt>
+                <dd>{{ forum.post_count }}</dd>
             </dl>
         </div>
-        #}
-        <div class="struct-item-cell struct-item-cell--latest"></div>
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
     </div>
     {% endfor %}
     {% else %}
-    No forums available.
+    <div class="no-forums">No forums available.</div>
     {% endif %}
 </div>
+
+<style>
+    h1 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .forum-icon {
+        font-size: 2em;
+        display: block;
+        text-align: center;
+    }
+
+    .forum-title {
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+
+    .forum-title a {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .forum-title a:hover {
+        text-decoration: underline;
+    }
+
+    .forum-description {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 4px;
+    }
+
+    .struct-item-cell--stats {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        padding: 10px 15px;
+        min-width: 150px;
+    }
+
+    .struct-item-cell--stats dl {
+        margin: 0;
+        text-align: center;
+    }
+
+    .struct-item-cell--stats dt {
+        font-size: 0.75em;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+
+    .struct-item-cell--stats dd {
+        margin: 0;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .no-forums {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+        .struct-item-cell--stats {
+            display: none;
+        }
+
+        .forum-icon {
+            font-size: 1.5em;
+        }
+
+        .forum-title {
+            font-size: 1em;
+        }
+    }
+</style>
 {% endblock %}
