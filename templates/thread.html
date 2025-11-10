@@ -8,8 +8,12 @@
 <div class="thread">
     <div class="thread-header">
         <div class="thread-title-section">
-            <h1>{{ thread.title }}{% match thread.subtitle %}
-                {% when Some with (subtitle) %}<span class="subtitle"> - {{subtitle}}</span>{% when None %}{% endmatch %}</h1>
+            <h1>
+                {% if thread.is_pinned %}<span class="thread-badge thread-badge--pinned">📌 Pinned</span>{% endif %}
+                {% if thread.is_locked %}<span class="thread-badge thread-badge--locked">🔒 Locked</span>{% endif %}
+                {{ thread.title }}{% match thread.subtitle %}
+                {% when Some with (subtitle) %}<span class="subtitle"> - {{subtitle}}</span>{% when None %}{% endmatch %}
+            </h1>
             <div class="thread-meta">
                 <span class="thread-posts-count">{{ thread.post_count }} posts</span>
                 <span class="thread-views-count">{{ thread.view_count }} views</span>
@@ -37,6 +41,42 @@
             {% endif %}
         </div>
     </div>
+
+    {% if client.can("moderate.thread.lock") || client.can("moderate.thread.pin") %}
+    <div class="moderation-tools">
+        <h3>Moderation Tools</h3>
+        <div class="moderation-buttons">
+            {% if client.can("moderate.thread.lock") %}
+            {% if thread.is_locked %}
+            <form method="post" action="/admin/threads/{{ thread.id }}/unlock" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <button type="submit" class="mod-button mod-button--unlock">Unlock Thread</button>
+            </form>
+            {% else %}
+            <form method="post" action="/admin/threads/{{ thread.id }}/lock" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <button type="submit" class="mod-button mod-button--lock">Lock Thread</button>
+            </form>
+            {% endif %}
+            {% endif %}
+
+            {% if client.can("moderate.thread.pin") %}
+            {% if thread.is_pinned %}
+            <form method="post" action="/admin/threads/{{ thread.id }}/unpin" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <button type="submit" class="mod-button mod-button--unpin">Unpin Thread</button>
+            </form>
+            {% else %}
+            <form method="post" action="/admin/threads/{{ thread.id }}/pin" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <button type="submit" class="mod-button mod-button--pin">Pin Thread</button>
+            </form>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     {{ paginator.as_html()|safe }}
 
     {% for (post, user) in posts %}
@@ -74,6 +114,26 @@
 
     .thread-title-section {
         flex: 1;
+    }
+
+    .thread-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        font-size: 0.75em;
+        font-weight: bold;
+        border-radius: 4px;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    .thread-badge--pinned {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .thread-badge--locked {
+        background: #dc3545;
+        color: white;
     }
 
     .thread-meta {
@@ -140,6 +200,69 @@
 
     .watch-button.watching:hover {
         background: #357abd;
+    }
+
+    .moderation-tools {
+        margin: 20px 0;
+        padding: 15px;
+        background: #fff8dc;
+        border: 2px solid #daa520;
+        border-radius: 8px;
+    }
+
+    .moderation-tools h3 {
+        margin: 0 0 10px 0;
+        color: #856404;
+        font-size: 1em;
+    }
+
+    .moderation-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .mod-button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.2s;
+        color: white;
+    }
+
+    .mod-button--lock {
+        background: #dc3545;
+    }
+
+    .mod-button--lock:hover {
+        background: #c82333;
+    }
+
+    .mod-button--unlock {
+        background: #28a745;
+    }
+
+    .mod-button--unlock:hover {
+        background: #218838;
+    }
+
+    .mod-button--pin {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .mod-button--pin:hover {
+        background: #e0a800;
+    }
+
+    .mod-button--unpin {
+        background: #6c757d;
+    }
+
+    .mod-button--unpin:hover {
+        background: #5a6268;
     }
 
     @media (max-width: 768px) {
