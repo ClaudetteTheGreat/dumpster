@@ -321,7 +321,7 @@ pub async fn create_reply(
                     }
                     "content" => {
                         // Stream multipart data to string.
-                        // TODO: Cap this at a config option for post size.
+                        // Note: Post size is validated after reading (see validation below)
                         let mut buf: Vec<u8> = Vec::with_capacity(65536);
 
                         while let Some(chunk) = field.next().await {
