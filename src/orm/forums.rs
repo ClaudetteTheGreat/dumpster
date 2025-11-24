@@ -13,6 +13,8 @@ pub struct Model {
     pub description: Option<String>,
     pub last_post_id: Option<i32>,
     pub last_thread_id: Option<i32>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub rules: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

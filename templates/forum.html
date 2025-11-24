@@ -6,6 +6,16 @@
 
 {% block content %}
 <h1>{{ forum.label }}</h1>
+
+{% if let Some(rules) = forum.rules %}
+<div class="forum-rules">
+    <h3>📋 Forum Rules</h3>
+    <div class="forum-rules-content">
+        {{ rules }}
+    </div>
+</div>
+{% endif %}
+
 <h2>Threads</h2>
 <div class="struct-container">
     {% for thread in threads %}
@@ -67,6 +77,49 @@
 {% endif %}
 
 <style>
+    .forum-rules {
+        background-color: #fff3cd;
+        border: 2px solid #ffc107;
+        border-radius: 6px;
+        padding: 20px;
+        margin: 20px 0;
+    }
+
+    .forum-rules h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #856404;
+        font-size: 1.2em;
+    }
+
+    .forum-rules-content {
+        color: #333;
+        line-height: 1.6;
+    }
+
+    .forum-rules-content ul,
+    .forum-rules-content ol {
+        margin: 10px 0;
+        padding-left: 25px;
+    }
+
+    .forum-rules-content li {
+        margin: 5px 0;
+    }
+
+    html.dark .forum-rules {
+        background-color: #3a3a1a;
+        border-color: #8a7700;
+    }
+
+    html.dark .forum-rules h3 {
+        color: #ffc107;
+    }
+
+    html.dark .forum-rules-content {
+        color: #e0e0e0;
+    }
+
     .thread-title-with-badges {
         display: inline-flex;
         align-items: center;
