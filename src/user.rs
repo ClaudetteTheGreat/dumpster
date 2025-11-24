@@ -53,6 +53,7 @@ pub struct Profile {
     pub avatar_width: Option<i32>,
     pub posts_per_page: i32,
     pub post_count: Option<i64>,
+    pub theme: String,
 }
 
 impl Profile {
@@ -74,14 +75,15 @@ impl Profile {
                 a.file_height as avatar_height,
                 a.file_width as avatar_width,
                 u.posts_per_page,
-                COUNT(p.id) as post_count
+                COUNT(p.id) as post_count,
+                u.theme
             FROM users u
             LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
             LEFT JOIN posts p ON p.user_id = u.id
             WHERE u.id = $1
-            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page
+            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme
         "#;
 
         Self::find_by_statement(Statement::from_sql_and_values(

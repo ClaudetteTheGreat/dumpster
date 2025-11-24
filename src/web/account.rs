@@ -182,7 +182,19 @@ async fn update_preferences(
         ));
     }
 
-    // Update the user's preference
+    // Get and validate theme
+    let theme = form
+        .get("theme")
+        .ok_or_else(|| error::ErrorBadRequest("theme missing"))?;
+
+    // Validate it's one of the allowed values
+    if !["light", "dark", "auto"].contains(&theme.as_str()) {
+        return Err(error::ErrorBadRequest(
+            "theme must be one of: light, dark, auto"
+        ));
+    }
+
+    // Update the user's preferences
     let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
         .one(get_db_pool())
         .await
@@ -191,6 +203,7 @@ async fn update_preferences(
         .into();
 
     user.posts_per_page = Set(posts_per_page);
+    user.theme = Set(theme.to_string());
     user.update(get_db_pool())
         .await
         .map_err(error::ErrorInternalServerError)?;

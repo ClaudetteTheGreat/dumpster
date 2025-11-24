@@ -43,6 +43,7 @@ pub async fn create_test_user(
         email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
         posts_per_page: Set(25),
+        theme: Set("light".to_string()),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -86,6 +87,7 @@ pub async fn create_test_user_with_email(
         email: Set(Some(email.to_string())),
         email_verified: Set(email_verified),
         posts_per_page: Set(25),
+        theme: Set("light".to_string()),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -159,6 +161,7 @@ pub async fn create_locked_test_user(
         email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
         posts_per_page: Set(25),
+        theme: Set("light".to_string()),
         ..Default::default()
     };
     let user = user.insert(db).await?;

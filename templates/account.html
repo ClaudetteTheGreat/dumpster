@@ -50,6 +50,16 @@
             <p class="help-text">Control how many posts are displayed per page in threads.</p>
         </div>
 
+        <div class="preference-item">
+            <label for="theme">Theme:</label>
+            <select name="theme" id="theme">
+                <option value="light" {% if profile.theme == "light" %}selected{% endif %}>☀️ Light</option>
+                <option value="dark" {% if profile.theme == "dark" %}selected{% endif %}>🌙 Dark</option>
+                <option value="auto" {% if profile.theme == "auto" %}selected{% endif %}>🔄 Auto (follow system)</option>
+            </select>
+            <p class="help-text">Choose your preferred color theme for the forum.</p>
+        </div>
+
         <button type="submit">Save Preferences</button>
     </form>
 </div>

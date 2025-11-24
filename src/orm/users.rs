@@ -16,6 +16,7 @@ pub struct Model {
     pub email: Option<String>,
     pub email_verified: bool,
     pub posts_per_page: i32,
+    pub theme: String,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

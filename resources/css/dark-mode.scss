@@ -1,0 +1,263 @@
+// Dark mode styles
+// Applied when html.dark class is present
+
+html.dark {
+    // Color variables for dark mode
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #808080;
+    --border-color: #404040;
+    --link-color: #66b3ff;
+    --link-hover: #99ccff;
+    --button-bg: #404040;
+    --button-hover: #505050;
+    --header-bg: #222;
+    --footer-bg: #1a1a1a;
+    --code-bg: #2d2d2d;
+    --quote-bg: #2a2a2a;
+    --quote-border: #505050;
+    --notification-badge-bg: #ff5555;
+
+    // Base styles
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+
+    body {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    // Links
+    a {
+        color: var(--link-color);
+
+        &:hover {
+            color: var(--link-hover);
+        }
+    }
+
+    // Header
+    header {
+        background-color: var(--header-bg);
+        border-bottom: 1px solid var(--border-color);
+
+        .brand {
+            color: var(--text-primary);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+
+            &:hover {
+                color: var(--text-primary);
+                background-color: var(--bg-tertiary);
+            }
+        }
+
+        .username {
+            color: var(--text-primary);
+        }
+    }
+
+    // Footer
+    footer {
+        background-color: var(--footer-bg);
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border-color);
+    }
+
+    // Containers
+    .struct-container {
+        background-color: var(--bg-primary);
+    }
+
+    .struct-item {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-color);
+
+        &:hover {
+            background-color: var(--bg-tertiary);
+        }
+    }
+
+    // Forms
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="search"],
+    textarea,
+    select {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+
+        &:focus {
+            background-color: var(--bg-tertiary);
+            border-color: var(--link-color);
+        }
+    }
+
+    button,
+    input[type="submit"],
+    .button {
+        background-color: var(--button-bg);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+
+        &:hover {
+            background-color: var(--button-hover);
+        }
+    }
+
+    // Tables
+    table {
+        border-color: var(--border-color);
+
+        th {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        td {
+            border-color: var(--border-color);
+        }
+
+        tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+    }
+
+    // Code blocks
+    code,
+    pre {
+        background-color: var(--code-bg);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+    }
+
+    // Quotes
+    blockquote {
+        background-color: var(--quote-bg);
+        border-left-color: var(--quote-border);
+        color: var(--text-secondary);
+    }
+
+    // Messages/Posts
+    .message-cell {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-color);
+    }
+
+    .message-userBlock {
+        background-color: var(--bg-tertiary);
+        border-color: var(--border-color);
+    }
+
+    .message-body {
+        color: var(--text-primary);
+    }
+
+    // Preferences section
+    .preferences-section {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-color);
+    }
+
+    // Help text
+    .help-text {
+        color: var(--text-muted);
+    }
+
+    // Forum description
+    .forum-description {
+        color: var(--text-secondary);
+    }
+
+    // Thread meta
+    .thread-meta,
+    .post-meta {
+        color: var(--text-secondary);
+    }
+
+    // Notification badge
+    .notification-badge {
+        background-color: var(--notification-badge-bg);
+        color: white;
+    }
+
+    // Pagination
+    .pagination {
+        .page-link {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+
+            &:hover {
+                background-color: var(--bg-tertiary);
+            }
+
+            &.active {
+                background-color: var(--link-color);
+                color: white;
+            }
+        }
+    }
+
+    // Stats
+    .struct-item-cell--stats {
+        dt {
+            color: var(--text-muted);
+        }
+
+        dd {
+            color: var(--text-primary);
+        }
+    }
+
+    // Recent nav
+    .recent-nav-link {
+        color: var(--text-secondary);
+
+        &:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        &.active {
+            color: var(--link-color);
+            border-bottom-color: var(--link-color);
+        }
+    }
+
+    // Post preview
+    .post-preview {
+        background-color: var(--bg-tertiary);
+        border-left-color: var(--border-color);
+        color: var(--text-secondary);
+    }
+
+    // View post button
+    .view-post-btn {
+        background-color: var(--link-color);
+        color: white;
+
+        &:hover {
+            background-color: var(--link-hover);
+        }
+    }
+
+    // No content messages
+    .no-content,
+    .no-forums,
+    .no-threads {
+        color: var(--text-muted);
+    }
+
+    // Headings
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary);
+    }
+}

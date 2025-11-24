@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="no-js">
+<html lang="en" class="no-js" data-theme="{% if let Some(user) = client.get_user() %}{{ user.theme }}{% else %}light{% endif %}">
 
 <head>
     {% block head %}
@@ -12,6 +12,27 @@
     <script type="module" nonce="{{ client.get_nonce() }}">
         document.documentElement.classList.remove('no-js');
         document.documentElement.classList.add('js');
+
+        // Apply theme based on user preference
+        function applyTheme() {
+            const theme = document.documentElement.dataset.theme || 'light';
+            if (theme === 'auto') {
+                // Use system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', prefersDark);
+            } else {
+                document.documentElement.classList.toggle('dark', theme === 'dark');
+            }
+        }
+
+        applyTheme();
+
+        // Listen for system theme changes when in auto mode
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (document.documentElement.dataset.theme === 'auto') {
+                applyTheme();
+            }
+        });
     </script>
 
     {% block stylesheets %}
