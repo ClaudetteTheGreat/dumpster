@@ -11,8 +11,7 @@ where
     E: EntityTrait<Column = C>,
     C: IntoSimpleExpr + ColumnTrait,
 {
-    use crate::orm::posts;
-    use sea_orm::sea_query::{Expr, Func, SimpleExpr};
+    use sea_orm::sea_query::Expr;
 
     sel.select_also(users::Entity)
         .join(
@@ -62,7 +61,7 @@ impl Profile {
         db: &DatabaseConnection,
         id: i32,
     ) -> Result<Option<Self>, sea_orm::DbErr> {
-        use sea_orm::{sea_query::Expr, DbBackend, Statement};
+        use sea_orm::{DbBackend, Statement};
 
         // Use raw SQL to include post count
         let sql = r#"
