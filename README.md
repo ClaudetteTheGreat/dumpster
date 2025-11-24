@@ -86,6 +86,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 
 ### Forum Features
 - **Forum Statistics** - Thread and post counts displayed on forum index
+- **Forum Rules Display** - Optional forum-specific rules displayed at the top of each forum in a highlighted box
 - **Thread Status Badges** - Visual indicators for pinned (📌) and locked (🔒) threads
 - **Thread Metadata** - Post count and view count displayed in thread headers
 - **Latest Activity** - Timestamp and link to latest post in forum thread listings
@@ -103,6 +104,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **User Avatars** - Avatar display with multiple size options (S/M/L)
 
 ### Thread Features
+- **Thread Prefixes** - Categorize threads with prefixes like [SOLVED], [QUESTION], [DISCUSSION] displayed as badges
 - **Watch Threads** - Subscribe to threads for notifications on new posts
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
@@ -112,6 +114,14 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - All UI components are mobile-friendly with appropriate breakpoints
 - Statistics and metadata hidden on mobile for cleaner layout
 - Touch-friendly button sizes and spacing
+
+### User Preferences & Customization
+- **Dark Mode** - Toggle between light, dark, and auto (system preference) themes
+  - Persistent theme preference stored per user
+  - Real-time theme switching without page reload
+  - Comprehensive dark mode styling for all UI components
+  - Auto mode respects operating system dark mode preference
+- **Posts Per Page** - Configurable pagination (10, 25, 50, or 100 posts per page)
 
 ## Communication & Notifications
 
