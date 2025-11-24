@@ -25,6 +25,7 @@
             <div class="thread-title-with-badges">
                 {% if thread.is_pinned %}<span class="thread-badge thread-badge--pinned">📌</span>{% endif %}
                 {% if thread.is_locked %}<span class="thread-badge thread-badge--locked">🔒</span>{% endif %}
+                {% if let Some(prefix) = thread.prefix %}<span class="thread-prefix">{{ prefix }}</span>{% endif %}
                 <a href="/threads/{{ thread.id }}/">{{ thread.title }}</a>
             </div><br />
             {% if let Some(subtitle) = thread.subtitle %}{{ subtitle }}<br />{% endif %}
@@ -143,6 +144,22 @@
     .thread-badge--locked {
         background: #dc3545;
         color: white;
+    }
+
+    .thread-prefix {
+        display: inline-block;
+        padding: 3px 8px;
+        font-size: 0.75em;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-radius: 3px;
+        background: #6c757d;
+        color: white;
+        letter-spacing: 0.5px;
+    }
+
+    html.dark .thread-prefix {
+        background: #555;
     }
 
     .latest-info {

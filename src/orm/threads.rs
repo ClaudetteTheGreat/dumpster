@@ -22,6 +22,7 @@ pub struct Model {
     pub is_locked: bool,
     pub is_pinned: bool,
     pub is_announcement: bool,
+    pub prefix: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

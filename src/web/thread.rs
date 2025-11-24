@@ -41,6 +41,7 @@ pub struct ThreadForTemplate {
     pub last_post_at: Option<chrono::naive::NaiveDateTime>,
     pub is_locked: bool,
     pub is_pinned: bool,
+    pub prefix: Option<String>,
     // join user
     pub username: Option<String>,
 }
