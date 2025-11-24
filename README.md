@@ -57,13 +57,16 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **28 integration tests** covering:
+- **44 integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
   - 3 CSRF protection tests
   - 7 rate limiting tests
+  - 9 notification tests
+  - 7 notification preferences tests
 - **Test infrastructure** - Comprehensive test utilities and fixtures
+- **Test database** - Isolated test database with full migration support
 
 ### Additional Security
 - **Permission system** - Bitflag-based permissions with group hierarchy
@@ -71,6 +74,64 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Soft deletion** - Content is marked deleted, not removed (UGC system)
 - **SQL injection prevention** - Using SeaORM with parameterized queries
 - **XSS prevention** - Template auto-escaping via Askama
+- **IP address tracking** - IP tracking for all posts and threads for moderation purposes
+
+## User Interface & Experience
+
+### Navigation & Discoverability
+- **Breadcrumb Navigation** - Hierarchical navigation (Home → Forums → Forum → Thread)
+- **Latest Post Navigation** - Quick jump to most recent post from thread header and forum listings
+- **Enhanced Pagination** - Previous/Next buttons, current page highlighting, smart ellipsis (1 2 3 ... 8 [9] 10 ... 15)
+- **Jump to Post** - Direct linking to specific posts with `/threads/{id}/post-{post_id}`
+
+### Forum Features
+- **Forum Statistics** - Thread and post counts displayed on forum index
+- **Thread Status Badges** - Visual indicators for pinned (📌) and locked (🔒) threads
+- **Thread Metadata** - Post count and view count displayed in thread headers
+- **Latest Activity** - Timestamp and link to latest post in forum thread listings
+
+### Moderation Tools
+- **Thread Moderation UI** - Lock/Unlock and Pin/Unpin controls for moderators
+- **Permission-Based Display** - Moderation tools only visible to users with appropriate permissions
+- **Moderation Logging** - All moderation actions logged with reason in `mod_log` table
+- **CSRF-Protected Actions** - All moderation operations protected against CSRF attacks
+
+### User Information Display
+- **Thread Starter Badge** - "OP" badge displayed next to original poster's name
+- **User Post Counts** - Total post count shown in message sidebar
+- **Join Date Display** - User registration date shown as "Joined: Mon YYYY"
+- **User Avatars** - Avatar display with multiple size options (S/M/L)
+
+### Thread Features
+- **Watch Threads** - Subscribe to threads for notifications on new posts
+- **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
+- **Post History** - Track post edits with revision history
+- **Attachments** - File upload support with S3 storage integration
+
+### Responsive Design
+- All UI components are mobile-friendly with appropriate breakpoints
+- Statistics and metadata hidden on mobile for cleaner layout
+- Touch-friendly button sizes and spacing
+
+## Communication & Notifications
+
+### Notification System
+- **In-App Notifications** - Real-time notifications for user mentions, thread replies, and watched threads
+- **Notification Types** - Mention, Reply, Thread Watch, Private Message, Quote, Moderation Action
+- **Notification Preferences** - Per-type configuration for in-app and email delivery
+- **Read/Unread Tracking** - Mark individual or all notifications as read
+- **Notification Center** - Centralized view of all user notifications
+
+### Private Messaging
+- **Direct Messages** - Send private messages between users
+- **Conversation Threads** - Organized message threads with participants
+- **Read Status** - Track read/unread status for messages
+- **Participant Management** - Multi-user conversations support
+
+### Thread Watching
+- **Subscribe to Threads** - Get notified when someone replies to watched threads
+- **Notification on Reply** - Configurable notifications for thread activity
+- **Manage Subscriptions** - View and manage all watched threads
 
 ## Environment
  - Example `.env` file
