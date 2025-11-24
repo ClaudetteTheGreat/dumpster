@@ -37,6 +37,8 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Password: 1-1000 characters
   - TOTP: exactly 6 digits
 - **Session Management** - Secure cookie-based sessions via actix-session
+  - Session invalidation on password reset
+  - All active sessions terminated when password is reset for security
 
 ### CSRF Protection
 - **Session-based CSRF tokens** on all state-changing operations
@@ -75,6 +77,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **SQL injection prevention** - Using SeaORM with parameterized queries
 - **XSS prevention** - Template auto-escaping via Askama
 - **IP address tracking** - IP tracking for all posts and threads for moderation purposes
+- **Post size limits** - 50,000 character limit for posts (100,000 for moderators) to prevent abuse
 
 ## User Interface & Experience
 

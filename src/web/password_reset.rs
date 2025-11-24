@@ -262,7 +262,13 @@ pub async fn confirm_reset(
         // Don't fail - password is already updated
     }
 
-    // TODO: Invalidate all user sessions for security
+    // Invalidate all user sessions for security
+    // This forces re-authentication on all devices after password reset
+    let sessions = crate::session::get_sess();
+    if let Err(e) = crate::session::invalidate_user_sessions(sessions, user_id).await {
+        log::error!("Failed to invalidate user sessions after password reset: {}", e);
+        // Don't fail - password is already updated, this is just additional security
+    }
 
     log::info!("Password reset successful for user_id: {}", user_id);
 

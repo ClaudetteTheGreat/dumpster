@@ -276,6 +276,47 @@ pub async fn remove_session(ses_map: &SessionMap, uuid: Uuid) -> Result<Option<S
     }
 }
 
+/// Invalidates all sessions for a specific user (e.g., after password reset)
+/// This removes all sessions from both the in-memory cache and database
+pub async fn invalidate_user_sessions(ses_map: &SessionMap, user_id: i32) -> Result<usize, DbErr> {
+    let mut deleted_count = 0;
+    let mut sessions_to_delete: Vec<Uuid> = Vec::new();
+
+    // Find all sessions for this user in the cache
+    {
+        let session_map = ses_map.read().unwrap();
+        for (uuid, session) in session_map.iter() {
+            if session.user_id == user_id {
+                sessions_to_delete.push(*uuid);
+            }
+        }
+    }
+
+    // Remove from cache
+    {
+        let mut session_map = ses_map.write().unwrap();
+        for uuid in &sessions_to_delete {
+            session_map.remove(uuid);
+            deleted_count += 1;
+        }
+    }
+
+    // Delete from database
+    let result = sessions::Entity::delete_many()
+        .filter(sessions::Column::UserId.eq(user_id))
+        .exec(get_db_pool())
+        .await?;
+
+    log::info!(
+        "invalidate_user_sessions: deleted {} sessions from cache and {} rows from DB for user_id {}",
+        deleted_count,
+        result.rows_affected,
+        user_id
+    );
+
+    Ok(deleted_count)
+}
+
 pub async fn task_expire_sessions(
     db: &DatabaseConnection,
     ses_map: &SessionMap,
