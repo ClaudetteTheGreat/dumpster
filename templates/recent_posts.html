@@ -1,0 +1,181 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h1>Recent Posts</h1>
+
+<div class="recent-nav">
+    <a href="/recent/threads" class="recent-nav-link">Threads</a>
+    <a href="/recent/posts" class="recent-nav-link active">Posts</a>
+</div>
+
+<div class="struct-container">
+    {% if posts.len() > 0 %}
+    {% for post in posts %}
+    <div class="struct-item struct-item--post" data-id="{{ post.id }}">
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <span class="post-icon">💭</span>
+        </div>
+        <div class="struct-item-cell struct-item-cell--main">
+            <div class="post-thread">
+                <a href="{{ post.get_thread_url_token() }}">{{ post.thread_title }}</a>
+            </div>
+            <div class="post-preview">
+                {{ post.get_preview() }}
+            </div>
+            <div class="post-meta">
+                <span class="post-forum">
+                    in <a href="{{ post.get_forum_url_token() }}">{{ post.forum_label }}</a>
+                </span>
+                •
+                <span class="post-author">
+                    {% if let Some(author) = post.get_author_url_token() %}
+                        by <a href="{{ author }}">{{ author.name }}</a>
+                    {% else %}
+                        by [deleted]
+                    {% endif %}
+                </span>
+                •
+                <time datetime="{{ post.created_at }}">{{ post.created_at.format("%b %d, %Y %H:%M") }}</time>
+            </div>
+        </div>
+        <div class="struct-item-cell struct-item-cell--action">
+            <a href="{{ post.get_url() }}" class="view-post-btn">View Post →</a>
+        </div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="no-content">No recent posts found.</div>
+    {% endif %}
+</div>
+
+<style>
+    h1 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .recent-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .recent-nav-link {
+        padding: 10px 20px;
+        text-decoration: none;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .recent-nav-link:hover {
+        color: #333;
+        background-color: #f5f5f5;
+    }
+
+    .recent-nav-link.active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        font-weight: 600;
+    }
+
+    .post-icon {
+        font-size: 2em;
+        display: block;
+        text-align: center;
+    }
+
+    .post-thread {
+        font-size: 1.1em;
+        margin-bottom: 8px;
+    }
+
+    .post-thread a {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .post-thread a:hover {
+        text-decoration: underline;
+    }
+
+    .post-preview {
+        font-size: 0.95em;
+        color: #444;
+        margin-bottom: 8px;
+        line-height: 1.5;
+        padding: 8px;
+        background-color: #f9f9f9;
+        border-left: 3px solid #e0e0e0;
+        border-radius: 3px;
+    }
+
+    .post-meta {
+        font-size: 0.85em;
+        color: #666;
+        margin-top: 6px;
+    }
+
+    .post-meta a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .post-meta a:hover {
+        text-decoration: underline;
+    }
+
+    .struct-item-cell--action {
+        padding: 10px 15px;
+    }
+
+    .view-post-btn {
+        display: inline-block;
+        padding: 8px 16px;
+        background-color: #0066cc;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: background-color 0.2s;
+    }
+
+    .view-post-btn:hover {
+        background-color: #0052a3;
+    }
+
+    .no-content {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+        .struct-item-cell--action {
+            display: none;
+        }
+
+        .post-icon {
+            font-size: 1.5em;
+        }
+
+        .post-thread {
+            font-size: 1em;
+        }
+
+        .post-preview {
+            font-size: 0.9em;
+        }
+
+        .recent-nav-link {
+            padding: 10px 15px;
+            font-size: 0.9em;
+        }
+    }
+</style>
+{% endblock %}

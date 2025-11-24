@@ -1,0 +1,179 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h1>Recent Threads</h1>
+
+<div class="recent-nav">
+    <a href="/recent/threads" class="recent-nav-link active">Threads</a>
+    <a href="/recent/posts" class="recent-nav-link">Posts</a>
+</div>
+
+<div class="struct-container">
+    {% if threads.len() > 0 %}
+    {% for thread in threads %}
+    <div class="struct-item struct-item--thread" data-id="{{ thread.id }}">
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <span class="thread-icon">💬</span>
+        </div>
+        <div class="struct-item-cell struct-item-cell--main">
+            <div class="thread-title">
+                <a href="{{ thread.get_url_token() }}">{{ thread.title }}</a>
+            </div>
+            <div class="thread-meta">
+                <span class="thread-forum">
+                    in <a href="{{ thread.get_forum_url_token() }}">{{ thread.forum_label }}</a>
+                </span>
+                •
+                <span class="thread-author">
+                    {% if let Some(author) = thread.get_author_url_token() %}
+                        by <a href="{{ author }}">{{ author.name }}</a>
+                    {% else %}
+                        by [deleted]
+                    {% endif %}
+                </span>
+                •
+                <time datetime="{{ thread.created_at }}">{{ thread.created_at.format("%b %d, %Y %H:%M") }}</time>
+            </div>
+        </div>
+        <div class="struct-item-cell struct-item-cell--stats">
+            <dl>
+                <dt>Replies:</dt>
+                <dd>{{ thread.post_count.saturating_sub(1) }}</dd>
+            </dl>
+            <dl>
+                <dt>Views:</dt>
+                <dd>{{ thread.view_count }}</dd>
+            </dl>
+        </div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="no-content">No recent threads found.</div>
+    {% endif %}
+</div>
+
+<style>
+    h1 {
+        margin-bottom: 20px;
+        color: #333;
+    }
+
+    .recent-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .recent-nav-link {
+        padding: 10px 20px;
+        text-decoration: none;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .recent-nav-link:hover {
+        color: #333;
+        background-color: #f5f5f5;
+    }
+
+    .recent-nav-link.active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        font-weight: 600;
+    }
+
+    .thread-icon {
+        font-size: 2em;
+        display: block;
+        text-align: center;
+    }
+
+    .thread-title {
+        font-size: 1.1em;
+        margin-bottom: 5px;
+    }
+
+    .thread-title a {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .thread-title a:hover {
+        text-decoration: underline;
+    }
+
+    .thread-meta {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 4px;
+    }
+
+    .thread-meta a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .thread-meta a:hover {
+        text-decoration: underline;
+    }
+
+    .struct-item-cell--stats {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        padding: 10px 15px;
+        min-width: 150px;
+    }
+
+    .struct-item-cell--stats dl {
+        margin: 0;
+        text-align: center;
+    }
+
+    .struct-item-cell--stats dt {
+        font-size: 0.75em;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 500;
+        margin-bottom: 4px;
+    }
+
+    .struct-item-cell--stats dd {
+        margin: 0;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .no-content {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+        .struct-item-cell--stats {
+            display: none;
+        }
+
+        .thread-icon {
+            font-size: 1.5em;
+        }
+
+        .thread-title {
+            font-size: 1em;
+        }
+
+        .recent-nav-link {
+            padding: 10px 15px;
+            font-size: 0.9em;
+        }
+    }
+</style>
+{% endblock %}
