@@ -27,14 +27,22 @@ pub async fn create_test_user(
         .to_string();
 
     // Create user
+    // Truncate username for email to avoid exceeding 255 char limit
+    let email_username = if username.len() > 240 {
+        &username[..240]
+    } else {
+        username
+    };
+
     let user = users::ActiveModel {
         created_at: Set(Utc::now().naive_utc()),
         password: Set(password_hash),
         password_cipher: Set(users::Cipher::Argon2id),
         failed_login_attempts: Set(0),
         locked_until: Set(None),
-        email: Set(Some(format!("{}@test.com", username))),
+        email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
+        posts_per_page: Set(25),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -77,6 +85,7 @@ pub async fn create_test_user_with_email(
         locked_until: Set(None),
         email: Set(Some(email.to_string())),
         email_verified: Set(email_verified),
+        posts_per_page: Set(25),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -133,14 +142,23 @@ pub async fn create_locked_test_user(
 
     // Create user with lockout set
     let lock_until = Utc::now().naive_utc() + chrono::Duration::minutes(minutes_until_unlock);
+
+    // Truncate username for email to avoid exceeding 255 char limit
+    let email_username = if username.len() > 240 {
+        &username[..240]
+    } else {
+        username
+    };
+
     let user = users::ActiveModel {
         created_at: Set(Utc::now().naive_utc()),
         password: Set(password_hash),
         password_cipher: Set(users::Cipher::Argon2id),
         failed_login_attempts: Set(5), // Max attempts reached
         locked_until: Set(Some(lock_until)),
-        email: Set(Some(format!("{}@test.com", username))),
+        email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
+        posts_per_page: Set(25),
         ..Default::default()
     };
     let user = user.insert(db).await?;
@@ -212,6 +230,7 @@ pub async fn create_test_forum_and_thread(
         title: Set(thread_title.to_string()),
         user_id: Set(Some(user_id)),
         post_count: Set(0),
+        view_count: Set(0),
         created_at: Set(Utc::now().naive_utc()),
         is_locked: Set(false),
         is_pinned: Set(false),

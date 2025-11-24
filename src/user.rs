@@ -48,7 +48,7 @@ pub struct Profile {
     pub id: i32,
     pub name: String,
     pub created_at: chrono::NaiveDateTime,
-    pub password_cipher: crate::orm::users::Cipher,
+    pub password_cipher: String,
     pub avatar_filename: Option<String>,
     pub avatar_height: Option<i32>,
     pub avatar_width: Option<i32>,
@@ -70,16 +70,14 @@ impl Profile {
                 u.id,
                 un.name,
                 u.created_at,
-                u.password_cipher,
+                u.password_cipher::text as password_cipher,
                 a.filename as avatar_filename,
                 a.file_height as avatar_height,
                 a.file_width as avatar_width,
                 u.posts_per_page,
                 COUNT(p.id) as post_count
             FROM users u
-            LEFT JOIN user_names un ON un.user_id = u.id AND un.created_at = (
-                SELECT MAX(created_at) FROM user_names WHERE user_id = u.id
-            )
+            LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
             LEFT JOIN posts p ON p.user_id = u.id

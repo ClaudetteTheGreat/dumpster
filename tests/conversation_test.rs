@@ -7,7 +7,7 @@ use serial_test::serial;
 use common::*;
 use ruforo::conversations::{self, ConversationPreview, MessageDisplay};
 use ruforo::orm::{conversation_participants, conversations as conversation_orm, private_messages};
-use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};
+use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr, QueryFilter};
 
 #[actix_rt::test]
 #[serial]

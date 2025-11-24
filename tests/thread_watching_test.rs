@@ -7,7 +7,8 @@ use serial_test::serial;
 use common::*;
 use ruforo::notifications;
 use ruforo::orm::{forums, threads, watched_threads};
-use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};
+use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr, QueryFilter};
+use chrono::Utc;
 
 /// Create a test thread
 async fn create_test_thread(
@@ -23,13 +24,13 @@ async fn create_test_thread(
         subtitle: Set(None),
         view_count: Set(0),
         post_count: Set(1),
-        reply_count: Set(0),
         first_post_id: Set(None),
         last_post_id: Set(None),
         last_post_at: Set(None),
         is_locked: Set(false),
         is_pinned: Set(false),
         is_announcement: Set(false),
+        created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
 
