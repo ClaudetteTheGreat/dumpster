@@ -526,7 +526,10 @@ pub async fn save_field_as_temp_file(field: &mut Field) -> Result<Option<UploadP
     });
 
     let mut hasher = blake3::Hasher::new();
-    let mut buf: Vec<u8> = Vec::with_capacity(1024); // TODO can we estimate a real size from the multipart?
+    // Pre-allocate a reasonable buffer for file uploads (64KB)
+    // Multipart streams don't reliably provide Content-Length, so we can't
+    // know the exact size upfront. This capacity will auto-grow as needed.
+    let mut buf: Vec<u8> = Vec::with_capacity(64 * 1024);
 
     let (f, filepath) = f
         .await
