@@ -1,24 +1,13 @@
-use crate::middleware::ClientCtx;
 use crate::session::{get_sess, remove_session};
-use actix_web::{get, Error, Responder};
-use askama_actix::{Template, TemplateToResponse};
+use actix_web::{get, http::header, Error, HttpResponse, Responder};
 use uuid::Uuid;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_logout);
 }
 
-#[derive(Template)]
-#[template(path = "logout.html")]
-struct LogoutTemplate {
-    client: ClientCtx,
-}
-
 #[get("/logout")]
-pub async fn view_logout(
-    client: ClientCtx,
-    cookies: actix_session::Session,
-) -> Result<impl Responder, Error> {
+pub async fn view_logout(cookies: actix_session::Session) -> Result<impl Responder, Error> {
     // Remove session from database and session cache
     match cookies.get::<String>("token") {
         Ok(Some(uuid)) => match Uuid::parse_str(&uuid) {
@@ -43,12 +32,9 @@ pub async fn view_logout(
     cookies.remove("logged_in");
     cookies.remove("token");
 
-    // Create a new guest context for the logout page
-    // This ensures the template shows the user as logged out
-    let guest_client = ClientCtx::from_session(&cookies, client.get_permissions().clone()).await;
-
-    Ok(LogoutTemplate {
-        client: guest_client,
-    }
-    .to_response())
+    // Redirect to home page
+    // This ensures the page loads with fresh guest context and avoids any caching issues
+    Ok(HttpResponse::SeeOther()
+        .insert_header((header::LOCATION, "/"))
+        .finish())
 }
