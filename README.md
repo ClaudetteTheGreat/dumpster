@@ -112,6 +112,14 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
 - **Attachments** - File upload support with S3 storage integration
+- **BBCode Formatting** - Rich text formatting for posts
+  - **Basic Formatting**: Bold `[b]`, Italic `[i]`, Underline `[u]`, Strikethrough `[s]`, Color `[color=red]`
+  - **Lists**: Unordered `[list][*]`, Numbered `[list=1][*]`, Alphabetic `[list=a][*]` with nesting support
+  - **Quotes**: Basic `[quote]` and attributed `[quote=username]` with "username said:" display
+  - **Spoilers**: Collapsible content with `[spoiler]` and custom titles `[spoiler=title]`
+  - **Code**: Preformatted code blocks `[code]` with preserved whitespace
+  - **Media**: Images `[img]`, Links `[url]` with automatic URL detection
+  - **Security**: HTML entity sanitization, XSS prevention at tokenizer level
 
 ### Responsive Design
 - All UI components are mobile-friendly with appropriate breakpoints
