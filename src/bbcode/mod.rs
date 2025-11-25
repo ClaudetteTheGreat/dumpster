@@ -254,4 +254,45 @@ mod tests {
             parse("[list][*][b]Bold item[/b][*][i]Italic item[/i][/list]")
         );
     }
+
+    #[test]
+    fn spoilers() {
+        use super::parse;
+
+        // Basic spoiler with default title
+        assert_eq!(
+            "<details><summary>Spoiler</summary>Hidden content</details>",
+            parse("[spoiler]Hidden content[/spoiler]")
+        );
+
+        // Spoiler with custom title
+        assert_eq!(
+            "<details><summary>Plot Twist</summary>The butler did it</details>",
+            parse("[spoiler=Plot Twist]The butler did it[/spoiler]")
+        );
+
+        // Spoiler with formatting inside
+        assert_eq!(
+            "<details><summary>Spoiler</summary><b>Bold</b> and <i>italic</i> text</details>",
+            parse("[spoiler][b]Bold[/b] and [i]italic[/i] text[/spoiler]")
+        );
+
+        // Nested spoilers
+        assert_eq!(
+            "<details><summary>Outer</summary>First level<details><summary>Inner</summary>Second level</details></details>",
+            parse("[spoiler=Outer]First level[spoiler=Inner]Second level[/spoiler][/spoiler]")
+        );
+
+        // Empty spoiler
+        assert_eq!(
+            "<details><summary>Spoiler</summary></details>",
+            parse("[spoiler][/spoiler]")
+        );
+
+        // HTML entity sanitization in title
+        assert_eq!(
+            "<details><summary>&quot;Quoted&quot; &amp; Safe</summary>Content</details>",
+            parse("[spoiler=\"Quoted\" & Safe]Content[/spoiler]")
+        );
+    }
 }

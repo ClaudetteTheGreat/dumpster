@@ -3,6 +3,7 @@ extern crate nom;
 mod embed;
 mod font;
 mod list;
+mod spoiler;
 
 use super::Element;
 use std::{borrow::BorrowMut, cell::RefMut};
@@ -24,6 +25,9 @@ pub enum Tag {
     // Formatting Tags
     Code,
     Pre,
+
+    // Block Tags
+    Spoiler,
 
     // List Tags
     List,
@@ -48,6 +52,7 @@ impl Tag {
             "*" => Tag::ListItem,
             "plain" => Tag::Plain,
             "s" => Tag::Strikethrough,
+            "spoiler" => Tag::Spoiler,
             "u" => Tag::Underline,
             "url" => Tag::Link,
             _ => Tag::Invalid,
