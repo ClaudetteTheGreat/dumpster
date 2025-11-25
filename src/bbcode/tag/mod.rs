@@ -2,6 +2,7 @@ extern crate nom;
 
 mod embed;
 mod font;
+mod list;
 
 use super::Element;
 use std::{borrow::BorrowMut, cell::RefMut};
@@ -24,6 +25,10 @@ pub enum Tag {
     Code,
     Pre,
 
+    // List Tags
+    List,
+    ListItem,
+
     // Embed Tags
     Image,
     Link,
@@ -39,6 +44,8 @@ impl Tag {
             "hr" => Tag::HorizontalRule,
             "i" => Tag::Italics,
             "img" => Tag::Image,
+            "list" => Tag::List,
+            "*" => Tag::ListItem,
             "plain" => Tag::Plain,
             "s" => Tag::Strikethrough,
             "u" => Tag::Underline,

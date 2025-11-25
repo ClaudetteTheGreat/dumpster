@@ -119,10 +119,16 @@ impl<'str> Parser<'str> {
                 // Check if this element is the same tag as what we're closing.
                 tag_matched = el.is_tag(tag);
 
+                // Special case: when closing a list, also close any open list items
+                let is_closing_list = tag.to_lowercase() == "list";
+                let is_list_item = el.is_tag("*");
+
                 // Handle nested closure depending on what this element is.
                 if match el.get_display_type() {
                     // Inline tags may be closed by early termination of other tags.
                     ElementDisplay::Inline => true,
+                    // List items can be closed by their parent list closing
+                    _ if is_closing_list && is_list_item => true,
                     // Other tags may never be closed by other tags.
                     _ => tag_matched,
                 } {
@@ -192,7 +198,44 @@ impl<'str> Parser<'str> {
     }
 
     /// Attempts to add element as child to current node and move current node to new element.
-    fn open_tag(&mut self, token: &'str Token, el: Element<'str>) {
+    fn open_tag(&mut self, token: &'str Token, mut el: Element<'str>) {
+        // Special case: if we're opening a ListItem while already inside a ListItem,
+        // we need to close the previous ListItem first
+        if el.is_tag("*") && self.node.borrow().is_tag("*") {
+            self.close_open_tag(false);
+        }
+
+        // Special case: ListItems should only be valid inside a List tag
+        // If we're opening a ListItem and the parent is not a valid List, mark it as broken
+        if el.is_tag("*") {
+            let mut is_inside_valid_list = false;
+            let mut cursor = Some(self.node.clone());
+
+            while let Some(node) = cursor {
+                let node_ref = node.borrow();
+                if node_ref.is_tag("list") {
+                    // Check if the list has a valid argument
+                    // Valid list types: none (unordered), "=1" (numbered), "=a" or "=A" (alphabetic)
+                    let is_valid = if let Some(arg) = node_ref.get_argument() {
+                        let list_type = arg.strip_prefix('=').unwrap_or("");
+                        matches!(list_type, "1" | "a" | "A")
+                    } else {
+                        true // No argument means unordered list, which is valid
+                    };
+
+                    if is_valid {
+                        is_inside_valid_list = true;
+                    }
+                    break;
+                }
+                cursor = node.parent();
+            }
+
+            if !is_inside_valid_list {
+                el.set_broken();
+            }
+        }
+
         // Can this tag parent any other element?
         if self.node.borrow().can_parent() {
             //  Can the new tag have any content at all?

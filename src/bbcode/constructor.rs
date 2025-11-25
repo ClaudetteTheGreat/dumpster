@@ -106,6 +106,9 @@ impl Constructor {
 
                     Tag::Code => Tag::open_simple_tag("pre"),
 
+                    Tag::List => Tag::open_list_tag(el),
+                    Tag::ListItem => Tag::open_list_item_tag(),
+
                     Tag::Image => Tag::open_img_tag(el),
                     Tag::Link => Tag::open_url_tag(el),
 
@@ -148,6 +151,9 @@ impl Constructor {
                     Tag::Strikethrough => Tag::close_simple_tag("s"),
 
                     Tag::Code => Tag::close_simple_tag("pre"),
+
+                    Tag::List => Tag::close_list_tag(el),
+                    Tag::ListItem => Tag::close_list_item_tag(),
 
                     Tag::Link => Tag::close_simple_tag("a"),
 

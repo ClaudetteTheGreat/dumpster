@@ -112,6 +112,8 @@ fn tag_and_argument(input: &str) -> IResult<&str, &str> {
 fn token_from_argument(input: &str) -> IResult<&str, (&str, (&str, Option<&str>))> {
     // returns (raw, (tag, args))
     alt((
+        // Matches `*` for list items
+        map(tag("*"), |tag: &str| (tag, (tag, None))),
         // Matches `url=x` and `url a=1`
         map(
             consumed(tuple((alpha1, rest))),

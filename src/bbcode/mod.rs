@@ -213,4 +213,45 @@ mod tests {
         assert_eq!("[xxx&lt;iframe&gt;]Test[/xxx&lt;iframe&gt;]", parse("[xxx<iframe>]Test[/xxx<iframe>]"));
         assert_eq!("[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]", parse("[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]"))
     }
+
+    #[test]
+    fn lists() {
+        use super::parse;
+
+        // Unordered list
+        assert_eq!(
+            "<ul><li>Item 1</li><li>Item 2</li><li>Item 3</li></ul>",
+            parse("[list][*]Item 1[*]Item 2[*]Item 3[/list]")
+        );
+
+        // Numbered list
+        assert_eq!(
+            "<ol type=\"1\"><li>First</li><li>Second</li><li>Third</li></ol>",
+            parse("[list=1][*]First[*]Second[*]Third[/list]")
+        );
+
+        // Alphabetic list
+        assert_eq!(
+            "<ol type=\"a\"><li>Alpha</li><li>Beta</li><li>Gamma</li></ol>",
+            parse("[list=a][*]Alpha[*]Beta[*]Gamma[/list]")
+        );
+
+        // Nested lists
+        assert_eq!(
+            "<ul><li>Item 1<ul><li>Subitem 1</li><li>Subitem 2</li></ul></li><li>Item 2</li></ul>",
+            parse("[list][*]Item 1[list][*]Subitem 1[*]Subitem 2[/list][*]Item 2[/list]")
+        );
+
+        // Invalid list type
+        assert_eq!(
+            "[list=invalid][*]Item[/list]",
+            parse("[list=invalid][*]Item[/list]")
+        );
+
+        // Lists with formatting
+        assert_eq!(
+            "<ul><li><b>Bold item</b></li><li><i>Italic item</i></li></ul>",
+            parse("[list][*][b]Bold item[/b][*][i]Italic item[/i][/list]")
+        );
+    }
 }

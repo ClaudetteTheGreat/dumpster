@@ -62,6 +62,8 @@ impl<'str> Element<'str> {
             Tag::HorizontalRule => ElementDisplay::Selfclosing,
             Tag::Plain => ElementDisplay::Plain,
             Tag::Code => ElementDisplay::Preformatted,
+            Tag::List => ElementDisplay::Block,
+            Tag::ListItem => ElementDisplay::Block,
             Tag::Image => ElementDisplay::Plain,
             Tag::Link => ElementDisplay::Inline,
             _ => ElementDisplay::Inline,
