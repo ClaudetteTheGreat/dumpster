@@ -31,6 +31,11 @@ pub enum Tag {
     Quote,
     Spoiler,
 
+    // Alignment Tags
+    Center,
+    Left,
+    Right,
+
     // List Tags
     List,
     ListItem,
@@ -45,15 +50,18 @@ impl Tag {
         match &*tag.to_lowercase() {
             "b" => Tag::Bold,
             "br" => Tag::Linebreak,
+            "center" => Tag::Center,
             "color" => Tag::Color,
             "code" => Tag::Code,
             "hr" => Tag::HorizontalRule,
             "i" => Tag::Italics,
             "img" => Tag::Image,
+            "left" => Tag::Left,
             "list" => Tag::List,
             "*" => Tag::ListItem,
             "plain" => Tag::Plain,
             "quote" => Tag::Quote,
+            "right" => Tag::Right,
             "s" => Tag::Strikethrough,
             "spoiler" => Tag::Spoiler,
             "u" => Tag::Underline,

@@ -109,6 +109,10 @@ impl Constructor {
                     Tag::Quote => Tag::open_quote_tag(el),
                     Tag::Spoiler => Tag::open_spoiler_tag(el),
 
+                    Tag::Center => String::from("<div style=\"text-align: center;\">"),
+                    Tag::Left => String::from("<div style=\"text-align: left;\">"),
+                    Tag::Right => String::from("<div style=\"text-align: right;\">"),
+
                     Tag::List => Tag::open_list_tag(el),
                     Tag::ListItem => Tag::open_list_item_tag(),
 
@@ -157,6 +161,10 @@ impl Constructor {
 
                     Tag::Quote => Tag::close_quote_tag(el),
                     Tag::Spoiler => Tag::close_spoiler_tag(),
+
+                    Tag::Center => String::from("</div>"),
+                    Tag::Left => String::from("</div>"),
+                    Tag::Right => String::from("</div>"),
 
                     Tag::List => Tag::close_list_tag(el),
                     Tag::ListItem => Tag::close_list_item_tag(),

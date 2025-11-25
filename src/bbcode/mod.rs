@@ -297,6 +297,41 @@ mod tests {
     }
 
     #[test]
+    fn alignment() {
+        use super::parse;
+
+        // Center alignment
+        assert_eq!(
+            "<div style=\"text-align: center;\">Centered text</div>",
+            parse("[center]Centered text[/center]")
+        );
+
+        // Left alignment
+        assert_eq!(
+            "<div style=\"text-align: left;\">Left aligned text</div>",
+            parse("[left]Left aligned text[/left]")
+        );
+
+        // Right alignment
+        assert_eq!(
+            "<div style=\"text-align: right;\">Right aligned text</div>",
+            parse("[right]Right aligned text[/right]")
+        );
+
+        // Alignment with formatting inside
+        assert_eq!(
+            "<div style=\"text-align: center;\"><b>Bold</b> and <i>italic</i></div>",
+            parse("[center][b]Bold[/b] and [i]italic[/i][/center]")
+        );
+
+        // Empty alignment
+        assert_eq!(
+            "<div style=\"text-align: center;\"></div>",
+            parse("[center][/center]")
+        );
+    }
+
+    #[test]
     fn quotes() {
         use super::parse;
 
