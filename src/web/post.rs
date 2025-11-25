@@ -67,7 +67,6 @@ pub struct PostDeleteTemplate<'a> {
 pub struct PostDiffTemplate<'a> {
     pub client: ClientCtx,
     pub post: &'a PostForTemplate,
-    pub revisions: &'a Vec<ugc_revisions::Model>,
     pub diff: &'a Vec<dissimilar::Chunk<'a>>,
 }
 
@@ -320,7 +319,8 @@ pub async fn view_post_history_diff(
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
 
-    let revisions = ugc_revisions::Entity::find()
+    // Optimize: Fetch revisions but only use content field for diff
+    let revision_models = ugc_revisions::Entity::find()
         .filter(ugc_revisions::Column::UgcId.eq(post.ugc_id))
         .filter(ugc_revisions::Column::Id.is_in([form.old, form.new]))
         .limit(2)
@@ -333,18 +333,17 @@ pub async fn view_post_history_diff(
     // This prevents exposing edit history to anonymous users
     client.require_login()?;
 
-    if revisions.len() < 2 {
+    if revision_models.len() < 2 {
         return Err(error::ErrorBadRequest(
             "Requested revisions either do not exist or are not attached to this resource as expected.",
         ));
     }
 
-    let diff = dissimilar::diff(&revisions[1].content, &revisions[0].content);
+    let diff = dissimilar::diff(&revision_models[1].content, &revision_models[0].content);
 
     Ok(PostDiffTemplate {
         client,
         post: &post,
-        revisions: &revisions,
         diff: &diff,
     }
     .to_response())
