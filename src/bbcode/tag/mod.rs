@@ -3,6 +3,7 @@ extern crate nom;
 mod embed;
 mod font;
 mod list;
+mod quote;
 mod spoiler;
 
 use super::Element;
@@ -27,6 +28,7 @@ pub enum Tag {
     Pre,
 
     // Block Tags
+    Quote,
     Spoiler,
 
     // List Tags
@@ -51,6 +53,7 @@ impl Tag {
             "list" => Tag::List,
             "*" => Tag::ListItem,
             "plain" => Tag::Plain,
+            "quote" => Tag::Quote,
             "s" => Tag::Strikethrough,
             "spoiler" => Tag::Spoiler,
             "u" => Tag::Underline,

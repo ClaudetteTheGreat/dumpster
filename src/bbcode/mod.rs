@@ -295,4 +295,45 @@ mod tests {
             parse("[spoiler=\"Quoted\" & Safe]Content[/spoiler]")
         );
     }
+
+    #[test]
+    fn quotes() {
+        use super::parse;
+
+        // Basic quote without attribution
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\"><div class=\"quoted\">This is a quote</div></blockquote>",
+            parse("[quote]This is a quote[/quote]")
+        );
+
+        // Quote with attribution
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\" data-author=\"John Doe\"><div class=\"attribution\">John Doe said:</div><div class=\"quoted\">Hello world</div></blockquote>",
+            parse("[quote=John Doe]Hello world[/quote]")
+        );
+
+        // Quote with formatting inside
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\"><div class=\"quoted\"><b>Bold</b> and <i>italic</i></div></blockquote>",
+            parse("[quote][b]Bold[/b] and [i]italic[/i][/quote]")
+        );
+
+        // Nested quotes
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\" data-author=\"Alice\"><div class=\"attribution\">Alice said:</div><div class=\"quoted\">Outer<blockquote class=\"bbCode tagQuote\" data-author=\"Bob\"><div class=\"attribution\">Bob said:</div><div class=\"quoted\">Inner</div></blockquote></div></blockquote>",
+            parse("[quote=Alice]Outer[quote=Bob]Inner[/quote][/quote]")
+        );
+
+        // Empty quote
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\"><div class=\"quoted\"></div></blockquote>",
+            parse("[quote][/quote]")
+        );
+
+        // HTML sanitization in attribution
+        assert_eq!(
+            "<blockquote class=\"bbCode tagQuote\" data-author=\"&quot;User&quot; &amp; Co\"><div class=\"attribution\">&quot;User&quot; &amp; Co said:</div><div class=\"quoted\">Text</div></blockquote>",
+            parse("[quote=\"User\" & Co]Text[/quote]")
+        );
+    }
 }

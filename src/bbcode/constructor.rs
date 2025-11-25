@@ -106,6 +106,7 @@ impl Constructor {
 
                     Tag::Code => Tag::open_simple_tag("pre"),
 
+                    Tag::Quote => Tag::open_quote_tag(el),
                     Tag::Spoiler => Tag::open_spoiler_tag(el),
 
                     Tag::List => Tag::open_list_tag(el),
@@ -154,6 +155,7 @@ impl Constructor {
 
                     Tag::Code => Tag::close_simple_tag("pre"),
 
+                    Tag::Quote => Tag::close_quote_tag(el),
                     Tag::Spoiler => Tag::close_spoiler_tag(),
 
                     Tag::List => Tag::close_list_tag(el),
