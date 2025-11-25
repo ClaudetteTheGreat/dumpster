@@ -16,3 +16,7 @@ pub const MAX_POST_LENGTH_MODERATOR: usize = 100_000;
 /// When true, authors can still see their own deleted posts
 /// This affects the can_read_post permission check
 pub const ALLOW_VIEW_OWN_DELETED: bool = false;
+
+/// Default username displayed for unauthenticated users
+/// This string will be replaced with localized versions when i18n is implemented
+pub const GUEST_USERNAME: &str = "Guest";

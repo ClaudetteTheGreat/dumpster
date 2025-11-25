@@ -107,7 +107,7 @@ pub async fn get_room_history(
                     },
                     None => implement::Author {
                         id: 0,
-                        username: "Guest".to_owned(),
+                        username: ruforo::constants::GUEST_USERNAME.to_owned(),
                         avatar_url: String::new(),
                     },
                 },

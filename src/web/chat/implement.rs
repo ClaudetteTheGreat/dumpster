@@ -116,7 +116,7 @@ impl Default for Session {
     fn default() -> Self {
         Self {
             id: 0,
-            username: "Guest".to_owned(),
+            username: crate::constants::GUEST_USERNAME.to_owned(),
             avatar_url: String::new(),
             ignored_users: Default::default(),
             is_staff: false,

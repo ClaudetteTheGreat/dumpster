@@ -167,13 +167,13 @@ impl ClientCtx {
         self.0.client.as_ref().map(|u| u.id)
     }
 
-    /// Returns either the user's name or the word for guest.
-    /// TODO: l10n "Guest"
+    /// Returns either the user's name or the default guest username.
+    /// The guest username is defined in constants and will be localized when i18n is implemented.
     pub fn get_name(&self) -> String {
         let user = &self.0.client;
         match user {
             Some(user) => user.name.to_owned(),
-            None => "Guest".to_owned(),
+            None => crate::constants::GUEST_USERNAME.to_owned(),
         }
     }
 

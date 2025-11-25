@@ -34,7 +34,7 @@ impl Default for XfSession {
     fn default() -> Self {
         Self {
             id: 0,
-            username: "Guest".to_owned(),
+            username: ruforo::constants::GUEST_USERNAME.to_owned(),
             avatar_date: 0,
             is_staff: false,
         }
