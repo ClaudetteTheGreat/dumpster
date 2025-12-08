@@ -90,7 +90,7 @@
     <form action="/threads/{{ thread.id }}/post-reply" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
         <h2>Post Reply</h2>
-        <textarea name="content" rows="8" cols="80"></textarea>
+        <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
         <div>
             <input type="file" name="attachment" class="attachment-input" />
             <button class="attachment-upload">Upload</button>

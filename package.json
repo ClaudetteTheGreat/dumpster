@@ -32,6 +32,7 @@
     "webpack-cli": "^4.9.2"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
     "filepond": "^4.30.3",
     "hash-wasm": "^4.9.0",
     "micromodal": "^0.4.10"

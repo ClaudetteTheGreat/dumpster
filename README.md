@@ -135,6 +135,11 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Comprehensive dark mode styling for all UI components
   - Auto mode respects operating system dark mode preference
 - **Posts Per Page** - Configurable pagination (10, 25, 50, or 100 posts per page)
+- **Character Counter** - Real-time character counting for post/thread creation
+  - Visual feedback (green/yellow/red) based on remaining characters
+  - Automatic limit detection (50,000 for users, 100,000 for moderators)
+  - Form submission prevention when over limit
+  - Client-side validation before submission
 
 ## Communication & Notifications
 

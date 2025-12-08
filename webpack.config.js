@@ -40,6 +40,7 @@ module.exports = {
         chat: path.resolve(__dirname, './resources/js/chat.js'),
         main: [
             path.resolve(__dirname, './resources/js/attachments.js'),
+            path.resolve(__dirname, './resources/js/char-counter.js'),
             path.resolve(__dirname, './resources/js/chat.js'),
         ],
         style: path.resolve(__dirname, './resources/css/main.scss'),

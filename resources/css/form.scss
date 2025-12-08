@@ -5,6 +5,11 @@ input[type='text'] {
     margin: 0 0 0.5rem 0;
 }
 
+textarea.textarea--over-limit {
+    border: 2px solid #dc3545;
+    background-color: #fff5f5;
+}
+
 input {
     font-size: 1.2rem;
     width: 100%;
@@ -54,5 +59,43 @@ input {
             background: none;
             text-decoration: underline;
         }
+    }
+}
+
+// Character Counter
+.char-counter {
+    font-size: 0.9em;
+    margin: 0.5rem 0 1rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+    text-align: right;
+    font-weight: 500;
+
+    .char-count {
+        font-weight: 700;
+    }
+
+    &.char-counter--ok {
+        color: #28a745;
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+    }
+
+    &.char-counter--warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border: 1px solid #ffeeba;
+    }
+
+    &.char-counter--danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+    }
+
+    &.char-counter--over {
+        color: #ffffff;
+        background-color: #dc3545;
+        border: 1px solid #bd2130;
     }
 }
