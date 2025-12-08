@@ -114,6 +114,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Attachments** - File upload support with S3 storage integration
 - **BBCode Formatting** - Rich text formatting for posts
   - **Basic Formatting**: Bold `[b]`, Italic `[i]`, Underline `[u]`, Strikethrough `[s]`, Color `[color=red]`
+  - **Text Styling**: Size `[size=8-36]`, Font `[font=arial]` (whitelisted fonts only)
   - **Text Alignment**: Center `[center]`, Left `[left]`, Right `[right]`
   - **Lists**: Unordered `[list][*]`, Numbered `[list=1][*]`, Alphabetic `[list=a][*]` with nesting support
   - **Quotes**: Basic `[quote]` and attributed `[quote=username]` with "username said:" display
