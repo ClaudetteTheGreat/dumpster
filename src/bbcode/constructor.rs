@@ -100,7 +100,9 @@ impl Constructor {
 
                     Tag::Bold => Tag::open_simple_tag("b"),
                     Tag::Color => Tag::open_color_tag(el),
+                    Tag::Font => Tag::open_font_tag(el),
                     Tag::Italics => Tag::open_simple_tag("i"),
+                    Tag::Size => Tag::open_size_tag(el),
                     Tag::Underline => Tag::open_simple_tag("u"),
                     Tag::Strikethrough => Tag::open_simple_tag("s"),
 
@@ -153,7 +155,9 @@ impl Constructor {
 
                     Tag::Bold => Tag::close_simple_tag("b"),
                     Tag::Color => Tag::close_simple_tag("span"),
+                    Tag::Font => Tag::close_simple_tag("span"),
                     Tag::Italics => Tag::close_simple_tag("i"),
+                    Tag::Size => Tag::close_simple_tag("span"),
                     Tag::Underline => Tag::close_simple_tag("u"),
                     Tag::Strikethrough => Tag::close_simple_tag("s"),
 

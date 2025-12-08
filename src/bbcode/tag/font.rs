@@ -20,6 +20,32 @@ impl super::Tag {
 
         Self::open_broken_tag(el)
     }
+
+    pub fn open_size_tag(el: RefMut<Element>) -> String {
+        if let Some(arg) = el.get_argument() {
+            if let Ok((_, size)) = size_from(arg) {
+                return format!(
+                    "<span class=\"bbCode tagSize\" style=\"font-size: {}px;\">",
+                    size
+                );
+            }
+        }
+
+        Self::open_broken_tag(el)
+    }
+
+    pub fn open_font_tag(el: RefMut<Element>) -> String {
+        if let Some(arg) = el.get_argument() {
+            if let Ok((_, font)) = font_from(arg) {
+                return format!(
+                    "<span class=\"bbCode tagFont\" style=\"font-family: {};\">",
+                    font
+                );
+            }
+        }
+
+        Self::open_broken_tag(el)
+    }
 }
 
 //
@@ -49,6 +75,49 @@ fn color_websafe(input: &str) -> IResult<&str, &str> {
 fn is_hex_digit(c: char) -> bool {
     c.is_digit(16)
 }
+
+fn size_from(input: &str) -> IResult<&str, u32> {
+    let (input, _) = tag("=")(input)?;
+
+    // Parse the size as a number
+    let size_str = input;
+
+    // Try to parse as u32
+    match size_str.parse::<u32>() {
+        Ok(size) if size >= 8 && size <= 36 => Ok(("", size)),
+        _ => Err(nom::Err::Error(nom::error::Error::new(
+            input,
+            nom::error::ErrorKind::Verify,
+        ))),
+    }
+}
+
+fn font_from(input: &str) -> IResult<&str, &str> {
+    let (input, _) = tag("=")(input)?;
+
+    // Check if the font is in our whitelist
+    all_consuming(verify(alpha1, |s: &str| SAFE_FONTS.contains(&s)))(input)
+}
+
+const SAFE_FONTS: &[&str] = &[
+    "arial",
+    "verdana",
+    "helvetica",
+    "tahoma",
+    "trebuchet",
+    "times",
+    "georgia",
+    "garamond",
+    "courier",
+    "monaco",
+    "consolas",
+    "impact",
+    "comic",
+    "serif",
+    "sans-serif",
+    "monospace",
+    "cursive",
+];
 
 const WEBSAFE_COLORS: &[&str] = &[
     "aliceblue",

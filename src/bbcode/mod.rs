@@ -93,6 +93,65 @@ mod tests {
     }
 
     #[test]
+    fn size_and_font() {
+        use super::parse;
+
+        // Valid sizes (8-36px)
+        assert_eq!(
+            "<span class=\"bbCode tagSize\" style=\"font-size: 16px;\">Normal text</span>",
+            parse("[size=16]Normal text[/size]")
+        );
+        assert_eq!(
+            "<span class=\"bbCode tagSize\" style=\"font-size: 8px;\">Small text</span>",
+            parse("[size=8]Small text[/size]")
+        );
+        assert_eq!(
+            "<span class=\"bbCode tagSize\" style=\"font-size: 36px;\">Large text</span>",
+            parse("[size=36]Large text[/size]")
+        );
+
+        // Invalid sizes (out of range or non-numeric)
+        assert_eq!(
+            "[size=50]Too large[/size]",
+            parse("[size=50]Too large[/size]")
+        );
+        assert_eq!(
+            "[size=5]Too small[/size]",
+            parse("[size=5]Too small[/size]")
+        );
+        assert_eq!(
+            "[size=abc]Invalid[/size]",
+            parse("[size=abc]Invalid[/size]")
+        );
+
+        // Valid fonts
+        assert_eq!(
+            "<span class=\"bbCode tagFont\" style=\"font-family: arial;\">Arial text</span>",
+            parse("[font=arial]Arial text[/font]")
+        );
+        assert_eq!(
+            "<span class=\"bbCode tagFont\" style=\"font-family: verdana;\">Verdana text</span>",
+            parse("[font=verdana]Verdana text[/font]")
+        );
+
+        // Invalid fonts (not in whitelist)
+        assert_eq!(
+            "[font=malicious]Blocked[/font]",
+            parse("[font=malicious]Blocked[/font]")
+        );
+
+        // Nested formatting
+        assert_eq!(
+            "<span class=\"bbCode tagSize\" style=\"font-size: 20px;\"><b>Bold and sized</b></span>",
+            parse("[size=20][b]Bold and sized[/b][/size]")
+        );
+        assert_eq!(
+            "<span class=\"bbCode tagFont\" style=\"font-family: courier;\"><i>Italic courier</i></span>",
+            parse("[font=courier][i]Italic courier[/i][/font]")
+        );
+    }
+
+    #[test]
     fn international_text() {
         use super::parse;
 

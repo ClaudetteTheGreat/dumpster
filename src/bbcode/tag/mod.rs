@@ -19,7 +19,9 @@ pub enum Tag {
     // Inline Tags
     Bold,
     Color,
+    Font,
     Italics,
+    Size,
     Underline,
     Strikethrough,
 
@@ -53,6 +55,7 @@ impl Tag {
             "center" => Tag::Center,
             "color" => Tag::Color,
             "code" => Tag::Code,
+            "font" => Tag::Font,
             "hr" => Tag::HorizontalRule,
             "i" => Tag::Italics,
             "img" => Tag::Image,
@@ -63,6 +66,7 @@ impl Tag {
             "quote" => Tag::Quote,
             "right" => Tag::Right,
             "s" => Tag::Strikethrough,
+            "size" => Tag::Size,
             "spoiler" => Tag::Spoiler,
             "u" => Tag::Underline,
             "url" => Tag::Link,
