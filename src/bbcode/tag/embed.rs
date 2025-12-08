@@ -13,7 +13,20 @@ impl super::Tag {
             match url.scheme() {
                 "http" | "https" => {
                     el.clear_contents();
-                    return format!("<img src=\"{}\" />", url.as_str());
+
+                    // Check for dimension argument: [img=100x100]url[/img]
+                    let dimension_attr = if let Some(arg) = el.get_argument() {
+                        let dims = parse_image_dimensions(arg);
+                        if dims.is_empty() {
+                            String::new()
+                        } else {
+                            format!(" {}", dims)
+                        }
+                    } else {
+                        String::new()
+                    };
+
+                    return format!("<img src=\"{}\"{} />", url.as_str(), dimension_attr);
                 }
                 _ => {}
             }
@@ -77,4 +90,29 @@ fn url_arg(input: &str) -> Option<Result<Url, &str>> {
         }),
         Err(_) => None,
     }
+}
+
+/// Parse image dimensions from BBCode argument like "=100x100" or "=100"
+/// Returns HTML width/height attributes or empty string if invalid
+fn parse_image_dimensions(arg: &str) -> String {
+    let input = arg.strip_prefix('=').unwrap_or(arg);
+
+    // Try to parse "WIDTHxHEIGHT" format
+    if let Some((width_str, height_str)) = input.split_once('x') {
+        if let (Ok(width), Ok(height)) = (width_str.parse::<u32>(), height_str.parse::<u32>()) {
+            // Validate dimensions (prevent abuse)
+            if width > 0 && width <= 2000 && height > 0 && height <= 2000 {
+                return format!("width=\"{}\" height=\"{}\"", width, height);
+            }
+        }
+    }
+    // Try to parse just width (maintain aspect ratio)
+    else if let Ok(width) = input.parse::<u32>() {
+        if width > 0 && width <= 2000 {
+            return format!("width=\"{}\"", width);
+        }
+    }
+
+    // Invalid format or out of range
+    String::new()
 }

@@ -120,8 +120,8 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - **Quotes**: Basic `[quote]` and attributed `[quote=username]` with "username said:" display
   - **Spoilers**: Collapsible content with `[spoiler]` and custom titles `[spoiler=title]`
   - **Code**: Preformatted code blocks `[code]` with preserved whitespace
-  - **Media**: Images `[img]`, Links `[url]` with automatic URL detection
-  - **Security**: HTML entity sanitization, XSS prevention at tokenizer level
+  - **Media**: Images `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
+  - **Security**: HTML entity sanitization, XSS prevention at tokenizer level, dimension validation (max 2000px)
 
 ### Responsive Design
 - All UI components are mobile-friendly with appropriate breakpoints

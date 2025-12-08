@@ -430,4 +430,51 @@ mod tests {
             parse("[quote=\"User\" & Co]Text[/quote]")
         );
     }
+
+    #[test]
+    fn image_dimensions() {
+        use super::parse;
+
+        // Image with width and height
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" width=\"100\" height=\"150\" />",
+            parse("[img=100x150]https://example.com/image.jpg[/img]")
+        );
+
+        // Image with just width (maintains aspect ratio)
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" width=\"200\" />",
+            parse("[img=200]https://example.com/image.jpg[/img]")
+        );
+
+        // Image without dimensions (original behavior)
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" />",
+            parse("[img]https://example.com/image.jpg[/img]")
+        );
+
+        // Invalid dimensions (too large)
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" />",
+            parse("[img=5000x5000]https://example.com/image.jpg[/img]")
+        );
+
+        // Invalid dimensions (zero)
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" />",
+            parse("[img=0x0]https://example.com/image.jpg[/img]")
+        );
+
+        // Invalid dimensions (malformed)
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" />",
+            parse("[img=abcxdef]https://example.com/image.jpg[/img]")
+        );
+
+        // Maximum valid dimensions
+        assert_eq!(
+            "<img src=\"https://example.com/image.jpg\" width=\"2000\" height=\"2000\" />",
+            parse("[img=2000x2000]https://example.com/image.jpg[/img]")
+        );
+    }
 }
