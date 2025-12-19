@@ -39,6 +39,13 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Session Management** - Secure cookie-based sessions via actix-session
   - Session invalidation on password reset
   - All active sessions terminated when password is reset for security
+  - "Remember me" option for 30-day extended sessions
+- **Password Reset** - Secure password reset flow
+  - Email-based reset with secure 64-character tokens
+  - 1-hour token expiration
+  - Single-use tokens (cannot be reused)
+  - Success message displayed after reset
+  - All sessions invalidated for security
 
 ### CSRF Protection
 - **Session-based CSRF tokens** on all state-changing operations
@@ -59,7 +66,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **44 integration tests** covering:
+- **100+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -67,6 +74,12 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 7 rate limiting tests
   - 9 notification tests
   - 7 notification preferences tests
+  - 9 email verification tests
+  - 10 password reset tests
+  - 12 moderation tests
+  - 8 search tests
+  - 12 conversation/PM tests
+  - 8 thread watching tests
 - **Test infrastructure** - Comprehensive test utilities and fixtures
 - **Test database** - Isolated test database with full migration support
 
