@@ -26,6 +26,7 @@ pub struct LoginTemplate<'a> {
     pub user_id: Option<i32>,
     pub username: Option<&'a str>,
     pub token: Option<&'a str>,
+    pub success_message: Option<&'a str>,
 }
 
 #[derive(Template)]
@@ -324,6 +325,7 @@ pub async fn post_login(
         logged_in: true,
         username: Some(&form.username),
         token: Some(&uuid),
+        success_message: None,
     }
     .to_response())
 }
@@ -444,21 +446,37 @@ pub async fn post_login_2fa(
         logged_in: true,
         username: None,
         token: Some(&uuid),
+        success_message: None,
     }
     .to_response())
+}
+
+/// Query parameters for login page
+#[derive(Deserialize, Default)]
+pub struct LoginQuery {
+    reset: Option<String>,
 }
 
 #[get("/login")]
 pub async fn view_login(
     client: ClientCtx,
     cookies: actix_session::Session,
+    query: web::Query<LoginQuery>,
 ) -> Result<impl Responder, Error> {
+    // Check for password reset success message
+    let success_message = if query.reset.as_deref() == Some("success") {
+        Some("Your password has been reset successfully. Please log in with your new password.")
+    } else {
+        None
+    };
+
     let mut tmpl = LoginTemplate {
         client,
         user_id: None,
         logged_in: false,
         username: None,
         token: None,
+        success_message,
     };
 
     let uuid_str: String;
