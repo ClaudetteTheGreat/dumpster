@@ -95,6 +95,72 @@
         font-size: 0.9em;
         color: #666;
     }
+
+    .profile-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .profile-item {
+        margin-bottom: 20px;
+    }
+
+    .profile-item label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+
+    .profile-item input,
+    .profile-item textarea {
+        width: 100%;
+        max-width: 500px;
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+    }
+
+    .profile-item textarea {
+        resize: vertical;
+    }
 </style>
+
+<h2>Profile</h2>
+
+<div class="profile-section">
+    <form action="/account/profile" method="post">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+
+        <div class="profile-item">
+            <label for="bio">About Me:</label>
+            <textarea name="bio" id="bio" rows="6" maxlength="2000" placeholder="Tell others about yourself...">{% match profile.bio %}{% when Some with (bio) %}{{ bio }}{% when None %}{% endmatch %}</textarea>
+            <p class="help-text">Up to 2000 characters. Displayed on your public profile.</p>
+        </div>
+
+        <div class="profile-item">
+            <label for="location">Location:</label>
+            <input type="text" name="location" id="location" maxlength="255" value="{% match profile.location %}{% when Some with (loc) %}{{ loc }}{% when None %}{% endmatch %}" placeholder="City, Country">
+            <p class="help-text">Your geographic location (optional).</p>
+        </div>
+
+        <div class="profile-item">
+            <label for="website_url">Website:</label>
+            <input type="url" name="website_url" id="website_url" maxlength="2048" value="{% match profile.website_url %}{% when Some with (url) %}{{ url }}{% when None %}{% endmatch %}" placeholder="https://example.com">
+            <p class="help-text">Your personal website (must start with http:// or https://).</p>
+        </div>
+
+        <div class="profile-item">
+            <label for="signature">Signature:</label>
+            <textarea name="signature" id="signature" rows="3" maxlength="500" placeholder="Your signature appears below your posts">{% match profile.signature %}{% when Some with (sig) %}{{ sig }}{% when None %}{% endmatch %}</textarea>
+            <p class="help-text">Up to 500 characters. Supports BBCode formatting.</p>
+        </div>
+
+        <button type="submit">Save Profile</button>
+    </form>
+</div>
 
 {% endblock %}

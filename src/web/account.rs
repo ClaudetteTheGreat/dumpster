@@ -11,6 +11,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(update_avatar)
         .service(delete_avatar)
         .service(update_preferences)
+        .service(update_profile)
         .service(view_account);
 }
 
@@ -22,7 +23,11 @@ pub struct AccountTemplate {
 }
 
 #[post("/account/avatar")]
-async fn update_avatar(client: ClientCtx, cookies: actix_session::Session, mutipart: Option<Multipart>) -> impl Responder {
+async fn update_avatar(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    mutipart: Option<Multipart>,
+) -> impl Responder {
     use crate::filesystem::{
         deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file,
     };
@@ -58,7 +63,9 @@ async fn update_avatar(client: ClientCtx, cookies: actix_session::Session, mutip
                     "avatar" => {
                         // Validate CSRF token before processing avatar
                         if csrf_token.is_none() {
-                            return Err(error::ErrorBadRequest("CSRF token must be provided before file upload"));
+                            return Err(error::ErrorBadRequest(
+                                "CSRF token must be provided before file upload",
+                            ));
                         }
                         let token = csrf_token.as_ref().unwrap();
                         crate::middleware::csrf::validate_csrf_token(&cookies, token)?;
@@ -178,7 +185,7 @@ async fn update_preferences(
     // Validate it's one of the allowed values
     if ![10, 25, 50, 100].contains(&posts_per_page) {
         return Err(error::ErrorBadRequest(
-            "posts_per_page must be one of: 10, 25, 50, 100"
+            "posts_per_page must be one of: 10, 25, 50, 100",
         ));
     }
 
@@ -190,7 +197,7 @@ async fn update_preferences(
     // Validate it's one of the allowed values
     if !["light", "dark", "auto"].contains(&theme.as_str()) {
         return Err(error::ErrorBadRequest(
-            "theme must be one of: light, dark, auto"
+            "theme must be one of: light, dark, auto",
         ));
     }
 
@@ -204,6 +211,108 @@ async fn update_preferences(
 
     user.posts_per_page = Set(posts_per_page);
     user.theme = Set(theme.to_string());
+    user.update(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/account"))
+        .finish())
+}
+
+#[post("/account/profile")]
+async fn update_profile(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: actix_web::web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::users;
+
+    let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    // Get and validate bio (max 2000 chars)
+    let bio = form
+        .get("bio")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref b) = bio {
+        if b.len() > 2000 {
+            return Err(error::ErrorBadRequest(
+                "Bio must be 2000 characters or less",
+            ));
+        }
+    }
+
+    // Get and validate location (max 255 chars)
+    let location = form
+        .get("location")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref l) = location {
+        if l.len() > 255 {
+            return Err(error::ErrorBadRequest(
+                "Location must be 255 characters or less",
+            ));
+        }
+    }
+
+    // Get and validate website URL (max 2048 chars, must be valid URL)
+    let website_url = form
+        .get("website_url")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref url_str) = website_url {
+        if url_str.len() > 2048 {
+            return Err(error::ErrorBadRequest(
+                "Website URL must be 2048 characters or less",
+            ));
+        }
+        // Validate URL format
+        match url::Url::parse(url_str) {
+            Ok(parsed) => {
+                // Only allow http/https schemes
+                if parsed.scheme() != "http" && parsed.scheme() != "https" {
+                    return Err(error::ErrorBadRequest("Website URL must use http or https"));
+                }
+            }
+            Err(_) => {
+                return Err(error::ErrorBadRequest("Invalid website URL format"));
+            }
+        }
+    }
+
+    // Get and validate signature (max 500 chars)
+    let signature = form
+        .get("signature")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref sig) = signature {
+        if sig.len() > 500 {
+            return Err(error::ErrorBadRequest(
+                "Signature must be 500 characters or less",
+            ));
+        }
+    }
+
+    // Update the user's profile
+    let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
+        .one(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?
+        .into();
+
+    user.bio = Set(bio);
+    user.location = Set(location);
+    user.website_url = Set(website_url);
+    user.signature = Set(signature);
+
     user.update(get_db_pool())
         .await
         .map_err(error::ErrorInternalServerError)?;

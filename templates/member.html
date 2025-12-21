@@ -20,6 +20,39 @@
             <dd>{{ stats.thread_count }}</dd>
         </dl>
     </div>
+
+    {% if user.bio.is_some() || user.location.is_some() || user.website_url.is_some() %}
+    <div class="member-about">
+        <h3>About</h3>
+
+        {% match user.location %}
+        {% when Some with (location) %}
+        <div class="about-item">
+            <span class="about-label">Location:</span>
+            <span class="about-value">{{ location }}</span>
+        </div>
+        {% when None %}
+        {% endmatch %}
+
+        {% match user.website_url %}
+        {% when Some with (url) %}
+        <div class="about-item">
+            <span class="about-label">Website:</span>
+            <span class="about-value"><a href="{{ url }}" rel="nofollow noopener" target="_blank">{{ url }}</a></span>
+        </div>
+        {% when None %}
+        {% endmatch %}
+
+        {% match user.bio %}
+        {% when Some with (bio) %}
+        <div class="bio-section">
+            <h4>About Me</h4>
+            <div class="bio-content">{{ bio }}</div>
+        </div>
+        {% when None %}
+        {% endmatch %}
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -66,6 +99,56 @@
 .stats-list dd {
     margin: 0;
     color: #333;
+}
+
+.member-about {
+    margin-top: 20px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.member-about h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.about-item {
+    margin-bottom: 10px;
+}
+
+.about-label {
+    font-weight: bold;
+    color: #666;
+    margin-right: 8px;
+}
+
+.about-value a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.about-value a:hover {
+    text-decoration: underline;
+}
+
+.bio-section {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.bio-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 1em;
+    color: #666;
+}
+
+.bio-content {
+    white-space: pre-wrap;
+    line-height: 1.5;
 }
 </style>
 {% endblock %}

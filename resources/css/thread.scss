@@ -109,3 +109,18 @@
         max-width: 100%;
     }
 }
+
+.message-signature {
+    padding: 0 $padding $padding $padding;
+
+    .signature-divider {
+        border: none;
+        border-top: 1px dashed $border-color;
+        margin: 0 0 $padding 0;
+    }
+
+    .signature-content {
+        font-size: 0.9em;
+        color: #666;
+    }
+}

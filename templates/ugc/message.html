@@ -80,6 +80,15 @@
             </div>
         </div>
         {% endif %}
+
+        {% if let Some(user) = user %}
+        {% if let Some(signature_html) = user.get_signature_html() %}
+        <div class="message-signature">
+            <hr class="signature-divider" />
+            <div class="signature-content">{{ signature_html|safe }}</div>
+        </div>
+        {% endif %}
+        {% endif %}
         {% else %}
         <div class="message-holder">
             <em>This message was deleted.</em>

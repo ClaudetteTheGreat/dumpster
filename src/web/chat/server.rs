@@ -344,7 +344,7 @@ impl Handler<message::Join> for ChatServer {
 
                     // Announce connection and provide activity to new user.
                     actor.connect_message(room_id, msg.id);
-    
+
                 } else {
                     actor.send_message_to_conn(
                         msg.id,
@@ -377,13 +377,14 @@ impl Handler<message::Post> for ChatServer {
                             actor.send_message_to_room(
                                 room_id,
                                 serde_json::to_string(&message::SanitaryPosts {
-                                    messages: vec![actor
-                                        .prepare_message(implement::Author::from(&session), message)],
+                                    messages: vec![actor.prepare_message(
+                                        implement::Author::from(&session),
+                                        message,
+                                    )],
                                 })
                                 .expect("message::Post serialize failure"),
                             );
-                        }
-                        else {
+                        } else {
                             actor.send_message_to_conn(id, "Failed to send message.".to_string());
                         }
                     }),
@@ -399,7 +400,10 @@ impl Handler<message::Restart> for ChatServer {
 
     fn handle(&mut self, msg: message::Restart, ctx: &mut Context<ChatServer>) {
         if msg.session.is_staff {
-            log::warn!("ChatServer is being restarted by command, initiated by {:?}", msg.session.username);
+            log::warn!(
+                "ChatServer is being restarted by command, initiated by {:?}",
+                msg.session.username
+            );
             ctx.stop();
         }
     }

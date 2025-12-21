@@ -66,6 +66,10 @@ pub async fn view_member(
         .column_as(attachments::Column::Filename, "avatar_filename")
         .column_as(attachments::Column::FileHeight, "avatar_height")
         .column_as(attachments::Column::FileWidth, "avatar_width")
+        .column(users::Column::Bio)
+        .column(users::Column::Location)
+        .column(users::Column::WebsiteUrl)
+        .column(users::Column::Signature)
         .into_model::<UserProfile>()
         .one(db)
         .await
@@ -107,6 +111,10 @@ pub async fn view_members(client: ClientCtx) -> impl Responder {
         .column_as(attachments::Column::Filename, "avatar_filename")
         .column_as(attachments::Column::FileHeight, "avatar_height")
         .column_as(attachments::Column::FileWidth, "avatar_width")
+        .column(users::Column::Bio)
+        .column(users::Column::Location)
+        .column(users::Column::WebsiteUrl)
+        .column(users::Column::Signature)
         .into_model::<UserProfile>()
         .all(get_db_pool())
         .await

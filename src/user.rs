@@ -54,6 +54,10 @@ pub struct Profile {
     pub posts_per_page: i32,
     pub post_count: Option<i64>,
     pub theme: String,
+    pub bio: Option<String>,
+    pub location: Option<String>,
+    pub website_url: Option<String>,
+    pub signature: Option<String>,
 }
 
 impl Profile {
@@ -76,14 +80,18 @@ impl Profile {
                 a.file_width as avatar_width,
                 u.posts_per_page,
                 COUNT(p.id) as post_count,
-                u.theme
+                u.theme,
+                u.bio,
+                u.location,
+                u.website_url,
+                u.signature
             FROM users u
             LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
             LEFT JOIN posts p ON p.user_id = u.id
             WHERE u.id = $1
-            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme
+            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.bio, u.location, u.website_url, u.signature
         "#;
 
         Self::find_by_statement(Statement::from_sql_and_values(
@@ -116,6 +124,14 @@ impl Profile {
             base_url: RESOURCE_URL,
             class: "username",
         }
+    }
+
+    /// Renders the user's signature as HTML using BBCode parser.
+    pub fn get_signature_html(&self) -> Option<String> {
+        self.signature
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .map(|sig| crate::bbcode::parse(sig))
     }
 }
 
