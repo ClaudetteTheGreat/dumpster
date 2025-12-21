@@ -1,7 +1,6 @@
 /// Email template functions
 ///
 /// This module provides functions to generate common email templates.
-
 use super::{send_email, EmailResult};
 
 /// Send a password reset email
@@ -124,7 +123,13 @@ Ruforo Forum
         username, verification_link, verification_link
     );
 
-    send_email(to, "Verify Your Email Address", &body_text, Some(&body_html)).await
+    send_email(
+        to,
+        "Verify Your Email Address",
+        &body_text,
+        Some(&body_html),
+    )
+    .await
 }
 
 /// Send a welcome email after verification

@@ -261,7 +261,10 @@ mod tests {
 
         assert_eq!("<pre>Test</pre>", parse("[code]Test[/code]"));
         assert_eq!("<pre>Foo\r\nbar</pre>", parse("[code]Foo\r\nbar[/code]"));
-        assert_eq!("<pre>Foo\r\nbar&lt;/pre&gt;&lt;iframe&gt;</pre>", parse("[code]Foo\r\nbar</pre><iframe>[/code]"));
+        assert_eq!(
+            "<pre>Foo\r\nbar&lt;/pre&gt;&lt;iframe&gt;</pre>",
+            parse("[code]Foo\r\nbar</pre><iframe>[/code]")
+        );
     }
 
     #[test]
@@ -269,8 +272,14 @@ mod tests {
         use super::parse;
 
         assert_eq!("&lt;b&gt;Test&lt;/b&gt;", parse("<b>Test</b>"));
-        assert_eq!("[xxx&lt;iframe&gt;]Test[/xxx&lt;iframe&gt;]", parse("[xxx<iframe>]Test[/xxx<iframe>]"));
-        assert_eq!("[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]", parse("[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]"))
+        assert_eq!(
+            "[xxx&lt;iframe&gt;]Test[/xxx&lt;iframe&gt;]",
+            parse("[xxx<iframe>]Test[/xxx<iframe>]")
+        );
+        assert_eq!(
+            "[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]",
+            parse("[url=javascript:alert(String.fromCharCode(88,83,83))]https://zombo.com[/url]")
+        )
     }
 
     #[test]

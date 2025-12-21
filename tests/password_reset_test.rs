@@ -1,11 +1,10 @@
 /// Integration tests for password reset functionality
 /// Tests password reset token creation, validation, expiration, and password update flow
-
 mod common;
 use serial_test::serial;
 
-use common::*;
 use chrono::Utc;
+use common::*;
 use ruforo::orm::{password_reset_tokens, users};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
@@ -78,7 +77,10 @@ async fn test_find_reset_token_by_value() {
 
     assert!(found_token.is_some(), "Token should be found");
     let found_token = found_token.unwrap();
-    assert_eq!(found_token.user_id, user.id, "Token should belong to correct user");
+    assert_eq!(
+        found_token.user_id, user.id,
+        "Token should belong to correct user"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -181,7 +183,10 @@ async fn test_password_update_after_reset() {
     // Update user password
     let mut active_user: users::ActiveModel = original_user.into();
     active_user.password = Set(new_hash.clone());
-    let updated_user = active_user.update(&db).await.expect("Failed to update password");
+    let updated_user = active_user
+        .update(&db)
+        .await
+        .expect("Failed to update password");
 
     assert_ne!(
         updated_user.password, original_hash,
@@ -220,7 +225,10 @@ async fn test_find_unused_valid_reset_token() {
 
     let mut active_used: password_reset_tokens::ActiveModel = used_token.into();
     active_used.used = Set(true);
-    active_used.update(&db).await.expect("Failed to mark token as used");
+    active_used
+        .update(&db)
+        .await
+        .expect("Failed to mark token as used");
 
     // Create a valid, unused token
     let _valid = create_reset_token(&db, user.id, "valid_reset_token", 60)
@@ -237,7 +245,11 @@ async fn test_find_unused_valid_reset_token() {
         .await
         .expect("Failed to query valid tokens");
 
-    assert_eq!(valid_tokens.len(), 1, "Should find exactly 1 valid, unused token");
+    assert_eq!(
+        valid_tokens.len(),
+        1,
+        "Should find exactly 1 valid, unused token"
+    );
     assert_eq!(
         valid_tokens[0].token, "valid_reset_token",
         "Should find the correct token"
@@ -374,7 +386,10 @@ async fn test_used_token_cannot_be_reused() {
 
     let mut active_token: password_reset_tokens::ActiveModel = token.into();
     active_token.used = Set(true);
-    active_token.update(&db).await.expect("Failed to mark as used");
+    active_token
+        .update(&db)
+        .await
+        .expect("Failed to mark as used");
 
     // Try to find unused tokens
     let now = Utc::now().naive_utc();

@@ -287,10 +287,14 @@ pub async fn create_reply(
 
     // Rate limiting - prevent post spam
     if let Err(e) = crate::rate_limit::check_post_rate_limit(authenticated_user_id) {
-        log::warn!("Rate limit exceeded for post creation: user_id={}", authenticated_user_id);
-        return Err(error::ErrorTooManyRequests(
-            format!("You're posting too quickly. Please wait {} seconds.", e.retry_after_seconds)
-        ));
+        log::warn!(
+            "Rate limit exceeded for post creation: user_id={}",
+            authenticated_user_id
+        );
+        return Err(error::ErrorTooManyRequests(format!(
+            "You're posting too quickly. Please wait {} seconds.",
+            e.retry_after_seconds
+        )));
     }
 
     use crate::filesystem::{insert_field_as_attachment, UploadResponse};

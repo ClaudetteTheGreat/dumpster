@@ -1,14 +1,13 @@
 /// Integration tests for thread watching functionality
 /// Tests watching/unwatching threads, notification delivery, and watched thread listing
-
 mod common;
 use serial_test::serial;
 
+use chrono::Utc;
 use common::*;
 use ruforo::notifications;
 use ruforo::orm::{forums, threads, watched_threads};
 use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr, QueryFilter};
-use chrono::Utc;
 
 /// Create a test thread
 async fn create_test_thread(

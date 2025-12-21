@@ -31,10 +31,9 @@ async fn init_async_globals() {
     static DB_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
     if !DB_INITIALIZED.swap(true, Ordering::SeqCst) {
-        let database_url = env::var("TEST_DATABASE_URL")
-            .unwrap_or_else(|_| {
-                "postgres://postgres:postgres@localhost:5433/ruforo_test".to_string()
-            });
+        let database_url = env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+            "postgres://postgres:postgres@localhost:5433/ruforo_test".to_string()
+        });
 
         ruforo::db::init_db(database_url).await;
     }
@@ -43,11 +42,10 @@ async fn init_async_globals() {
 /// Get a test database connection
 /// Uses TEST_DATABASE_URL environment variable or falls back to default test DB
 pub async fn get_test_db() -> Result<DatabaseConnection, DbErr> {
-    let database_url = env::var("TEST_DATABASE_URL")
-        .unwrap_or_else(|_| {
-            // Default to test database on port 5433
-            "postgres://postgres:postgres@localhost:5433/ruforo_test".to_string()
-        });
+    let database_url = env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
+        // Default to test database on port 5433
+        "postgres://postgres:postgres@localhost:5433/ruforo_test".to_string()
+    });
 
     Database::connect(&database_url).await
 }
@@ -106,8 +104,10 @@ pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
             permissions,
             permission_categories,
             ip
-        RESTART IDENTITY CASCADE;".to_string()
-    )).await?;
+        RESTART IDENTITY CASCADE;"
+            .to_string(),
+    ))
+    .await?;
 
     Ok(())
 }

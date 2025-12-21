@@ -1,6 +1,5 @@
 /// Integration tests for account lockout functionality
 /// Tests the security feature that locks accounts after too many failed login attempts
-
 mod common;
 use serial_test::serial;
 
@@ -179,7 +178,10 @@ async fn test_successful_login_resets_counter() {
     let attempts = get_failed_attempts(&db, user.id)
         .await
         .expect("Failed to get attempts");
-    assert_eq!(attempts, 0, "Failed attempts should be reset to 0 on success");
+    assert_eq!(
+        attempts, 0,
+        "Failed attempts should be reset to 0 on success"
+    );
 
     // Verify locked_until is None
     let locked = is_user_locked(&db, user.id)

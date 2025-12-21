@@ -104,9 +104,7 @@ pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> Result<impl Respo
     let layer = req
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
-    let session = layer
-        .get_session_from_user_id(user_id as u32)
-        .await;
+    let session = layer.get_session_from_user_id(user_id as u32).await;
 
     Ok(ChatTemplate {
         client,
@@ -146,7 +144,10 @@ pub struct ChatTestData {
 /// This endpoint does not require authentication and should be disabled in production
 /// by setting ENABLE_TEST_ENDPOINTS=false in environment variables.
 #[get("/test-chat")]
-pub async fn view_chat_shim(req: HttpRequest, query: web::Query<ChatTestData>) -> Result<impl Responder, Error> {
+pub async fn view_chat_shim(
+    req: HttpRequest,
+    query: web::Query<ChatTestData>,
+) -> Result<impl Responder, Error> {
     // Check if test endpoints are enabled (default: disabled)
     let test_endpoints_enabled = std::env::var("ENABLE_TEST_ENDPOINTS")
         .unwrap_or_else(|_| "false".to_string())

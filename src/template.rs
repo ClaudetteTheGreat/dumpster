@@ -69,7 +69,8 @@ impl PaginatorToHtml for Paginator {
         } else {
             // otherwise, show the lookahead and look behind
             // i.e. 1 .. 4 5 [6] 7 8 .. 11 (minimum number)
-            let range = (self.this_page - PAGINATOR_LOOK_AHEAD)..(self.this_page + PAGINATOR_LOOK_AHEAD);
+            let range =
+                (self.this_page - PAGINATOR_LOOK_AHEAD)..(self.this_page + PAGINATOR_LOOK_AHEAD);
             Some(range.collect())
         }
     }

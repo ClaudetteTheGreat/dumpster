@@ -1,6 +1,5 @@
 /// Integration tests for two-step 2FA login flow
 /// Tests that users with 2FA enabled go through proper authentication flow
-
 mod common;
 use serial_test::serial;
 
@@ -149,7 +148,10 @@ async fn test_2fa_flow_resets_failed_attempts_on_success() {
     let attempts = get_failed_attempts(&db, user.id)
         .await
         .expect("Failed to get attempts");
-    assert_eq!(attempts, 0, "Failed attempts should be reset after successful 2FA login");
+    assert_eq!(
+        attempts, 0,
+        "Failed attempts should be reset after successful 2FA login"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -182,7 +184,10 @@ async fn test_2fa_wrong_password_increments_failed_attempts() {
     let attempts = get_failed_attempts(&db, user.id)
         .await
         .expect("Failed to get attempts");
-    assert_eq!(attempts, 1, "Failed attempts should increment even for 2FA users");
+    assert_eq!(
+        attempts, 1,
+        "Failed attempts should increment even for 2FA users"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }

@@ -294,7 +294,9 @@ impl ClientCtx {
 
         match resource_user_id {
             Some(owner_id) if owner_id == user_id => Ok(()),
-            _ => Err(actix_web::error::ErrorForbidden("You don't own this resource")),
+            _ => Err(actix_web::error::ErrorForbidden(
+                "You don't own this resource",
+            )),
         }
     }
 }

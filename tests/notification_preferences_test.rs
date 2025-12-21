@@ -1,6 +1,5 @@
 /// Integration tests for notification preferences functionality
 /// Tests getting and updating notification preferences
-
 mod common;
 use serial_test::serial;
 
@@ -202,12 +201,18 @@ async fn test_get_all_preferences_with_custom_settings() {
         .expect("Failed to get preferences");
 
     // Find specific preferences and verify
-    let reply_pref = prefs.iter().find(|p| p.notification_type == "reply").unwrap();
+    let reply_pref = prefs
+        .iter()
+        .find(|p| p.notification_type == "reply")
+        .unwrap();
     assert_eq!(reply_pref.in_app, false);
     assert_eq!(reply_pref.email, true);
     assert_eq!(reply_pref.frequency, "hourly");
 
-    let mention_pref = prefs.iter().find(|p| p.notification_type == "mention").unwrap();
+    let mention_pref = prefs
+        .iter()
+        .find(|p| p.notification_type == "mention")
+        .unwrap();
     assert_eq!(mention_pref.in_app, true);
     assert_eq!(mention_pref.email, false);
     assert_eq!(mention_pref.frequency, "daily");
@@ -218,7 +223,10 @@ async fn test_get_all_preferences_with_custom_settings() {
     assert_eq!(pm_pref.frequency, "never");
 
     // Unchanged preferences should have defaults
-    let quote_pref = prefs.iter().find(|p| p.notification_type == "quote").unwrap();
+    let quote_pref = prefs
+        .iter()
+        .find(|p| p.notification_type == "quote")
+        .unwrap();
     assert_eq!(quote_pref.in_app, true);
     assert_eq!(quote_pref.email, true);
     assert_eq!(quote_pref.frequency, "immediate");
@@ -256,7 +264,10 @@ async fn test_preferences_isolated_between_users() {
         .await
         .expect("Failed to get user1 preferences");
 
-    let user1_reply = user1_prefs.iter().find(|p| p.notification_type == "reply").unwrap();
+    let user1_reply = user1_prefs
+        .iter()
+        .find(|p| p.notification_type == "reply")
+        .unwrap();
     assert_eq!(user1_reply.in_app, false);
     assert_eq!(user1_reply.email, false);
     assert_eq!(user1_reply.frequency, "never");
@@ -266,7 +277,10 @@ async fn test_preferences_isolated_between_users() {
         .await
         .expect("Failed to get user2 preferences");
 
-    let user2_reply = user2_prefs.iter().find(|p| p.notification_type == "reply").unwrap();
+    let user2_reply = user2_prefs
+        .iter()
+        .find(|p| p.notification_type == "reply")
+        .unwrap();
     assert_eq!(user2_reply.in_app, true);
     assert_eq!(user2_reply.email, true);
     assert_eq!(user2_reply.frequency, "immediate");
@@ -291,8 +305,17 @@ async fn test_preference_display_has_labels() {
 
     // Verify all preferences have labels and descriptions
     for pref in prefs {
-        assert!(!pref.type_label.is_empty(), "type_label should not be empty");
-        assert!(!pref.type_description.is_empty(), "type_description should not be empty");
-        assert!(!pref.notification_type.is_empty(), "notification_type should not be empty");
+        assert!(
+            !pref.type_label.is_empty(),
+            "type_label should not be empty"
+        );
+        assert!(
+            !pref.type_description.is_empty(),
+            "type_description should not be empty"
+        );
+        assert!(
+            !pref.notification_type.is_empty(),
+            "notification_type should not be empty"
+        );
     }
 }

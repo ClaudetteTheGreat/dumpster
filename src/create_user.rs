@@ -127,16 +127,11 @@ pub async fn create_user_post(form: web::Form<FormData>) -> Result<HttpResponse,
         })?;
 
     // Send verification email
-    let base_url = std::env::var("BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let base_url =
+        std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
-    if let Err(e) = crate::email::templates::send_verification_email(
-        &email,
-        username,
-        &token,
-        &base_url,
-    )
-    .await
+    if let Err(e) =
+        crate::email::templates::send_verification_email(&email, username, &token, &base_url).await
     {
         log::error!("Failed to send verification email: {}", e);
         // Don't fail registration - token is saved, user can request resend

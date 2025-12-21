@@ -1,7 +1,6 @@
 /// Administration and moderation tools
 ///
 /// This module provides endpoints for moderators and administrators.
-
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{mod_log, threads};

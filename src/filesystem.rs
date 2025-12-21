@@ -196,7 +196,10 @@ pub async fn post_file_hash(form: web::Json<FileHashFormData>) -> Result<impl Re
 }
 
 #[post("/fs/upload-file")]
-pub async fn put_file(client: crate::middleware::ClientCtx, mut mutipart: Multipart) -> Result<impl Responder, Error> {
+pub async fn put_file(
+    client: crate::middleware::ClientCtx,
+    mut mutipart: Multipart,
+) -> Result<impl Responder, Error> {
     // Require authentication for file uploads
     client.require_login()?;
 
@@ -572,7 +575,8 @@ pub async fn save_field_as_temp_file(field: &mut Field) -> Result<Option<UploadP
         filename,
         tmp_path: filepath, // Warning: This is deleted at the end of processing.
         hash: hasher.finalize(),
-        mime: field.content_type()
+        mime: field
+            .content_type()
             .map(|m| m.to_owned())
             .unwrap_or_else(|| "application/octet-stream".parse().unwrap()),
     }))

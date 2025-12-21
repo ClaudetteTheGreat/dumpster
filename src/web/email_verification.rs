@@ -1,7 +1,6 @@
 /// Email verification functionality
 ///
 /// This module handles email verification for new user registrations.
-
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{email_verification_tokens, users};
@@ -193,14 +192,11 @@ pub async fn resend_verification(
             })?;
 
             // Send verification email
-            let base_url = std::env::var("BASE_URL")
-                .unwrap_or_else(|_| "http://localhost:8080".to_string());
+            let base_url =
+                std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
             if let Err(e) = crate::email::templates::send_verification_email(
-                &email,
-                &username,
-                &token,
-                &base_url,
+                &email, &username, &token, &base_url,
             )
             .await
             {
@@ -212,7 +208,10 @@ pub async fn resend_verification(
         }
         Ok(None) => {
             // Don't reveal if email exists for security
-            log::debug!("Verification resend requested for non-existent email: {}", email);
+            log::debug!(
+                "Verification resend requested for non-existent email: {}",
+                email
+            );
         }
         Err(e) => {
             log::error!("Database error during verification resend: {}", e);

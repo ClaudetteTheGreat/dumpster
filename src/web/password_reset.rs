@@ -1,7 +1,6 @@
 /// Password reset functionality
 ///
 /// This module handles password reset requests and confirmations.
-
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{password_reset_tokens, users};
@@ -120,14 +119,11 @@ pub async fn request_reset(
             })?;
 
             // Send reset email
-            let base_url = std::env::var("BASE_URL")
-                .unwrap_or_else(|_| "http://localhost:8080".to_string());
+            let base_url =
+                std::env::var("BASE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
             if let Err(e) = crate::email::templates::send_password_reset_email(
-                &email,
-                &username,
-                &token,
-                &base_url,
+                &email, &username, &token, &base_url,
             )
             .await
             {
@@ -266,7 +262,10 @@ pub async fn confirm_reset(
     // This forces re-authentication on all devices after password reset
     let sessions = crate::session::get_sess();
     if let Err(e) = crate::session::invalidate_user_sessions(sessions, user_id).await {
-        log::error!("Failed to invalidate user sessions after password reset: {}", e);
+        log::error!(
+            "Failed to invalidate user sessions after password reset: {}",
+            e
+        );
         // Don't fail - password is already updated, this is just additional security
     }
 

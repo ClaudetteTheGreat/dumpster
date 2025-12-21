@@ -1,11 +1,10 @@
 /// Integration tests for email verification functionality
 /// Tests email verification tokens, verification flow, and email requirements
-
 mod common;
 use serial_test::serial;
 
-use common::*;
 use chrono::Utc;
+use common::*;
 use ruforo::orm::{email_verification_tokens, users};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
@@ -107,9 +106,10 @@ async fn test_create_verification_token() {
         .await
         .expect("Failed to create user");
 
-    let token = create_verification_token(&db, user.id, "test@example.com", "test_token_12345", 1440)
-        .await
-        .expect("Failed to create token");
+    let token =
+        create_verification_token(&db, user.id, "test@example.com", "test_token_12345", 1440)
+            .await
+            .expect("Failed to create token");
 
     assert_eq!(token.token, "test_token_12345", "Token should match");
     assert_eq!(token.user_id, user.id, "User ID should match");
@@ -131,9 +131,10 @@ async fn test_find_token_by_value() {
         .await
         .expect("Failed to create user");
 
-    let _token = create_verification_token(&db, user.id, "test@example.com", "unique_token_abc", 1440)
-        .await
-        .expect("Failed to create token");
+    let _token =
+        create_verification_token(&db, user.id, "test@example.com", "unique_token_abc", 1440)
+            .await
+            .expect("Failed to create token");
 
     // Find token by value
     let found_token = email_verification_tokens::Entity::find()
@@ -144,7 +145,10 @@ async fn test_find_token_by_value() {
 
     assert!(found_token.is_some(), "Token should be found");
     let found_token = found_token.unwrap();
-    assert_eq!(found_token.user_id, user.id, "Token should belong to correct user");
+    assert_eq!(
+        found_token.user_id, user.id,
+        "Token should belong to correct user"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -197,7 +201,10 @@ async fn test_verify_user_email() {
     // Verify the user
     let mut active_user: users::ActiveModel = user.into();
     active_user.email_verified = Set(true);
-    let verified_user = active_user.update(&db).await.expect("Failed to verify user");
+    let verified_user = active_user
+        .update(&db)
+        .await
+        .expect("Failed to verify user");
 
     assert!(verified_user.email_verified, "User should now be verified");
 
@@ -218,18 +225,20 @@ async fn test_token_expiration() {
         .expect("Failed to create user");
 
     // Create an expired token (expires in the past)
-    let expired_token = create_verification_token(&db, user.id, "test@example.com", "expired_token", -60)
-        .await
-        .expect("Failed to create token");
+    let expired_token =
+        create_verification_token(&db, user.id, "test@example.com", "expired_token", -60)
+            .await
+            .expect("Failed to create token");
 
     // Check if token is expired
     let is_expired = expired_token.expires_at < Utc::now().naive_utc();
     assert!(is_expired, "Token should be expired");
 
     // Create a valid token (expires in the future)
-    let valid_token = create_verification_token(&db, user.id, "test@example.com", "valid_token", 60)
-        .await
-        .expect("Failed to create token");
+    let valid_token =
+        create_verification_token(&db, user.id, "test@example.com", "valid_token", 60)
+            .await
+            .expect("Failed to create token");
 
     let is_valid = valid_token.expires_at > Utc::now().naive_utc();
     assert!(is_valid, "Token should be valid");
@@ -285,18 +294,23 @@ async fn test_find_unused_valid_token() {
         .expect("Failed to create user");
 
     // Create an expired token
-    let _expired = create_verification_token(&db, user.id, "test@example.com", "expired_token", -60)
-        .await
-        .expect("Failed to create expired token");
+    let _expired =
+        create_verification_token(&db, user.id, "test@example.com", "expired_token", -60)
+            .await
+            .expect("Failed to create expired token");
 
     // Create a used token
-    let used_token = create_verification_token(&db, user.id, "test@example.com", "used_token", 1440)
-        .await
-        .expect("Failed to create used token");
+    let used_token =
+        create_verification_token(&db, user.id, "test@example.com", "used_token", 1440)
+            .await
+            .expect("Failed to create used token");
 
     let mut active_used: email_verification_tokens::ActiveModel = used_token.into();
     active_used.used = Set(true);
-    active_used.update(&db).await.expect("Failed to mark token as used");
+    active_used
+        .update(&db)
+        .await
+        .expect("Failed to mark token as used");
 
     // Create a valid, unused token
     let _valid = create_verification_token(&db, user.id, "test@example.com", "valid_token", 1440)
@@ -313,7 +327,11 @@ async fn test_find_unused_valid_token() {
         .await
         .expect("Failed to query valid tokens");
 
-    assert_eq!(valid_tokens.len(), 1, "Should find exactly 1 valid, unused token");
+    assert_eq!(
+        valid_tokens.len(),
+        1,
+        "Should find exactly 1 valid, unused token"
+    );
     assert_eq!(
         valid_tokens[0].token, "valid_token",
         "Should find the correct token"

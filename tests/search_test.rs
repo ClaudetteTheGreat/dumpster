@@ -1,11 +1,10 @@
 /// Integration tests for full-text search functionality
 /// Tests thread title and post content search with PostgreSQL FTS
-
 mod common;
 use serial_test::serial;
 
-use common::*;
 use chrono::Utc;
+use common::*;
 use ruforo::orm::{forums, posts, threads, ugc, ugc_revisions};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
@@ -119,7 +118,10 @@ async fn test_search_thread_by_title() {
         .expect("Failed to search threads");
 
     assert_eq!(search_results.len(), 1, "Should find one thread");
-    assert_eq!(search_results[0].id, thread.id, "Should find the correct thread");
+    assert_eq!(
+        search_results[0].id, thread.id,
+        "Should find the correct thread"
+    );
     assert_eq!(
         search_results[0].title, "Rust Programming Tutorial",
         "Thread title should match"
@@ -159,7 +161,11 @@ async fn test_search_thread_case_insensitive() {
         .await
         .expect("Failed to search threads");
 
-    assert_eq!(search_results.len(), 1, "Should find thread with matching case");
+    assert_eq!(
+        search_results.len(),
+        1,
+        "Should find thread with matching case"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -320,7 +326,11 @@ async fn test_search_partial_word_match() {
         .await
         .expect("Failed to search threads");
 
-    assert_eq!(search_results.len(), 1, "Partial word match should find thread");
+    assert_eq!(
+        search_results.len(),
+        1,
+        "Partial word match should find thread"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }

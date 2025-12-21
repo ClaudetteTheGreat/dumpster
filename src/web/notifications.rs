@@ -1,7 +1,6 @@
 /// Notification management routes
 ///
 /// This module provides routes for viewing and managing notifications.
-
 use crate::middleware::ClientCtx;
 use crate::notifications;
 use crate::orm::notifications as notification_orm;

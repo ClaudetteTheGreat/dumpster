@@ -32,7 +32,6 @@
 ///     // Process form...
 /// }
 /// ```
-
 use actix_web::{error, Error};
 use rand::{distributions::Alphanumeric, Rng};
 

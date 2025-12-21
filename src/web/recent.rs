@@ -193,10 +193,11 @@ async fn view_recent_posts(client: ClientCtx) -> impl Responder {
         LIMIT 50
     "#;
 
-    let posts = RecentPost::find_by_statement(Statement::from_string(DbBackend::Postgres, sql.to_owned()))
-        .all(db)
-        .await
-        .unwrap_or_default();
+    let posts =
+        RecentPost::find_by_statement(Statement::from_string(DbBackend::Postgres, sql.to_owned()))
+            .all(db)
+            .await
+            .unwrap_or_default();
 
     RecentPostsTemplate { client, posts }.to_response()
 }

@@ -44,7 +44,9 @@ pub async fn detect_and_notify_mentions(
 
             // Get author username
             let author = Profile::get_by_id(db, author_id).await?;
-            let author_name = author.map(|a| a.name).unwrap_or_else(|| "Someone".to_string());
+            let author_name = author
+                .map(|a| a.name)
+                .unwrap_or_else(|| "Someone".to_string());
 
             // Get thread info
             let thread = threads::Entity::find_by_id(thread_id).one(db).await?;
@@ -85,7 +87,9 @@ pub async fn notify_thread_reply(
 
     // Get author username
     let author = Profile::get_by_id(db, author_id).await?;
-    let author_name = author.map(|a| a.name).unwrap_or_else(|| "Someone".to_string());
+    let author_name = author
+        .map(|a| a.name)
+        .unwrap_or_else(|| "Someone".to_string());
 
     // Notify thread author if they're not the one posting
     if let Some(thread_author_id) = thread.user_id {

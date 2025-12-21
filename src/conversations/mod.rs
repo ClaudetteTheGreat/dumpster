@@ -96,11 +96,7 @@ pub async fn send_message(
 }
 
 /// Verify that a user is a participant in a conversation
-pub async fn verify_participant<C>(
-    db: &C,
-    user_id: i32,
-    conversation_id: i32,
-) -> Result<(), DbErr>
+pub async fn verify_participant<C>(db: &C, user_id: i32, conversation_id: i32) -> Result<(), DbErr>
 where
     C: sea_orm::ConnectionTrait,
 {
@@ -188,8 +184,8 @@ pub async fn get_user_conversations(
     for (participant, conversation) in participants {
         if let Some(conv) = conversation {
             // Get other participants
-            let other_participants = get_conversation_participants(db, conv.id, Some(user_id))
-                .await?;
+            let other_participants =
+                get_conversation_participants(db, conv.id, Some(user_id)).await?;
 
             // Get last message
             let last_message = get_last_message(db, conv.id).await?;
@@ -278,7 +274,9 @@ async fn get_last_message(
         let ugc_model = ugc::Entity::find_by_id(msg.ugc_id).one(db).await?;
         if let Some(ugc) = ugc_model {
             if let Some(revision_id) = ugc.ugc_revision_id {
-                let revision = ugc_revisions::Entity::find_by_id(revision_id).one(db).await?;
+                let revision = ugc_revisions::Entity::find_by_id(revision_id)
+                    .one(db)
+                    .await?;
                 if let Some(rev) = revision {
                     return Ok(Some((rev.content, rev.created_at)));
                 }
@@ -315,7 +313,9 @@ pub async fn get_conversation_messages(
         let ugc_model = ugc::Entity::find_by_id(msg.ugc_id).one(db).await?;
         if let Some(ugc) = ugc_model {
             if let Some(revision_id) = ugc.ugc_revision_id {
-                let revision = ugc_revisions::Entity::find_by_id(revision_id).one(db).await?;
+                let revision = ugc_revisions::Entity::find_by_id(revision_id)
+                    .one(db)
+                    .await?;
                 if let Some(rev) = revision {
                     // Get author name
                     let author_name = if let Some(author_id) = msg.user_id {

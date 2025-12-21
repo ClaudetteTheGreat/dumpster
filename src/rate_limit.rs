@@ -16,16 +16,13 @@
 ///     ));
 /// }
 /// ```
-
 use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use once_cell::sync::Lazy;
 
 /// Global rate limiter instance
-pub static RATE_LIMITER: Lazy<Arc<RateLimiter>> = Lazy::new(|| {
-    Arc::new(RateLimiter::new())
-});
+pub static RATE_LIMITER: Lazy<Arc<RateLimiter>> = Lazy::new(|| Arc::new(RateLimiter::new()));
 
 /// Rate limiter using in-memory storage
 pub struct RateLimiter {
@@ -70,8 +67,7 @@ impl RateLimiter {
         let now = Instant::now();
 
         // Get or create entry for this key
-        let mut entry = self.requests.entry(key.clone())
-            .or_insert_with(Vec::new);
+        let mut entry = self.requests.entry(key.clone()).or_insert_with(Vec::new);
 
         // Remove requests outside the time window (sliding window)
         entry.retain(|&timestamp| now.duration_since(timestamp) < window);
@@ -204,8 +200,11 @@ mod tests {
         // Should allow first 3 requests
         for i in 0..3 {
             assert!(
-                limiter.check_rate_limit("test", "user1", 3, Duration::from_secs(10)).is_ok(),
-                "Request {} should be allowed", i
+                limiter
+                    .check_rate_limit("test", "user1", 3, Duration::from_secs(10))
+                    .is_ok(),
+                "Request {} should be allowed",
+                i
             );
         }
     }
@@ -216,7 +215,9 @@ mod tests {
 
         // Allow first 3 requests
         for _ in 0..3 {
-            limiter.check_rate_limit("test", "user1", 3, Duration::from_secs(10)).unwrap();
+            limiter
+                .check_rate_limit("test", "user1", 3, Duration::from_secs(10))
+                .unwrap();
         }
 
         // 4th request should be blocked
@@ -234,12 +235,16 @@ mod tests {
 
         // Use up limit for user1
         for _ in 0..3 {
-            limiter.check_rate_limit("test", "user1", 3, Duration::from_secs(10)).unwrap();
+            limiter
+                .check_rate_limit("test", "user1", 3, Duration::from_secs(10))
+                .unwrap();
         }
 
         // user2 should still be allowed
         assert!(
-            limiter.check_rate_limit("test", "user2", 3, Duration::from_secs(10)).is_ok(),
+            limiter
+                .check_rate_limit("test", "user2", 3, Duration::from_secs(10))
+                .is_ok(),
             "Different identifier should have independent limit"
         );
     }
@@ -249,8 +254,12 @@ mod tests {
         let limiter = RateLimiter::new();
 
         // Create some entries
-        limiter.check_rate_limit("test", "user1", 10, Duration::from_secs(10)).unwrap();
-        limiter.check_rate_limit("test", "user2", 10, Duration::from_secs(10)).unwrap();
+        limiter
+            .check_rate_limit("test", "user1", 10, Duration::from_secs(10))
+            .unwrap();
+        limiter
+            .check_rate_limit("test", "user2", 10, Duration::from_secs(10))
+            .unwrap();
 
         assert_eq!(limiter.tracked_keys_count(), 2);
 

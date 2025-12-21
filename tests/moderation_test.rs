@@ -1,11 +1,10 @@
 /// Integration tests for moderation features
 /// Tests thread locking, pinning, and permission enforcement
-
 mod common;
 use serial_test::serial;
 
-use common::*;
 use chrono::Utc;
+use common::*;
 use ruforo::group::GroupType;
 use ruforo::orm::{forums, groups, threads, user_groups};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
@@ -43,7 +42,11 @@ async fn create_test_thread(
 }
 
 /// Grant a user permission by adding them to a group
-async fn add_user_to_group(db: &DatabaseConnection, user_id: i32, group_id: i32) -> Result<(), DbErr> {
+async fn add_user_to_group(
+    db: &DatabaseConnection,
+    user_id: i32,
+    group_id: i32,
+) -> Result<(), DbErr> {
     let user_group = user_groups::ActiveModel {
         user_id: Set(user_id),
         group_id: Set(group_id),
@@ -77,7 +80,10 @@ async fn test_thread_locking_prevents_posts() {
     // Lock the thread
     let mut active_thread: threads::ActiveModel = thread.clone().into();
     active_thread.is_locked = Set(true);
-    thread = active_thread.update(&db).await.expect("Failed to lock thread");
+    thread = active_thread
+        .update(&db)
+        .await
+        .expect("Failed to lock thread");
 
     // Verify thread is locked
     assert!(thread.is_locked, "Thread should be locked");
@@ -134,7 +140,10 @@ async fn test_thread_unlocking() {
     // Unlock the thread
     let mut active_thread: threads::ActiveModel = thread.into();
     active_thread.is_locked = Set(false);
-    let unlocked_thread = active_thread.update(&db).await.expect("Failed to unlock thread");
+    let unlocked_thread = active_thread
+        .update(&db)
+        .await
+        .expect("Failed to unlock thread");
 
     assert!(!unlocked_thread.is_locked, "Thread should be unlocked");
 
@@ -167,7 +176,10 @@ async fn test_thread_pinning() {
     // Pin the thread
     let mut active_thread: threads::ActiveModel = thread.clone().into();
     active_thread.is_pinned = Set(true);
-    thread = active_thread.update(&db).await.expect("Failed to pin thread");
+    thread = active_thread
+        .update(&db)
+        .await
+        .expect("Failed to pin thread");
 
     assert!(thread.is_pinned, "Thread should be pinned");
 
@@ -253,7 +265,10 @@ async fn test_user_has_moderator_group() {
         label: Set("Test Moderators".to_string()),
         group_type: Set(GroupType::Normal),
         ..Default::default()
-    }.insert(&db).await.expect("Failed to create test group");
+    }
+    .insert(&db)
+    .await
+    .expect("Failed to create test group");
 
     // Add user to test group
     add_user_to_group(&db, user.id, test_group.id)

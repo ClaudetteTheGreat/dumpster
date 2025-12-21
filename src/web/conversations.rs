@@ -187,13 +187,10 @@ pub async fn create_conversation(
     }
 
     // Create conversation
-    let conversation_id = conversations::create_conversation(
-        user_id,
-        &recipient_ids,
-        form.title.as_deref(),
-    )
-    .await
-    .map_err(error::ErrorInternalServerError)?;
+    let conversation_id =
+        conversations::create_conversation(user_id, &recipient_ids, form.title.as_deref())
+            .await
+            .map_err(error::ErrorInternalServerError)?;
 
     // Send first message
     conversations::send_message(conversation_id, user_id, &form.message)

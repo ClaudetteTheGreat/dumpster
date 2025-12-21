@@ -1,7 +1,6 @@
 /// Search functionality using PostgreSQL full-text search
 ///
 /// This module provides search capabilities for threads and posts.
-
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use actix_web::{get, web, Error, Responder};

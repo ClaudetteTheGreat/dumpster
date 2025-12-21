@@ -4,7 +4,7 @@ pub mod dispatcher;
 pub mod types;
 
 use crate::db::get_db_pool;
-use crate::orm::{notifications, notification_preferences, watched_threads};
+use crate::orm::{notification_preferences, notifications, watched_threads};
 use sea_orm::{entity::*, query::*, sea_query::Expr, DbErr, Set};
 
 pub use types::NotificationType;
@@ -285,9 +285,17 @@ pub async fn get_all_user_preferences(
     let notification_types = vec![
         ("reply", "Thread Replies", "Someone replies to your thread"),
         ("mention", "Mentions", "Someone mentions you with @username"),
-        ("pm", "Private Messages", "Someone sends you a private message"),
+        (
+            "pm",
+            "Private Messages",
+            "Someone sends you a private message",
+        ),
         ("quote", "Quotes", "Someone quotes your post"),
-        ("thread_watch", "Watched Threads", "New replies in threads you're watching"),
+        (
+            "thread_watch",
+            "Watched Threads",
+            "New replies in threads you're watching",
+        ),
     ];
 
     for (type_str, label, description) in notification_types {
@@ -300,7 +308,9 @@ pub async fn get_all_user_preferences(
             type_description: description.to_string(),
             in_app: pref.map(|p| p.in_app).unwrap_or(true),
             email: pref.map(|p| p.email).unwrap_or(true),
-            frequency: pref.map(|p| p.frequency.clone()).unwrap_or_else(|| "immediate".to_string()),
+            frequency: pref
+                .map(|p| p.frequency.clone())
+                .unwrap_or_else(|| "immediate".to_string()),
         });
     }
 

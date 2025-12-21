@@ -393,10 +393,7 @@ pub async fn get_replies_and_author_for_template(
         posts::Column::UserId,
     )
     .filter(posts::Column::ThreadId.eq(id))
-    .filter(posts::Column::Position.between(
-        (page - 1) * posts_per_page + 1,
-        page * posts_per_page,
-    ))
+    .filter(posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page))
     .order_by_asc(posts::Column::Position)
     .order_by_asc(posts::Column::CreatedAt)
     .into_model::<PostForTemplate, UserProfile>()

@@ -1,6 +1,5 @@
 /// Integration tests for login input validation
 /// Tests that malformed input is properly rejected
-
 mod common;
 use serial_test::serial;
 

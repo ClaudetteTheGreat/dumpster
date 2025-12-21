@@ -2,7 +2,6 @@
 ///
 /// This module provides functionality to extract client IP addresses from HTTP requests
 /// and store them in the database for moderation and abuse prevention.
-
 use crate::db::get_db_pool;
 use crate::orm::ip;
 use actix_web::HttpRequest;

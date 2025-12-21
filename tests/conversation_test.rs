@@ -1,6 +1,5 @@
 /// Integration tests for private messaging (conversation) functionality
 /// Tests conversation creation, message sending, read tracking, and participant management
-
 mod common;
 use serial_test::serial;
 
@@ -122,13 +121,10 @@ async fn test_send_message() {
         .expect("Failed to create conversation");
 
     // Send a message
-    let message_id = conversations::send_message(
-        conversation_id,
-        user1.id,
-        "Hello Bob! How are you?",
-    )
-    .await
-    .expect("Failed to send message");
+    let message_id =
+        conversations::send_message(conversation_id, user1.id, "Hello Bob! How are you?")
+            .await
+            .expect("Failed to send message");
 
     // Verify message was created
     let message = private_messages::Entity::find_by_id(message_id)

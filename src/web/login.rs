@@ -128,9 +128,7 @@ pub async fn login<S: AsRef<str>>(
         None => return Ok(LoginResult::fail(LoginResultStatus::BadName)),
     };
 
-    let user = users::Entity::find_by_id(user_id)
-        .one(db)
-        .await?;
+    let user = users::Entity::find_by_id(user_id).one(db).await?;
 
     let user = match user {
         Some(user) => user,
@@ -162,11 +160,13 @@ pub async fn login<S: AsRef<str>>(
 
         // Lock account if max attempts reached
         if new_attempts >= MAX_FAILED_ATTEMPTS {
-            let lock_until = Utc::now().naive_utc() + chrono::Duration::minutes(LOCKOUT_DURATION_MINUTES);
+            let lock_until =
+                Utc::now().naive_utc() + chrono::Duration::minutes(LOCKOUT_DURATION_MINUTES);
             active_user.locked_until = Set(Some(lock_until));
             log::warn!(
                 "Account locked due to {} failed login attempts: user_id={}",
-                new_attempts, user.id
+                new_attempts,
+                user.id
             );
         }
 
@@ -245,15 +245,21 @@ pub async fn post_login(
     let username = form.username.trim();
 
     // Rate limiting - prevent brute force attacks
-    let ip = req.peer_addr()
+    let ip = req
+        .peer_addr()
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
     if let Err(e) = crate::rate_limit::check_login_rate_limit(&ip, username) {
-        log::warn!("Rate limit exceeded for login: ip={}, username={}", ip, username);
-        return Err(error::ErrorTooManyRequests(
-            format!("Too many login attempts. Please try again in {} seconds.", e.retry_after_seconds)
-        ));
+        log::warn!(
+            "Rate limit exceeded for login: ip={}, username={}",
+            ip,
+            username
+        );
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many login attempts. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
     }
 
     let user_id = login(username, &form.password, &form.totp)
@@ -294,7 +300,9 @@ pub async fn post_login(
         }
         LoginResultStatus::Bad2FA => {
             log::debug!("login failure: invalid 2FA code for {}", form.username);
-            return Err(error::ErrorUnauthorized("Invalid two-factor authentication code."));
+            return Err(error::ErrorUnauthorized(
+                "Invalid two-factor authentication code.",
+            ));
         }
         LoginResultStatus::BadName | LoginResultStatus::BadPassword => {
             log::debug!("login failure: {:?} for {}", user_id.result, form.username);
@@ -347,15 +355,17 @@ pub async fn post_login_2fa(
     })?;
 
     // Rate limiting for 2FA attempts
-    let ip = req.peer_addr()
+    let ip = req
+        .peer_addr()
         .map(|addr| addr.ip().to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
     if let Err(e) = crate::rate_limit::check_login_rate_limit(&ip, "2fa") {
         log::warn!("Rate limit exceeded for 2FA: ip={}", ip);
-        return Err(error::ErrorTooManyRequests(
-            format!("Too many 2FA attempts. Please try again in {} seconds.", e.retry_after_seconds)
-        ));
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many 2FA attempts. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
     }
 
     // Get pending auth state from session
@@ -363,7 +373,9 @@ pub async fn post_login_2fa(
         Ok(Some(id)) => id,
         _ => {
             log::warn!("2FA attempt without pending auth state");
-            return Err(error::ErrorBadRequest("No pending authentication. Please login again."));
+            return Err(error::ErrorBadRequest(
+                "No pending authentication. Please login again.",
+            ));
         }
     };
 
@@ -382,7 +394,9 @@ pub async fn post_login_2fa(
         None => {
             log::error!("User {} has no 2FA secret but reached 2FA flow", user_id);
             cookies.remove("pending_2fa_user_id");
-            return Err(error::ErrorInternalServerError("Authentication configuration error"));
+            return Err(error::ErrorInternalServerError(
+                "Authentication configuration error",
+            ));
         }
     };
 

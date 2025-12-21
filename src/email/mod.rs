@@ -2,7 +2,6 @@
 ///
 /// This module provides email sending capabilities using lettre with SMTP.
 /// Supports both real SMTP sending and mock mode for development/testing.
-
 pub mod smtp;
 pub mod templates;
 
@@ -64,20 +63,17 @@ impl EmailConfig {
     /// Load email configuration from environment variables
     pub fn from_env() -> EmailResult<Self> {
         Ok(EmailConfig {
-            smtp_host: env::var("SMTP_HOST")
-                .unwrap_or_else(|_| "localhost".to_string()),
+            smtp_host: env::var("SMTP_HOST").unwrap_or_else(|_| "localhost".to_string()),
             smtp_port: env::var("SMTP_PORT")
                 .unwrap_or_else(|_| "587".to_string())
                 .parse()
                 .map_err(|_| EmailError::ConfigError("Invalid SMTP_PORT".to_string()))?,
             smtp_username: env::var("SMTP_USERNAME")
                 .unwrap_or_else(|_| "noreply@localhost".to_string()),
-            smtp_password: env::var("SMTP_PASSWORD")
-                .unwrap_or_else(|_| String::new()),
+            smtp_password: env::var("SMTP_PASSWORD").unwrap_or_else(|_| String::new()),
             from_email: env::var("SMTP_FROM_EMAIL")
                 .unwrap_or_else(|_| "noreply@localhost".to_string()),
-            from_name: env::var("SMTP_FROM_NAME")
-                .unwrap_or_else(|_| "Ruforo Forum".to_string()),
+            from_name: env::var("SMTP_FROM_NAME").unwrap_or_else(|_| "Ruforo Forum".to_string()),
             use_tls: env::var("SMTP_USE_TLS")
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()

@@ -1,6 +1,5 @@
 /// Integration tests for notification functionality
 /// Tests notification creation, mention detection, reply notifications, and read/unread tracking
-
 mod common;
 use serial_test::serial;
 
@@ -180,8 +179,14 @@ async fn test_mark_notification_read() {
         .expect("Failed to fetch notification")
         .expect("Notification should exist");
 
-    assert!(notification.is_read, "Notification should be marked as read");
-    assert!(notification.read_at.is_some(), "Read timestamp should be set");
+    assert!(
+        notification.is_read,
+        "Notification should be marked as read"
+    );
+    assert!(
+        notification.read_at.is_some(),
+        "Read timestamp should be set"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -253,9 +258,10 @@ async fn test_mention_detection() {
         .await
         .expect("Failed to create author");
 
-    let mentioned_user = create_test_user_with_email(&db, "mentioned", "mentioned@example.com", true)
-        .await
-        .expect("Failed to create mentioned user");
+    let mentioned_user =
+        create_test_user_with_email(&db, "mentioned", "mentioned@example.com", true)
+            .await
+            .expect("Failed to create mentioned user");
 
     // Create notification preferences
     create_notification_preferences(&db, mentioned_user.id, "mention", true, false)
@@ -271,10 +277,8 @@ async fn test_mention_detection() {
     let content = "Hey @mentioned, check this out! Also @nonexistent won't get notified.";
 
     ruforo::notifications::dispatcher::detect_and_notify_mentions(
-        content,
-        1, // post_id
-        thread.id,
-        author.id,
+        content, 1, // post_id
+        thread.id, author.id,
     )
     .await
     .expect("Failed to detect mentions");
@@ -308,14 +312,16 @@ async fn test_thread_reply_notification() {
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
     // Create thread author
-    let thread_author = create_test_user_with_email(&db, "threadauthor", "threadauthor@example.com", true)
-        .await
-        .expect("Failed to create thread author");
+    let thread_author =
+        create_test_user_with_email(&db, "threadauthor", "threadauthor@example.com", true)
+            .await
+            .expect("Failed to create thread author");
 
     // Create reply author
-    let reply_author = create_test_user_with_email(&db, "replyauthor", "replyauthor@example.com", true)
-        .await
-        .expect("Failed to create reply author");
+    let reply_author =
+        create_test_user_with_email(&db, "replyauthor", "replyauthor@example.com", true)
+            .await
+            .expect("Failed to create reply author");
 
     // Create notification preferences
     create_notification_preferences(&db, thread_author.id, "reply", true, false)
@@ -395,7 +401,10 @@ async fn test_no_self_notification() {
         .await
         .expect("Failed to count notifications");
 
-    assert_eq!(count, 0, "User should not receive notifications from their own actions");
+    assert_eq!(
+        count, 0,
+        "User should not receive notifications from their own actions"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -432,7 +441,10 @@ async fn test_notification_preferences_disabled() {
     .await
     .expect("Failed to create notification");
 
-    assert_eq!(notification_id, 0, "Should return 0 when notifications disabled");
+    assert_eq!(
+        notification_id, 0,
+        "Should return 0 when notifications disabled"
+    );
 
     // Verify no notification was created
     let count = notifications::count_unread_notifications(user.id)

@@ -1,5 +1,4 @@
 /// SMTP email sending implementation
-
 use super::{EmailConfig, EmailError, EmailResult};
 use lettre::message::{header::ContentType, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
@@ -24,10 +23,7 @@ pub async fn send_email(
         .map_err(|e| EmailError::ConfigError(format!("Invalid to address: {}", e)))?;
 
     // Build the email
-    let mut email_builder = Message::builder()
-        .from(from)
-        .to(to)
-        .subject(subject);
+    let mut email_builder = Message::builder().from(from).to(to).subject(subject);
 
     // Add body (either plain text only, or multipart with HTML)
     let email = if let Some(html) = body_html {
@@ -51,10 +47,7 @@ pub async fn send_email(
     };
 
     // Create SMTP transport
-    let creds = Credentials::new(
-        config.smtp_username.clone(),
-        config.smtp_password.clone(),
-    );
+    let creds = Credentials::new(config.smtp_username.clone(), config.smtp_password.clone());
 
     let mailer = if config.use_tls {
         SmtpTransport::relay(&config.smtp_host)?
