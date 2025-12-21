@@ -181,7 +181,11 @@ async fn test_website_url_validation() {
     }
 
     // Test invalid URLs (wrong scheme)
-    let invalid_scheme_urls = vec!["ftp://example.com", "javascript:alert(1)", "file:///etc/passwd"];
+    let invalid_scheme_urls = vec![
+        "ftp://example.com",
+        "javascript:alert(1)",
+        "file:///etc/passwd",
+    ];
 
     for url_str in invalid_scheme_urls {
         let result = Url::parse(url_str);
@@ -199,7 +203,11 @@ async fn test_website_url_validation() {
     let invalid_urls = vec!["not a url", "://missing-scheme.com", ""];
 
     for url_str in invalid_urls {
-        assert!(Url::parse(url_str).is_err(), "Should be invalid: {}", url_str);
+        assert!(
+            Url::parse(url_str).is_err(),
+            "Should be invalid: {}",
+            url_str
+        );
     }
 }
 
