@@ -1,0 +1,150 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    name: Build Linux Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev ffmpeg musl-tools
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-release-
+            ${{ runner.os }}-cargo-
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --bin ruforo
+          cargo build --release --bin xf-chat
+
+      - name: Strip binaries
+        run: |
+          strip target/release/ruforo
+          strip target/release/xf-chat
+
+      - name: Upload Linux binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: |
+            target/release/ruforo
+            target/release/xf-chat
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-assets
+          path: public/
+
+  create-release:
+    name: Create Release
+    needs: [build-linux, build-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries
+          path: binaries/
+
+      - name: Download frontend assets
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-assets
+          path: public/
+
+      - name: Prepare release archive
+        run: |
+          mkdir -p release
+          cp binaries/ruforo release/
+          cp binaries/xf-chat release/
+          cp -r public release/
+          cp -r templates release/
+          cp -r migrations release/
+          chmod +x release/ruforo release/xf-chat
+
+          # Create tarball
+          cd release
+          tar -czvf ../ruforo-linux-x86_64.tar.gz .
+          cd ..
+
+          # Create checksums
+          sha256sum ruforo-linux-x86_64.tar.gz > checksums.txt
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
+          files: |
+            ruforo-linux-x86_64.tar.gz
+            checksums.txt
+          body: |
+            ## Ruforo ${{ steps.get_version.outputs.VERSION }}
+
+            ### Installation
+
+            1. Download `ruforo-linux-x86_64.tar.gz`
+            2. Extract to `/opt/ruforo/`
+            3. Run database migrations
+            4. Restart services
+
+            See [deployment documentation](./deploy/README.md) for details.
+
+            ### Checksums
+            ```
+            $(cat checksums.txt)
+            ```

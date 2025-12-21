@@ -1,0 +1,55 @@
+[Unit]
+Description=Ruforo Forum Server
+Documentation=https://github.com/yourorg/ruforo
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=ruforo
+Group=ruforo
+WorkingDirectory=/opt/ruforo
+
+# Environment configuration
+EnvironmentFile=/opt/ruforo/.env
+
+# Main process
+ExecStart=/opt/ruforo/bin/ruforo
+ExecReload=/bin/kill -HUP $MAINPID
+
+# Restart policy
+Restart=always
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ruforo
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# Allow write access to specific directories
+ReadWritePaths=/opt/ruforo/tmp
+ReadWritePaths=/opt/ruforo/logs
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

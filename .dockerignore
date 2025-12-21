@@ -1,0 +1,46 @@
+# Git
+.git
+.gitignore
+.github
+
+# Build artifacts
+target/
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Documentation
+*.md
+!README.md
+docs/
+todo/
+
+# Temporary files
+tmp/
+*.tmp
+*.log
+
+# Backups
+backups/
+*.dump
+*.dump.gz
+
+# Test files
+tests/
+*.test.*
+
+# Deploy scripts (not needed in container)
+deploy/
+
+# OS files
+.DS_Store
+Thumbs.db
