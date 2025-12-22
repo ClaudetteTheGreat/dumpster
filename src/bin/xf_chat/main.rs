@@ -1,3 +1,10 @@
+// xf-chat is legacy compatibility code - suppress some clippy warnings
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::single_match)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::manual_map)]
+#![allow(clippy::into_iter_on_ref)]
+
 mod xf;
 
 use actix::Actor;

@@ -5,7 +5,7 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{mod_log, threads};
 use actix_web::{error, post, web, Error, HttpResponse, Responder};
-use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection};
+use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection};
 use serde::Deserialize;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {

@@ -2,7 +2,7 @@
 
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forums, posts, threads, user_names, users};
+use crate::orm::{forums, threads, user_names, users};
 use crate::url::UrlToken;
 use actix_web::{get, Responder};
 use askama_actix::{Template, TemplateToResponse};

@@ -1,8 +1,5 @@
 mod common;
 
-use actix_session::Session;
-use actix_web::{test, web, App};
-use ruforo::middleware::ClientCtx;
 use serial_test::serial;
 
 #[actix_rt::test]
@@ -29,7 +26,6 @@ async fn test_csrf_token_generation() {
 async fn test_csrf_login_without_token() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::web::login::login;
 
     let db = setup_test_database().await.unwrap();
 

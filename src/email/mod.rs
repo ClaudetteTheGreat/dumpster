@@ -5,7 +5,6 @@
 pub mod smtp;
 pub mod templates;
 
-use lettre::{Message, SmtpTransport, Transport};
 use std::env;
 
 /// Email sending result

@@ -50,22 +50,12 @@ impl Category {
 
     /// Returns immutable Item reference by its database id.
     pub fn borrow_item_by_id(&self, id: i32) -> Option<&Item> {
-        for item in self.items.iter() {
-            if item.id == id {
-                return Some(item);
-            }
-        }
-        None
+        self.items.iter().find(|item| item.id == id)
     }
 
     /// Returns immutable Item reference by its name.
     pub fn borrow_item_by_label(&self, label: &str) -> Option<&Item> {
-        for item in self.items.iter() {
-            if item.label == label {
-                return Some(item);
-            }
-        }
-        None
+        self.items.iter().find(|item| item.label == label)
     }
 
     /// Returns next available possible

@@ -1,5 +1,4 @@
 mod common;
-use serial_test::serial;
 
 use ruforo::rate_limit::{
     check_login_rate_limit, check_post_rate_limit, check_thread_rate_limit, RateLimiter,

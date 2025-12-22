@@ -141,7 +141,7 @@ impl Connection {
         M::Result: Send,
         ChatServer: Handler<M>,
     {
-        if let Err(err) = self.addr.try_send(msg) {
+        if let Err(_err) = self.addr.try_send(msg) {
             ctx.text("Chat server is down. Waiting for OK.");
         }
     }

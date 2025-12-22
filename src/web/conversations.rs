@@ -85,7 +85,7 @@ pub async fn view_conversation(
 
     // Get participants
     use crate::orm::conversation_participants;
-    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let db = crate::db::get_db_pool();
     let participants_data = conversation_participants::Entity::find()
@@ -164,7 +164,7 @@ pub async fn create_conversation(
 
     // Look up user IDs
     use crate::orm::user_names;
-    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let db = crate::db::get_db_pool();
     let mut recipient_ids = Vec::new();
@@ -256,7 +256,7 @@ pub async fn send_message_handler(
 
     // Get participants to notify
     use crate::orm::conversation_participants;
-    use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let db = crate::db::get_db_pool();
     let participants = conversation_participants::Entity::find()

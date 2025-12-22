@@ -19,12 +19,8 @@ impl super::Tag {
         String::from("<blockquote class=\"bbCode tagQuote\"><div class=\"quoted\">")
     }
 
-    pub fn close_quote_tag(el: RefMut<Element>) -> String {
-        if el.get_argument().is_some() {
-            String::from("</div></blockquote>")
-        } else {
-            String::from("</div></blockquote>")
-        }
+    pub fn close_quote_tag(_el: RefMut<Element>) -> String {
+        String::from("</div></blockquote>")
     }
 }
 

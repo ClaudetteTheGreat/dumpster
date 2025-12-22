@@ -42,7 +42,7 @@ where
     C: ConnectionTrait,
 {
     // Run model through validator.
-    let revision = validate_ugc(revision).map_err(|err| err)?;
+    let revision = validate_ugc(revision)?;
 
     // Use supplied _revision to build a UGC Revision with referebasences we just created.
     let new_revision = ugc_revisions::ActiveModel {

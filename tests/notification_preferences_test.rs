@@ -3,7 +3,7 @@
 mod common;
 use serial_test::serial;
 
-use common::*;
+use common::{database::*, fixtures::*};
 use ruforo::notifications;
 use ruforo::orm::notification_preferences;
 use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};

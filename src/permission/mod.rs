@@ -141,8 +141,8 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
                 match col.categories[i].add_item(item.id, &item.label) {
                     Ok(item) => {
                         col.dictionary
-                            .insert(item.label.to_owned(), (i as u8, item.position as u8));
-                        col.lookup.insert(item.id, (i as u8, item.position as u8));
+                            .insert(item.label.to_owned(), (i as u8, item.position));
+                        col.lookup.insert(item.id, (i as u8, item.position));
                     }
                     Err(_) => {
                         println!("Category overflow adding {:?}", item);

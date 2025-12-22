@@ -14,7 +14,7 @@ impl super::Tag {
                 "a" | "A" => String::from("<ol type=\"a\">"),
                 _ => {
                     // Invalid list type, render as broken tag
-                    return Self::open_broken_tag(el);
+                    Self::open_broken_tag(el)
                 }
             }
         } else {

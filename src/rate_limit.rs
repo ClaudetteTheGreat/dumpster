@@ -67,7 +67,7 @@ impl RateLimiter {
         let now = Instant::now();
 
         // Get or create entry for this key
-        let mut entry = self.requests.entry(key.clone()).or_insert_with(Vec::new);
+        let mut entry = self.requests.entry(key).or_default();
 
         // Remove requests outside the time window (sliding window)
         entry.retain(|&timestamp| now.duration_since(timestamp) < window);

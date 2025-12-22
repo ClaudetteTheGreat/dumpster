@@ -3,7 +3,7 @@
 mod common;
 use serial_test::serial;
 
-use common::*;
+use common::{database::*, fixtures::*};
 use ruforo::notifications::{self, NotificationType};
 use ruforo::orm::{notification_preferences, notifications as notification_orm};
 use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};

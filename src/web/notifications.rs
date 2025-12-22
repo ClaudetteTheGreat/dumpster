@@ -30,6 +30,7 @@ struct NotificationsTemplate {
 
 /// Notification display struct for templates
 #[derive(Debug)]
+#[allow(dead_code)]
 struct NotificationDisplay {
     id: i32,
     title: String,

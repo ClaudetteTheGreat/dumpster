@@ -5,7 +5,6 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use actix_web::{get, web, Error, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::entity::*;
 use sea_orm::{DatabaseConnection, FromQueryResult};
 use serde::Deserialize;
 
@@ -30,6 +29,7 @@ struct SearchResults {
 }
 
 #[derive(Debug, FromQueryResult)]
+#[allow(dead_code)]
 struct ThreadSearchResult {
     id: i32,
     title: String,
@@ -40,6 +40,7 @@ struct ThreadSearchResult {
 }
 
 #[derive(Debug, FromQueryResult)]
+#[allow(dead_code)]
 struct PostSearchResult {
     id: i32,
     thread_id: i32,

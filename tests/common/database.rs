@@ -1,4 +1,6 @@
-/// Test database setup and management
+//! Test database setup and management
+#![allow(dead_code)]
+
 use sea_orm::{Database, DatabaseConnection, DbErr};
 use std::env;
 use std::sync::Once;

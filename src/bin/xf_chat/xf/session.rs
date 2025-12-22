@@ -74,6 +74,7 @@ pub async fn can_send_message(db: &DatabaseConnection, id: u32) -> bool {
 }
 
 #[allow(non_snake_case)]
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 struct XfSessionSerialized {
     userId: u32,

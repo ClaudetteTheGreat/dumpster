@@ -110,7 +110,7 @@ impl Profile {
             self.avatar_width,
             self.avatar_width,
         ) {
-            crate::attachment::get_avatar_html(&filename, (width, height), size)
+            crate::attachment::get_avatar_html(filename, (width, height), size)
         } else {
             "".to_owned()
         }

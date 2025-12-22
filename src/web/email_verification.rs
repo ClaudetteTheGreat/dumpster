@@ -20,6 +20,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
 /// Template for email verification page
 #[derive(Template)]
 #[template(path = "email_verification.html")]
+#[allow(dead_code)]
 struct EmailVerificationTemplate {
     client: ClientCtx,
     success: bool,

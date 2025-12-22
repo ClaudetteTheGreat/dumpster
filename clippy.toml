@@ -1,0 +1,5 @@
+# Clippy configuration for ruforo project
+# See https://doc.rust-lang.org/clippy/configuration.html
+
+# Allow slightly more function arguments for complex database operations
+too-many-arguments-threshold = 10

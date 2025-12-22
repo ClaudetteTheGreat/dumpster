@@ -1,10 +1,11 @@
 use super::{Tag, Token};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum ElementDisplay {
     /// Element which may not be closed by its interiors.
     Block,
     /// Element which renders inline may be closed automatically in some situations.
+    #[default]
     Inline,
     /// Element with content not parsed to BBCode.
     Plain,
@@ -12,12 +13,6 @@ pub enum ElementDisplay {
     Preformatted,
     /// Element with no content.
     Selfclosing,
-}
-
-impl Default for ElementDisplay {
-    fn default() -> Self {
-        Self::Inline
-    }
 }
 
 /// A single element of a BbCode Abstract Syntax Tree (AST).
@@ -135,31 +130,25 @@ impl<'str> Element<'str> {
     /// If true, this node can have text.
     /// If false, it should never contain anything.
     pub fn can_have_content(&self) -> bool {
-        match self.display {
-            ElementDisplay::Selfclosing => false,
-            _ => true,
-        }
+        !matches!(self.display, ElementDisplay::Selfclosing)
     }
 
     /// If true, this node can accept <br/> tags.
     /// If false, it depends on other checks what it can accept.
     pub fn can_linebreak(&self) -> bool {
-        match self.display {
-            ElementDisplay::Preformatted => false,
-            ElementDisplay::Selfclosing => false,
-            _ => true,
-        }
+        !matches!(
+            self.display,
+            ElementDisplay::Preformatted | ElementDisplay::Selfclosing
+        )
     }
 
     /// If true, this node can accept the given element as a child.
     /// If false, it should never have child tag elements.
     pub fn can_parent(&self) -> bool {
-        match self.display {
-            ElementDisplay::Plain => false,
-            ElementDisplay::Preformatted => false,
-            ElementDisplay::Selfclosing => false,
-            _ => true,
-        }
+        !matches!(
+            self.display,
+            ElementDisplay::Plain | ElementDisplay::Preformatted | ElementDisplay::Selfclosing
+        )
     }
 
     /// Exceptions list for tags.
@@ -168,10 +157,7 @@ impl<'str> Element<'str> {
         // Almost all cases for parentage should be handled through ElementDisplay.
         match self.tag {
             Some(ours) => match Tag::get_by_name(ours) {
-                Tag::Link => match Tag::get_by_name(theirs) {
-                    Tag::Link => false,
-                    _ => true,
-                },
+                Tag::Link => !matches!(Tag::get_by_name(theirs), Tag::Link),
                 _ => true,
             },
             None => true,

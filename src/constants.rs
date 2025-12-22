@@ -1,6 +1,6 @@
-/// Application-wide constants
-///
-/// This module contains constants used throughout the application.
+//! Application-wide constants
+//!
+//! This module contains constants used throughout the application.
 
 /// Maximum length for post content in characters
 /// Regular users are limited to this length to prevent abuse and

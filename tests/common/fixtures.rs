@@ -1,4 +1,7 @@
-/// Test fixtures for creating test data
+//! Test fixtures for creating test data
+#![allow(dead_code)]
+#![allow(clippy::needless_update)]
+
 use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
 use chrono::Utc;
 use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};

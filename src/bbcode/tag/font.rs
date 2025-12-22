@@ -73,7 +73,7 @@ fn color_websafe(input: &str) -> IResult<&str, &str> {
 }
 
 fn is_hex_digit(c: char) -> bool {
-    c.is_digit(16)
+    c.is_ascii_hexdigit()
 }
 
 fn size_from(input: &str) -> IResult<&str, u32> {
@@ -84,7 +84,7 @@ fn size_from(input: &str) -> IResult<&str, u32> {
 
     // Try to parse as u32
     match size_str.parse::<u32>() {
-        Ok(size) if size >= 8 && size <= 36 => Ok(("", size)),
+        Ok(size) if (8..=36).contains(&size) => Ok(("", size)),
         _ => Err(nom::Err::Error(nom::error::Error::new(
             input,
             nom::error::ErrorKind::Verify,

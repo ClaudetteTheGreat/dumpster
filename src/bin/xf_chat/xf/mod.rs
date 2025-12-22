@@ -5,9 +5,7 @@ pub mod room;
 pub mod session;
 pub mod smilie;
 
-use actix_web::web::Data;
 use ruforo::web::chat::{implement, message::Post};
-use std::time::Duration;
 
 pub struct XfLayer {
     pub db: sea_orm::DatabaseConnection,

@@ -9,12 +9,12 @@ use nom::IResult;
 use url::Url;
 
 /// Tokenizer accepts string primitive and returns a Nom parser result.
-pub fn tokenize(input: &str) -> IResult<&str, Vec<Token>> {
+pub fn tokenize(input: &str) -> IResult<&str, Vec<Token<'_>>> {
     many0(parse)(input)
 }
 
 /// Negotiates next token from several parsers.
-fn parse(input: &str) -> IResult<&str, Token> {
+fn parse(input: &str) -> IResult<&str, Token<'_>> {
     // Parser is in order of priority.
     alt((
         parse_linebreak,
@@ -27,20 +27,20 @@ fn parse(input: &str) -> IResult<&str, Token> {
 }
 
 /// Anticipates a line ending, returns Token::Linebreak.
-fn parse_linebreak(input: &str) -> IResult<&str, Token> {
+fn parse_linebreak(input: &str) -> IResult<&str, Token<'_>> {
     map(line_ending, Token::Linebreak)(input)
 }
 
 /// Anticipates a closing tag, returns Token::TagClose.
-fn parse_tag_close(input: &str) -> IResult<&str, Token> {
+fn parse_tag_close(input: &str) -> IResult<&str, Token<'_>> {
     map(
         consumed(delimited(tag("[/"), alpha1, tag("]"))),
-        |(raw, tag): (&str, &str)| (Token::TagClose(raw, tag)),
+        |(raw, tag): (&str, &str)| Token::TagClose(raw, tag),
     )(input)
 }
 
 /// Anticipates an opening tag, returns Token::Tag.
-fn parse_tag_open(input: &str) -> IResult<&str, Token> {
+fn parse_tag_open(input: &str) -> IResult<&str, Token<'_>> {
     let (input, (raw, between)) = consumed(delimited(tag("["), tag_and_argument, tag("]")))(input)?;
 
     // Token generated
@@ -55,7 +55,7 @@ fn parse_tag_open(input: &str) -> IResult<&str, Token> {
 }
 
 /// Returns text until the next terminator is seen, returns Token::Text or Token::Null.
-fn parse_text(input: &str) -> IResult<&str, Token> {
+fn parse_text(input: &str) -> IResult<&str, Token<'_>> {
     // Consume garbage text.
     let (leftover, garbage) = many0(char('\r'))(input)?;
 
@@ -77,7 +77,7 @@ fn parse_text(input: &str) -> IResult<&str, Token> {
     })(input)
 }
 
-fn parse_text_literally(input: &str) -> IResult<&str, Token> {
+fn parse_text_literally(input: &str) -> IResult<&str, Token<'_>> {
     map(parse_text_and_take_one_bracket, |s: &str| {
         token_from_text(s)
     })(input)
@@ -95,7 +95,7 @@ fn parse_text_until_terminator(input: &str) -> IResult<&str, &str> {
     ))(input)
 }
 
-fn parse_url(input: &str) -> IResult<&str, Token> {
+fn parse_url(input: &str) -> IResult<&str, Token<'_>> {
     peek(tag("http"))(input)?;
     let (input, url) = recognize(many1(none_of(" \r\n[>,")))(input)?;
 
@@ -129,7 +129,7 @@ fn token_from_argument(input: &str) -> IResult<&str, (&str, (&str, Option<&str>)
     //Token::Tag(s, None)
 }
 
-fn token_from_text(input: &str) -> Token {
+fn token_from_text(input: &str) -> Token<'_> {
     if !input.is_empty() {
         Token::Text(input)
     } else {

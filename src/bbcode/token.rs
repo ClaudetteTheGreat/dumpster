@@ -1,6 +1,7 @@
 /// A single Token output by the tokenizer.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub enum Token<'a> {
+    #[default]
     Null,
     Linebreak(&'a str),
     Tag(&'a str, &'a str, Option<&'a str>),
@@ -30,12 +31,6 @@ impl<'a> Token<'a> {
             Self::Text(text) => text.is_empty(),
             Self::Url(url) => url.is_empty(),
         }
-    }
-}
-
-impl<'a> Default for Token<'a> {
-    fn default() -> Self {
-        Token::Null
     }
 }
 

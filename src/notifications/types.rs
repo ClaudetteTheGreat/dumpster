@@ -24,7 +24,7 @@ impl NotificationType {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s {
             "reply" => Some(Self::Reply),
             "mention" => Some(Self::Mention),

@@ -3,10 +3,10 @@
 mod common;
 use serial_test::serial;
 
-use common::*;
-use ruforo::conversations::{self, ConversationPreview, MessageDisplay};
+use common::{database::*, fixtures::*};
+use ruforo::conversations;
 use ruforo::orm::{conversation_participants, conversations as conversation_orm, private_messages};
-use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr, QueryFilter};
+use sea_orm::{entity::*, DbErr, QueryFilter};
 
 #[actix_rt::test]
 #[serial]

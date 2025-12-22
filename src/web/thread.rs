@@ -230,36 +230,37 @@ pub async fn update_thread_after_reply_is_deleted(id: i32) -> Result<(), DbErr> 
 
     let (last_post_res, post_count_res) = futures::join!(last_post_query, post_count_query);
 
-    if post_count_res.is_err() {
-        let err = post_count_res.unwrap_err();
-        log::error!("post_count error in update_thread: {:#?}", err);
-        return Err(err);
-    }
-
-    if last_post_res.is_err() {
-        let err = last_post_res.unwrap_err();
-        log::error!("last_post error in update_thread: {:#?}", err);
-        return Err(err);
-    } else if let Some(last_post) = last_post_res.unwrap() {
-        let post_count = post_count_res.unwrap();
-
-        let update_res = Thread::update_many()
-            .col_expr(threads::Column::PostCount, Expr::value(post_count as i32))
-            .col_expr(threads::Column::LastPostId, Expr::value(last_post.id))
-            .col_expr(
-                threads::Column::LastPostAt,
-                Expr::value(last_post.created_at),
-            )
-            .exec(db)
-            .await;
-
-        if update_res.is_err() {
-            let err = update_res.unwrap_err();
-            log::error!("update query error in update_thread: {:#?}", err);
+    let post_count = match post_count_res {
+        Ok(count) => count,
+        Err(err) => {
+            log::error!("post_count error in update_thread: {:#?}", err);
             return Err(err);
         }
-    } else {
-        log::error!("thread has no last_post when trying to update thread.");
+    };
+
+    match last_post_res {
+        Err(err) => {
+            log::error!("last_post error in update_thread: {:#?}", err);
+            return Err(err);
+        }
+        Ok(Some(last_post)) => {
+            if let Err(err) = Thread::update_many()
+                .col_expr(threads::Column::PostCount, Expr::value(post_count as i32))
+                .col_expr(threads::Column::LastPostId, Expr::value(last_post.id))
+                .col_expr(
+                    threads::Column::LastPostAt,
+                    Expr::value(last_post.created_at),
+                )
+                .exec(db)
+                .await
+            {
+                log::error!("update query error in update_thread: {:#?}", err);
+                return Err(err);
+            }
+        }
+        Ok(None) => {
+            log::error!("thread has no last_post when trying to update thread.");
+        }
     }
 
     Ok(())

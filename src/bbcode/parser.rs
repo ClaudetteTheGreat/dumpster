@@ -335,7 +335,7 @@ mod tests {
 
         assert_eq!(ast.children().count(), 3);
         assert_eq!(
-            ast.children().nth(0).unwrap().borrow().get_contents(),
+            ast.children().next().unwrap().borrow().get_contents(),
             Some("foo")
         );
 
@@ -348,7 +348,7 @@ mod tests {
 
         assert_eq!(ast.children().count(), 3);
         assert_eq!(
-            ast.children().nth(0).unwrap().borrow().get_contents(),
+            ast.children().next().unwrap().borrow().get_contents(),
             Some("bar")
         );
 
@@ -382,20 +382,20 @@ mod tests {
         let children = ast.children();
         assert_eq!(children.count(), 1);
 
-        let b = ast.children().nth(0).unwrap();
+        let b = ast.children().next().unwrap();
 
         assert_eq!(b.borrow().get_tag_name(), Some("b"));
-        assert_eq!(b.borrow().is_explicit(), true);
-        assert_eq!(b.borrow().is_broken(), false);
+        assert!(b.borrow().is_explicit());
+        assert!(!b.borrow().is_broken());
 
         let children = b.children();
         assert_eq!(children.count(), 3);
 
         let mut children = b.children();
-        assert_eq!(children.nth(0).unwrap().borrow().get_contents(), Some("a"));
+        assert_eq!(children.next().unwrap().borrow().get_contents(), Some("a"));
 
         let mut children = b.children();
-        assert_eq!(children.nth(1).unwrap().borrow().can_have_content(), false);
+        assert!(!children.nth(1).unwrap().borrow().can_have_content());
 
         let mut children = b.children();
         assert_eq!(children.nth(2).unwrap().borrow().get_contents(), Some("b"));
@@ -411,7 +411,7 @@ mod tests {
 
         assert_eq!(el.borrow().get_tag_name(), None);
         assert_eq!(el.borrow().get_contents(), Some("[/quote]"));
-        assert_eq!(ast.borrow().is_broken(), false);
+        assert!(!ast.borrow().is_broken());
         assert_eq!(parser.node, parser.root);
     }
 }

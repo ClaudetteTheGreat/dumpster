@@ -118,7 +118,7 @@ impl UgcRevisionLineItem {
 #[get("/posts/{post_id}/delete")]
 pub async fn delete_post(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
@@ -147,7 +147,7 @@ pub async fn destroy_post(
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
@@ -207,7 +207,7 @@ pub async fn destroy_post(
 #[get("/posts/{post_id}/edit")]
 pub async fn edit_post(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
@@ -236,7 +236,7 @@ pub async fn update_post(
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
@@ -282,7 +282,7 @@ pub async fn view_post_history(
     path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
@@ -314,7 +314,7 @@ pub async fn view_post_history_diff(
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
     let db = get_db_pool();
-    let (post, user) = get_post_and_author_for_template(db, path.into_inner())
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;

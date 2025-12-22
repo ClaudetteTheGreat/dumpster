@@ -3,7 +3,7 @@
 mod common;
 use serial_test::serial;
 
-use common::*;
+use common::{database::*, fixtures::*};
 use ruforo::web::login::{login, LoginResultStatus};
 
 #[actix_rt::test]

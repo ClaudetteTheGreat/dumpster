@@ -76,8 +76,8 @@ impl From<MessagePgSql> for Message {
             user_id: other.user_id as u32,
             room_id: other.room_id as u32,
             message_id: other.message_id as u32,
-            message_date: other.message_date.timestamp(),
-            message_edit_date: other.message_edit_date.timestamp(),
+            message_date: other.message_date.and_utc().timestamp(),
+            message_edit_date: other.message_edit_date.and_utc().timestamp(),
             message: other.message,
         }
     }
@@ -200,7 +200,7 @@ pub mod default {
     use super::super::message;
     use super::*;
     use crate::middleware::ClientCtx;
-    use crate::orm::{chat_messages, chat_rooms, ugc_revisions};
+    use crate::orm::{chat_messages, ugc_revisions};
     use crate::ugc::{create_ugc, NewUgcPartial};
     use crate::user::{find_also_user, Profile as UserProfile};
     use sea_orm::{entity::*, query::*, DatabaseConnection, EntityTrait, QuerySelect};
@@ -322,13 +322,9 @@ pub mod default {
         }
 
         fn get_session_key_from_request(&self, req: &actix_web::HttpRequest) -> Option<String> {
-            match req.app_data::<ClientCtx>() {
-                Some(client) => match client.get_id() {
-                    Some(id) => Some(id.to_string()),
-                    None => None,
-                },
-                None => None,
-            }
+            req.app_data::<ClientCtx>()
+                .and_then(|client| client.get_id())
+                .map(|id| id.to_string())
         }
 
         async fn get_user_id_from_token(&self, cookie: Option<String>) -> u32 {
@@ -381,7 +377,7 @@ pub mod default {
                 user_id: chat_message.user_id.unwrap_or(0) as u32,
                 room_id: chat_message.chat_room_id as u32,
                 message: ugc_revision.content,
-                message_date: ugc_revision.created_at.timestamp(),
+                message_date: ugc_revision.created_at.and_utc().timestamp(),
                 message_edit_date: 0,
                 message_id: chat_message.id as u32,
             })

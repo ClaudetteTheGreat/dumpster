@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forums, posts, threads, user_names};
+use crate::orm::{posts, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
@@ -78,7 +78,7 @@ pub async fn create_thread(
     let forum_id = path.into_inner();
 
     // Run form data through validator.
-    let form = validate_thread_form(form).map_err(|err| err)?;
+    let form = validate_thread_form(form)?;
 
     // Begin Transaction
     let txn = get_db_pool()
@@ -169,7 +169,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         .map_err(|_| error::ErrorInternalServerError("Could not look up forum."))?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
 
-    let threads: Vec<ThreadForTemplate> = match threads::Entity::find()
+    let threads: Vec<ThreadForTemplate> = threads::Entity::find()
         // Authoring User
         .left_join(user_names::Entity)
         .column_as(user_names::Column::Name, "username")
@@ -184,10 +184,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         .into_model::<ThreadForTemplate>()
         .all(get_db_pool())
         .await
-    {
-        Ok(threads) => threads,
-        Err(_) => Default::default(),
-    };
+        .unwrap_or_default();
 
     // Build breadcrumbs
     let breadcrumbs = vec![
@@ -216,7 +213,8 @@ pub async fn view_forums(client: ClientCtx) -> Result<impl Responder, Error> {
 }
 
 pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Error> {
-    use sea_orm::sea_query::{Alias, Expr as SeaExpr, Query};
+    #[allow(unused_imports)]
+    use sea_orm::sea_query::Alias;
     use sea_orm::{DbBackend, Statement};
 
     let db = get_db_pool();

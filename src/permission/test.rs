@@ -1,3 +1,5 @@
+#![allow(clippy::bool_assert_comparison)]
+
 #[test]
 fn test_init_data() {
     use super::collection_values::CollectionValues;
@@ -80,11 +82,11 @@ fn test_init_structure() {
             // Step 3. Add items to category.
             for item_datum in item_data.iter() {
                 if item_datum.1 == col.categories[i].id {
-                    match col.categories[i].add_item(item_datum.0, &item_datum.2) {
+                    match col.categories[i].add_item(item_datum.0, item_datum.2) {
                         Ok(_) => {
                             println!("Added")
                         }
-                        Err(_) => assert!(false, "Category overflow?"),
+                        Err(_) => panic!("Category overflow?"),
                     }
                 }
             }
@@ -146,10 +148,10 @@ fn test_permission_add() {
 
     for i in 0..PERM_LIMIT {
         let id: i32 = rng.gen_range(1..999);
-        let label: String = String::from(rng.gen_range(b'A'..b'Z') as char);
+        let label: String = String::from(rng.gen_range(b'A'..=b'Z') as char);
         match cat.add_item(id, &label) {
             Ok(p) => assert_eq!(p.position as u32, i),
-            Err(_) => assert!(false, "Unexpected overflowing permission category"),
+            Err(_) => panic!("Unexpected overflowing permission category"),
         }
     }
 

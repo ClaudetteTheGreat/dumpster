@@ -4,7 +4,7 @@ mod common;
 use serial_test::serial;
 
 use chrono::Utc;
-use common::*;
+use common::{database::*, fixtures::*};
 use ruforo::orm::{password_reset_tokens, users};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 

@@ -67,12 +67,8 @@ async fn insert_new_user(
         user_name_history::Entity::insert(user_name_history_ins).exec(db)
     );
 
-    if un_result.is_err() {
-        return Err(un_result.unwrap_err());
-    }
-    if unh_result.is_err() {
-        return Err(unh_result.unwrap_err());
-    }
+    un_result?;
+    unh_result?;
     txn.commit().await?;
 
     Ok(res)

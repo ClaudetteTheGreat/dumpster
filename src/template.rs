@@ -1,6 +1,5 @@
 use crate::middleware::ClientCtx;
 use askama_actix::Template;
-use std::ops::Range;
 
 const PAGINATOR_LOOK_AHEAD: i32 = 2;
 

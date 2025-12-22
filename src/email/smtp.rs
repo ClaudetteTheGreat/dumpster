@@ -23,7 +23,7 @@ pub async fn send_email(
         .map_err(|e| EmailError::ConfigError(format!("Invalid to address: {}", e)))?;
 
     // Build the email
-    let mut email_builder = Message::builder().from(from).to(to).subject(subject);
+    let email_builder = Message::builder().from(from).to(to).subject(subject);
 
     // Add body (either plain text only, or multipart with HTML)
     let email = if let Some(html) = body_html {

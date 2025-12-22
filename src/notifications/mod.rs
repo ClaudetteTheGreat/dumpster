@@ -17,6 +17,7 @@ pub struct NotificationPreferences {
 }
 
 /// Create a notification for a user
+#[allow(clippy::too_many_arguments)]
 pub async fn create_notification(
     user_id: i32,
     notification_type: NotificationType,

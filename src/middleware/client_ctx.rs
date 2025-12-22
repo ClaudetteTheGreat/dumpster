@@ -148,7 +148,7 @@ impl ClientCtx {
             None => {
                 let cbox = Data::new(ClientCtxInner {
                     // Add permission Arc reference to our inner value.
-                    permissions: permissions,
+                    permissions,
                     ..Default::default()
                 });
                 // Insert ClientCtx into extensions jar.
@@ -376,9 +376,10 @@ where
                 let perm_arc = perm_arc.clone();
 
                 match session {
-                    Ok(session) => req.extensions_mut().insert(Data::new(
-                        ClientCtxInner::from_session(&session, perm_arc).await,
-                    )),
+                    Ok(session) => {
+                        let inner = ClientCtxInner::from_session(&session, perm_arc).await;
+                        req.extensions_mut().insert(Data::new(inner))
+                    }
                     Err(err) => {
                         log::error!("Unable to extract Session data in middleware: {}", err);
                         None
