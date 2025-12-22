@@ -3,16 +3,23 @@
 /// This module provides endpoints for moderators and administrators.
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{mod_log, threads};
-use actix_web::{error, post, web, Error, HttpResponse, Responder};
-use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection};
+use crate::orm::{mod_log, threads, user_bans, user_names, users};
+use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use askama::Template;
+use askama_actix::TemplateToResponse;
+use chrono::{Duration, Utc};
+use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection};
 use serde::Deserialize;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(lock_thread)
         .service(unlock_thread)
         .service(pin_thread)
-        .service(unpin_thread);
+        .service(unpin_thread)
+        .service(view_bans)
+        .service(view_ban_form)
+        .service(create_ban)
+        .service(lift_ban);
 }
 
 #[derive(Deserialize)]
@@ -274,4 +281,314 @@ async fn log_moderation_action(
         })?;
 
     Ok(())
+}
+
+// =============================================================================
+// Ban Management
+// =============================================================================
+
+/// Information about a ban for display
+#[derive(Debug, Clone)]
+pub struct BanDisplay {
+    pub id: i32,
+    pub user_id: i32,
+    pub username: String,
+    pub banned_by_id: Option<i32>,
+    pub banned_by_name: Option<String>,
+    pub reason: String,
+    pub expires_at: Option<chrono::NaiveDateTime>,
+    pub created_at: chrono::NaiveDateTime,
+    pub is_permanent: bool,
+    pub is_active: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/bans.html")]
+struct BansTemplate {
+    client: ClientCtx,
+    bans: Vec<BanDisplay>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/ban_form.html")]
+struct BanFormTemplate {
+    client: ClientCtx,
+    user_id: i32,
+    username: String,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct BanForm {
+    csrf_token: String,
+    reason: String,
+    duration: String, // "1h", "1d", "7d", "30d", "permanent", or custom days
+    custom_days: Option<i32>,
+}
+
+/// GET /admin/bans - List all bans
+#[get("/admin/bans")]
+async fn view_bans(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.user.ban")?;
+
+    let db = get_db_pool();
+
+    // Fetch all bans with user information
+    let bans = user_bans::Entity::find()
+        .order_by_desc(user_bans::Column::CreatedAt)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch bans: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let now = Utc::now().naive_utc();
+    let mut ban_displays = Vec::new();
+
+    for ban in bans {
+        // Get banned user's name
+        let username = user_names::Entity::find()
+            .filter(user_names::Column::UserId.eq(ban.user_id))
+            .one(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch username: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+            .map(|un| un.name)
+            .unwrap_or_else(|| format!("User #{}", ban.user_id));
+
+        // Get moderator's name if exists
+        let banned_by_name = if let Some(mod_id) = ban.banned_by {
+            user_names::Entity::find()
+                .filter(user_names::Column::UserId.eq(mod_id))
+                .one(db)
+                .await
+                .ok()
+                .flatten()
+                .map(|un| un.name)
+        } else {
+            None
+        };
+
+        // Check if ban is currently active
+        let is_active = ban.is_permanent || ban.expires_at.map(|e| e > now).unwrap_or(false);
+
+        ban_displays.push(BanDisplay {
+            id: ban.id,
+            user_id: ban.user_id,
+            username,
+            banned_by_id: ban.banned_by,
+            banned_by_name,
+            reason: ban.reason,
+            expires_at: ban.expires_at,
+            created_at: ban.created_at,
+            is_permanent: ban.is_permanent,
+            is_active,
+        });
+    }
+
+    Ok(BansTemplate {
+        client,
+        bans: ban_displays,
+    }
+    .to_response())
+}
+
+/// GET /admin/users/{id}/ban - Show ban form for a user
+#[get("/admin/users/{id}/ban")]
+async fn view_ban_form(
+    client: ClientCtx,
+    user_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.user.ban")?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Get user's name
+    let username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch username: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .map(|un| un.name)
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Check user exists
+    users::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    Ok(BanFormTemplate {
+        client,
+        user_id,
+        username,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/users/{id}/ban - Create a ban for a user
+#[post("/admin/users/{id}/ban")]
+async fn create_ban(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    user_id: web::Path<i32>,
+    form: web::Form<BanForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.user.ban")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Validate reason is not empty
+    if form.reason.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Ban reason is required"));
+    }
+
+    // Check user exists
+    users::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Prevent banning yourself
+    if user_id == moderator_id {
+        return Err(error::ErrorBadRequest("You cannot ban yourself"));
+    }
+
+    // Calculate expiration
+    let (expires_at, is_permanent) = match form.duration.as_str() {
+        "permanent" => (None, true),
+        "1h" => (Some(Utc::now().naive_utc() + Duration::hours(1)), false),
+        "1d" => (Some(Utc::now().naive_utc() + Duration::days(1)), false),
+        "7d" => (Some(Utc::now().naive_utc() + Duration::days(7)), false),
+        "30d" => (Some(Utc::now().naive_utc() + Duration::days(30)), false),
+        "custom" => {
+            let days = form.custom_days.unwrap_or(1).clamp(1, 365);
+            (
+                Some(Utc::now().naive_utc() + Duration::days(days as i64)),
+                false,
+            )
+        }
+        _ => return Err(error::ErrorBadRequest("Invalid ban duration")),
+    };
+
+    // Create the ban
+    let ban = user_bans::ActiveModel {
+        user_id: Set(user_id),
+        banned_by: Set(Some(moderator_id)),
+        reason: Set(form.reason.trim().to_string()),
+        expires_at: Set(expires_at),
+        is_permanent: Set(is_permanent),
+        created_at: Set(Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    ban.insert(db).await.map_err(|e| {
+        log::error!("Failed to create ban: {}", e);
+        error::ErrorInternalServerError("Failed to create ban")
+    })?;
+
+    // Log moderation action
+    log_moderation_action(
+        db,
+        moderator_id,
+        "ban_user",
+        "user",
+        user_id,
+        Some(&form.reason),
+    )
+    .await?;
+
+    log::info!(
+        "User {} banned by moderator {} (permanent: {}, expires: {:?})",
+        user_id,
+        moderator_id,
+        is_permanent,
+        expires_at
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/bans"))
+        .finish())
+}
+
+/// POST /admin/bans/{id}/lift - Lift a ban
+#[post("/admin/bans/{id}/lift")]
+async fn lift_ban(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    ban_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.user.ban")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let ban_id = ban_id.into_inner();
+
+    // Find the ban
+    let ban = user_bans::Entity::find_by_id(ban_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch ban: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Ban not found"))?;
+
+    let user_id = ban.user_id;
+
+    // Delete the ban (lifting it)
+    user_bans::Entity::delete_by_id(ban_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to lift ban: {}", e);
+            error::ErrorInternalServerError("Failed to lift ban")
+        })?;
+
+    // Log moderation action
+    log_moderation_action(
+        db,
+        moderator_id,
+        "unban_user",
+        "user",
+        user_id,
+        form.reason.as_deref(),
+    )
+    .await?;
+
+    log::info!(
+        "Ban {} on user {} lifted by moderator {}",
+        ban_id,
+        user_id,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/bans"))
+        .finish())
 }

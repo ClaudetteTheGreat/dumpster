@@ -1,6 +1,6 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{user_2fa, user_names, users};
+use crate::orm::{user_2fa, user_bans, user_names, users};
 use crate::session;
 use crate::session::{authenticate_by_cookie, get_argon2, get_sess};
 use actix_web::{error, get, post, web, Error, Responder};
@@ -81,6 +81,15 @@ pub enum LoginResultStatus {
     Missing2FA,
     AccountLocked,
     EmailNotVerified,
+    Banned(BanInfo),
+}
+
+/// Information about an active ban
+#[derive(Debug, Clone)]
+pub struct BanInfo {
+    pub reason: String,
+    pub expires_at: Option<chrono::NaiveDateTime>,
+    pub is_permanent: bool,
 }
 
 pub struct LoginResult {
@@ -134,6 +143,27 @@ pub async fn login<S: AsRef<str>>(
         Some(user) => user,
         None => return Ok(LoginResult::fail(LoginResultStatus::BadName)),
     };
+
+    // Check if user is banned
+    let active_ban = user_bans::Entity::find()
+        .filter(user_bans::Column::UserId.eq(user_id))
+        .filter(
+            // Permanent ban OR not yet expired
+            user_bans::Column::IsPermanent
+                .eq(true)
+                .or(user_bans::Column::ExpiresAt.gt(Utc::now().naive_utc())),
+        )
+        .order_by_desc(user_bans::Column::CreatedAt)
+        .one(db)
+        .await?;
+
+    if let Some(ban) = active_ban {
+        return Ok(LoginResult::fail(LoginResultStatus::Banned(BanInfo {
+            reason: ban.reason,
+            expires_at: ban.expires_at,
+            is_permanent: ban.is_permanent,
+        })));
+    }
 
     // Check if account is locked
     if let Some(locked_until) = user.locked_until {
@@ -293,6 +323,24 @@ pub async fn post_login(
         LoginResultStatus::AccountLocked => {
             log::warn!("Login attempt on locked account: {}", form.username);
             return Err(error::ErrorForbidden("Account locked due to too many failed login attempts. Please try again in 15 minutes."));
+        }
+        LoginResultStatus::Banned(ban_info) => {
+            log::warn!("Login attempt on banned account: {}", form.username);
+            let message = if ban_info.is_permanent {
+                format!(
+                    "Your account has been permanently banned. Reason: {}",
+                    ban_info.reason
+                )
+            } else if let Some(expires) = ban_info.expires_at {
+                format!(
+                    "Your account is banned until {}. Reason: {}",
+                    expires.format("%Y-%m-%d %H:%M UTC"),
+                    ban_info.reason
+                )
+            } else {
+                format!("Your account has been banned. Reason: {}", ban_info.reason)
+            };
+            return Err(error::ErrorForbidden(message));
         }
         LoginResultStatus::EmailNotVerified => {
             log::info!("Login attempt with unverified email: {}", form.username);

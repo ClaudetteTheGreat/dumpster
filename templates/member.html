@@ -4,7 +4,14 @@
 <div class="member-profile">
     <div class="member-header">
         {{ user.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
-        <h2>{{ user.get_url_token()|safe }}</h2>
+        <div class="member-header-info">
+            <h2>{{ user.get_url_token()|safe }}</h2>
+            {% if client.can("admin.user.ban") %}
+            <div class="member-actions">
+                <a href="/admin/users/{{ user.id }}/ban" class="btn btn-sm btn-warning">Ban User</a>
+            </div>
+            {% endif %}
+        </div>
     </div>
 
     <div class="member-stats">
@@ -69,6 +76,43 @@
     padding: 20px;
     background: #f5f5f5;
     border-radius: 8px;
+}
+
+.member-header-info {
+    flex: 1;
+}
+
+.member-header-info h2 {
+    margin: 0 0 10px 0;
+}
+
+.member-actions {
+    margin-top: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.85em;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+    text-decoration: none;
 }
 
 .member-stats {

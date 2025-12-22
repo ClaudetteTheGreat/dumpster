@@ -212,6 +212,59 @@ pub async fn is_user_locked(db: &DatabaseConnection, user_id: i32) -> Result<boo
     }
 }
 
+/// Create a banned test user (has an active ban)
+pub async fn create_banned_test_user(
+    db: &DatabaseConnection,
+    username: &str,
+    password: &str,
+    ban_reason: &str,
+    is_permanent: bool,
+    minutes_until_unban: Option<i64>,
+) -> Result<TestUser, DbErr> {
+    use ruforo::orm::user_bans;
+
+    let user = create_test_user(db, username, password).await?;
+
+    // Create ban
+    let expires_at = if is_permanent {
+        None
+    } else {
+        Some(Utc::now().naive_utc() + chrono::Duration::minutes(minutes_until_unban.unwrap_or(60)))
+    };
+
+    let ban = user_bans::ActiveModel {
+        user_id: Set(user.id),
+        banned_by: Set(None), // System ban
+        reason: Set(ban_reason.to_string()),
+        expires_at: Set(expires_at),
+        is_permanent: Set(is_permanent),
+        created_at: Set(Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    ban.insert(db).await?;
+
+    Ok(user)
+}
+
+/// Check if user is currently banned
+pub async fn is_user_banned(db: &DatabaseConnection, user_id: i32) -> Result<bool, DbErr> {
+    use ruforo::orm::user_bans;
+    use sea_orm::query::*;
+
+    let now = Utc::now().naive_utc();
+    let active_ban = user_bans::Entity::find()
+        .filter(user_bans::Column::UserId.eq(user_id))
+        .filter(
+            user_bans::Column::IsPermanent
+                .eq(true)
+                .or(user_bans::Column::ExpiresAt.gt(now)),
+        )
+        .one(db)
+        .await?;
+
+    Ok(active_ban.is_some())
+}
+
 /// Create a test forum and thread for testing
 pub async fn create_test_forum_and_thread(
     db: &DatabaseConnection,
