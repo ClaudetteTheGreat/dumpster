@@ -66,7 +66,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **100+ integration tests** covering:
+- **175+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -80,6 +80,9 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 8 search tests
   - 12 conversation/PM tests
   - 8 thread watching tests
+  - 6 post reactions tests
+  - 6 user ban tests
+  - 17 BBCode unit tests (including @mention linkification)
 - **Test infrastructure** - Comprehensive test utilities and fixtures
 - **Test database** - Isolated test database with full migration support
 
@@ -125,6 +128,20 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
 - **Attachments** - File upload support with S3 storage integration
+- **Post Reactions** - React to posts with emoji reactions (like, thanks, funny, informative, agree, disagree)
+  - Toggle reactions on/off with single click
+  - Real-time reaction count updates
+  - Visual indication of user's own reactions
+  - Database-backed with automatic count triggers
+- **Quote Reply** - Click Quote button on any post to insert quoted content into reply
+  - Inserts `[quote=username]content[/quote]` BBCode
+  - Scrolls to and focuses the reply textarea
+  - Supports quoting multiple posts
+- **@Mentions** - Tag users in posts with `@username`
+  - Autocomplete dropdown while typing
+  - Clickable mention links to user profiles
+  - Automatic notifications to mentioned users
+  - Skips mentions in code blocks and URLs
 - **BBCode Formatting** - Rich text formatting for posts
   - **Basic Formatting**: Bold `[b]`, Italic `[i]`, Underline `[u]`, Strikethrough `[s]`, Color `[color=red]`
   - **Text Styling**: Size `[size=8-36]`, Font `[font=arial]` (whitelisted fonts only)
