@@ -158,6 +158,18 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - **Code**: Preformatted code blocks `[code]` with preserved whitespace
   - **Media**: Images `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
   - **Security**: HTML entity sanitization, XSS prevention at tokenizer level, dimension validation (max 2000px)
+  - **BBCode Toolbar**: Visual editor toolbar for post formatting
+    - One-click buttons for bold, italic, underline, strikethrough
+    - Link and image insertion with prompts
+    - Quote, code, and spoiler blocks
+    - List creation with automatic item formatting
+    - Quick color buttons (red, green, blue) and custom color picker
+    - Text size controls (small/large)
+  - **Post Preview**: Server-side BBCode preview before posting
+    - Toggle between edit and preview modes
+    - Real-time rendering via `/api/bbcode/preview` endpoint
+    - Shows rendered HTML exactly as it will appear
+    - Dark mode support
 
 ### Responsive Design
 - All UI components are mobile-friendly with appropriate breakpoints
