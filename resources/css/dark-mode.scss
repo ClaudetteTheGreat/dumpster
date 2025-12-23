@@ -372,4 +372,21 @@ html.dark {
             background-color: rgba(100, 181, 246, 0.25);
         }
     }
+
+    // Quote button
+    .quote-btn {
+        background: none;
+        border-color: #555;
+        color: #aaa;
+
+        &:hover {
+            background-color: #3a3a3a;
+            border-color: #666;
+            color: #fff;
+        }
+
+        &:active {
+            background-color: #454545;
+        }
+    }
 }

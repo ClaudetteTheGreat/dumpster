@@ -70,6 +70,11 @@
             <div class="message-footer--left">
                 {# Mod Checkbox, Report, Delete, IP, Warn #}
                 {% if client.is_user() %}
+                <button type="button" class="quote-btn"
+                    data-post-id="{{ post.id }}"
+                    data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
+                    data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
+                    title="Quote this post">Quote</button>
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/edit">Edit</a>{% endif %}
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/delete">Delete</a>{% endif %}
                 {% if post.created_at != post.updated_at && client.can_update_post(post) %}<a
