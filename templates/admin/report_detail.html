@@ -1,0 +1,334 @@
+{% extends "container/public.html" %}
+
+{% block title %}Report #{{ report.id }} - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <div class="header-nav">
+            <a href="/admin/reports" class="back-link">&larr; Back to Reports</a>
+        </div>
+        <h1>Report #{{ report.id }}</h1>
+        <span class="status-badge status-{{ report.status }}">{{ report.status }}</span>
+    </div>
+
+    <div class="report-detail-grid">
+        <div class="report-info-card">
+            <h2>Report Details</h2>
+            <dl class="info-list">
+                <dt>Content Type</dt>
+                <dd><span class="content-type-badge">{{ report.content_type }}</span></dd>
+
+                <dt>Content</dt>
+                <dd>
+                    {{ report.content_preview }}
+                    <a href="{{ report.content_url }}" class="view-link" target="_blank">View &rarr;</a>
+                </dd>
+
+                <dt>Reason</dt>
+                <dd><span class="reason-badge">{{ report.reason_label }}</span></dd>
+
+                {% if let Some(details) = report.details.as_ref() %}
+                {% if !details.is_empty() %}
+                <dt>Details</dt>
+                <dd class="details-text">{{ details }}</dd>
+                {% endif %}
+                {% endif %}
+
+                <dt>Reporter</dt>
+                <dd><a href="/members/{{ report.reporter_id }}/">{{ report.reporter_name }}</a></dd>
+
+                <dt>Reported</dt>
+                <dd>{{ report.created_at.format("%Y-%m-%d %H:%M:%S") }}</dd>
+
+                {% if let Some(mod_name) = report.moderator_name.as_ref() %}
+                <dt>Handled By</dt>
+                <dd>{{ mod_name }}</dd>
+                {% endif %}
+
+                {% if let Some(resolved) = report.resolved_at %}
+                <dt>Resolved</dt>
+                <dd>{{ resolved.format("%Y-%m-%d %H:%M:%S") }}</dd>
+                {% endif %}
+
+                {% if let Some(notes) = report.moderator_notes.as_ref() %}
+                {% if !notes.is_empty() %}
+                <dt>Moderator Notes</dt>
+                <dd class="details-text">{{ notes }}</dd>
+                {% endif %}
+                {% endif %}
+            </dl>
+        </div>
+
+        <div class="report-actions-card">
+            <h2>Update Status</h2>
+            <form action="/admin/reports/{{ report.id }}/update" method="post" class="status-form">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-control">
+                        <option value="open" {% if report.status == "open" %}selected{% endif %}>Open</option>
+                        <option value="reviewed" {% if report.status == "reviewed" %}selected{% endif %}>Reviewed</option>
+                        <option value="resolved" {% if report.status == "resolved" %}selected{% endif %}>Resolved</option>
+                        <option value="dismissed" {% if report.status == "dismissed" %}selected{% endif %}>Dismissed</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="moderator_notes">Moderator Notes</label>
+                    <textarea name="moderator_notes" id="moderator_notes" class="form-control" rows="4" placeholder="Add notes about how this was handled...">{% if let Some(notes) = report.moderator_notes.as_ref() %}{{ notes }}{% endif %}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Update Report</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.header-nav {
+    margin-bottom: 15px;
+}
+
+.back-link {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.panel-header h1 {
+    margin: 0 10px 0 0;
+    display: inline-block;
+    color: #333;
+}
+
+.report-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+    .report-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.report-info-card,
+.report-actions-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.report-info-card h2,
+.report-actions-card h2 {
+    margin: 0 0 20px 0;
+    font-size: 1.2em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.info-list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px 15px;
+    margin: 0;
+}
+
+.info-list dt {
+    font-weight: 600;
+    color: #555;
+}
+
+.info-list dd {
+    margin: 0;
+}
+
+.content-type-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    background: #6c757d;
+    color: #fff;
+    border-radius: 3px;
+    font-size: 0.75em;
+    text-transform: uppercase;
+}
+
+.reason-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    background: #e9ecef;
+    border-radius: 3px;
+}
+
+.view-link {
+    margin-left: 10px;
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.9em;
+}
+
+.view-link:hover {
+    text-decoration: underline;
+}
+
+.details-text {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.status-open {
+    background: #dc3545;
+    color: #fff;
+}
+
+.status-reviewed {
+    background: #ffc107;
+    color: #000;
+}
+
+.status-resolved {
+    background: #28a745;
+    color: #fff;
+}
+
+.status-dismissed {
+    background: #6c757d;
+    color: #fff;
+}
+
+.status-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+textarea.form-control {
+    resize: vertical;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1 {
+    color: #fff;
+}
+
+html.dark .back-link {
+    color: #6db3f2;
+}
+
+html.dark .report-info-card,
+html.dark .report-actions-card {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .report-info-card h2,
+html.dark .report-actions-card h2 {
+    color: #fff;
+    border-color: #444;
+}
+
+html.dark .info-list dt {
+    color: #aaa;
+}
+
+html.dark .info-list dd {
+    color: #fff;
+}
+
+html.dark .reason-badge {
+    background: #444;
+    color: #fff;
+}
+
+html.dark .details-text {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-control {
+    background: #333;
+    border-color: #444;
+    color: #fff;
+}
+
+html.dark .form-control:focus {
+    border-color: #007bff;
+}
+</style>
+{% endblock %}

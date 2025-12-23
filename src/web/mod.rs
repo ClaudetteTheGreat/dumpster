@@ -15,6 +15,7 @@ pub mod password_reset;
 pub mod post;
 pub mod reactions;
 pub mod recent;
+pub mod reports;
 pub mod search;
 pub mod thread;
 
@@ -40,6 +41,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     post::configure(conf);
     reactions::configure(conf);
     recent::configure(conf);
+    reports::configure(conf);
     search::configure(conf);
     thread::configure(conf);
 

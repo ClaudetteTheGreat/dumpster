@@ -75,6 +75,11 @@
                     data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
                     data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
                     title="Quote this post">Quote</button>
+                <button type="button" class="report-btn"
+                    data-content-type="post"
+                    data-content-id="{{ post.id }}"
+                    data-csrf="{{ client.get_csrf_token() }}"
+                    title="Report this post">Report</button>
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/edit">Edit</a>{% endif %}
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/delete">Delete</a>{% endif %}
                 {% if post.created_at != post.updated_at && client.can_update_post(post) %}<a

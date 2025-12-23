@@ -45,6 +45,7 @@ module.exports = {
             path.resolve(__dirname, './resources/js/mentions.js'),
             path.resolve(__dirname, './resources/js/quote.js'),
             path.resolve(__dirname, './resources/js/reactions.js'),
+            path.resolve(__dirname, './resources/js/report.js'),
         ],
         style: path.resolve(__dirname, './resources/css/main.scss'),
     },

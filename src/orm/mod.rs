@@ -24,6 +24,8 @@ pub mod permissions;
 pub mod posts;
 pub mod private_messages;
 pub mod reaction_types;
+pub mod report_reasons;
+pub mod reports;
 pub mod ugc_reactions;
 pub mod sessions;
 pub mod threads;
