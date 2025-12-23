@@ -113,6 +113,10 @@ PROJECT_NAME is a traditional web forum built in Rust.
 
 ### Moderation Tools
 - **Thread Moderation UI** - Lock/Unlock and Pin/Unpin controls for moderators
+- **Thread Move** - Move threads between forums
+  - Forum selection dropdown with all available destinations
+  - Optional reason field for moderation logs
+  - Metadata logged includes source and destination forum IDs
 - **Permission-Based Display** - Moderation tools only visible to users with appropriate permissions
 - **Moderation Logging** - All moderation actions logged with reason in `mod_log` table
 - **CSRF-Protected Actions** - All moderation operations protected against CSRF attacks
