@@ -72,7 +72,10 @@
     <h2>New Thread</h2>
     <input type="text" name="title" placeholder="Title" />
     <input type="text" name="subtitle" placeholder="Subtitle (optional)" />
-    <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
+    <div class="bbcode-editor-container">
+        {% include "components/bbcode_toolbar.html" %}
+        <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
+    </div>
     <button>Sneed</button>
 </form>
 {% endif %}

@@ -463,4 +463,50 @@ html.dark {
             border-color: #5a2d2d;
         }
     }
+
+    // BBCode Toolbar
+    .bbcode-toolbar {
+        background: #333;
+        border-color: #555;
+
+        button {
+            background: #444;
+            border-color: #555;
+            color: #e0e0e0;
+
+            &:hover {
+                background: #555;
+                border-color: #666;
+            }
+
+            &:active {
+                background: #666;
+            }
+        }
+    }
+
+    .toolbar-group {
+        border-color: #555;
+    }
+
+    .toolbar-group--colors .color-btn {
+        &.color-red { border-color: #a71d2a; }
+        &.color-green { border-color: #157a3b; }
+        &.color-blue { border-color: #0056b3; }
+    }
+
+    .bbcode-preview {
+        border-color: #555;
+        background: #2a2a2a;
+
+        .preview-header {
+            background: #333;
+            border-color: #555;
+            color: #aaa;
+        }
+
+        .preview-content {
+            color: #e0e0e0;
+        }
+    }
 }
