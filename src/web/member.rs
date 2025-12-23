@@ -2,12 +2,15 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{attachments, posts, threads, user_names, users};
 use crate::user::Profile as UserProfile;
-use actix_web::{error, get, web, Error, Responder};
+use actix_web::{error, get, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*, DatabaseConnection};
+use sea_orm::{entity::*, query::*, DatabaseConnection, sea_query::Expr};
+use serde::{Deserialize, Serialize};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
-    conf.service(view_member).service(view_members);
+    conf.service(view_member)
+        .service(view_members)
+        .service(search_usernames);
 }
 
 /// User statistics for profile display
@@ -125,4 +128,66 @@ pub async fn view_members(client: ClientCtx) -> impl Responder {
             Err(error::ErrorInternalServerError("Couldn't load users"))
         }
     }
+}
+
+/// Query parameters for username search
+#[derive(Deserialize)]
+pub struct UsernameSearchQuery {
+    q: String,
+}
+
+/// Response item for username search
+#[derive(Serialize)]
+pub struct UsernameSearchResult {
+    id: i32,
+    username: String,
+}
+
+/// Search usernames by prefix for @mention autocomplete
+#[get("/api/users/search")]
+pub async fn search_usernames(
+    client: ClientCtx,
+    query: web::Query<UsernameSearchQuery>,
+) -> Result<HttpResponse, Error> {
+    // Require authentication to prevent enumeration
+    if !client.is_user() {
+        return Err(error::ErrorUnauthorized("Must be logged in"));
+    }
+
+    let search_term = query.q.trim();
+
+    // Require at least 1 character
+    if search_term.is_empty() {
+        return Ok(HttpResponse::Ok().json(Vec::<UsernameSearchResult>::new()));
+    }
+
+    // Limit search term length
+    let search_term = if search_term.len() > 50 {
+        &search_term[..50]
+    } else {
+        search_term
+    };
+
+    let db = get_db_pool();
+
+    // Search for usernames starting with the search term (case-insensitive)
+    let results = user_names::Entity::find()
+        .filter(
+            Expr::cust_with_values("LOWER(name) LIKE $1", [format!("{}%", search_term.to_lowercase())])
+        )
+        .order_by_asc(user_names::Column::Name)
+        .limit(10)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let response: Vec<UsernameSearchResult> = results
+        .into_iter()
+        .map(|u| UsernameSearchResult {
+            id: u.user_id,
+            username: u.name,
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(response))
 }

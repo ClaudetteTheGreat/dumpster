@@ -99,3 +99,36 @@ input {
         border: 1px solid #bd2130;
     }
 }
+
+// @mention autocomplete dropdown
+.mention-dropdown {
+    position: absolute;
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 300px;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mention-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+
+    &:hover {
+        background-color: #f5f5f5;
+    }
+
+    &.mention-item--selected {
+        background-color: #e3f2fd;
+    }
+}
+
+.mention-username {
+    font-weight: 500;
+    color: #333;
+}
