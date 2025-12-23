@@ -66,7 +66,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **175+ integration tests** covering:
+- **185+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -81,6 +81,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 12 conversation/PM tests
   - 8 thread watching tests
   - 6 post reactions tests
+  - 7 report system tests
   - 6 user ban tests
   - 17 BBCode unit tests (including @mention linkification)
 - **Test infrastructure** - Comprehensive test utilities and fixtures
@@ -137,6 +138,11 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Inserts `[quote=username]content[/quote]` BBCode
   - Scrolls to and focuses the reply textarea
   - Supports quoting multiple posts
+- **Report Post** - Report posts for moderation review
+  - Modal dialog with reason selection (spam, harassment, off-topic, illegal content, misinformation, other)
+  - Optional details field (required for "Other" reason)
+  - Duplicate report prevention
+  - Admin panel for reviewing and managing reports at `/admin/reports`
 - **@Mentions** - Tag users in posts with `@username`
   - Autocomplete dropdown while typing
   - Clickable mention links to user profiles
