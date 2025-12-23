@@ -1,0 +1,213 @@
+{% extends "container/public.html" %}
+
+{% block title %}Move Thread - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Move Thread</h1>
+        <p class="panel-subtitle">Move "<strong>{{ thread.title }}</strong>" to another forum</p>
+    </div>
+
+    <div class="current-location">
+        <span class="label">Current Forum:</span>
+        <span class="value">{{ current_forum.label }}</span>
+    </div>
+
+    <form action="/admin/threads/{{ thread.id }}/move" method="post" class="move-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <div class="form-group">
+            <label for="target_forum_id">Destination Forum</label>
+            <select id="target_forum_id" name="target_forum_id" required>
+                <option value="">Select destination forum...</option>
+                {% for forum in forums %}
+                {% if forum.id != current_forum.id %}
+                <option value="{{ forum.id }}">{{ forum.label }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="reason">Reason (optional)</label>
+            <textarea
+                id="reason"
+                name="reason"
+                rows="3"
+                placeholder="Enter the reason for moving this thread..."
+            ></textarea>
+            <p class="form-help">This will be logged for moderation records.</p>
+        </div>
+
+        <div class="form-actions">
+            <a href="/threads/{{ thread.id }}/" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary">Move Thread</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.current-location {
+    background: #f8f9fa;
+    padding: 12px 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border: 1px solid #e9ecef;
+}
+
+.current-location .label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.current-location .value {
+    color: #0066cc;
+    font-weight: 500;
+}
+
+.move-form {
+    background: #fff;
+    padding: 25px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-help {
+    margin: 8px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .current-location {
+    background: #333;
+    border-color: #444;
+}
+
+html.dark .current-location .label {
+    color: #aaa;
+}
+
+html.dark .current-location .value {
+    color: #66b3ff;
+}
+
+html.dark .move-form {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-group textarea,
+html.dark .form-group select {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .form-help {
+    color: #aaa;
+}
+
+html.dark .form-actions {
+    border-color: #444;
+}
+</style>
+{% endblock %}

@@ -42,7 +42,7 @@
         </div>
     </div>
 
-    {% if client.can("moderate.thread.lock") || client.can("moderate.thread.pin") %}
+    {% if client.can("moderate.thread.lock") || client.can("moderate.thread.pin") || client.can("moderate.thread.move") %}
     <div class="moderation-tools">
         <h3>Moderation Tools</h3>
         <div class="moderation-buttons">
@@ -72,6 +72,10 @@
                 <button type="submit" class="mod-button mod-button--pin">Pin Thread</button>
             </form>
             {% endif %}
+            {% endif %}
+
+            {% if client.can("moderate.thread.move") %}
+            <a href="/admin/threads/{{ thread.id }}/move" class="mod-button mod-button--move">Move Thread</a>
             {% endif %}
         </div>
     </div>
@@ -266,6 +270,15 @@
 
     .mod-button--unpin:hover {
         background: #5a6268;
+    }
+
+    .mod-button--move {
+        background: #17a2b8;
+        text-decoration: none;
+    }
+
+    .mod-button--move:hover {
+        background: #138496;
     }
 
     @media (max-width: 768px) {

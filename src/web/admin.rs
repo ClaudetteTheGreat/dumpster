@@ -3,7 +3,7 @@
 /// This module provides endpoints for moderators and administrators.
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{mod_log, threads, user_bans, user_names, users};
+use crate::orm::{forums, mod_log, threads, user_bans, user_names, users};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
 use askama_actix::TemplateToResponse;
@@ -16,6 +16,8 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(unlock_thread)
         .service(pin_thread)
         .service(unpin_thread)
+        .service(view_move_thread_form)
+        .service(move_thread)
         .service(view_bans)
         .service(view_ban_form)
         .service(create_ban)
@@ -249,6 +251,170 @@ pub async fn unpin_thread(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/threads/{}", thread_id)))
+        .finish())
+}
+
+// =============================================================================
+// Thread Move
+// =============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/move_thread.html")]
+struct MoveThreadTemplate {
+    client: ClientCtx,
+    thread: threads::Model,
+    current_forum: forums::Model,
+    forums: Vec<forums::Model>,
+}
+
+#[derive(Deserialize)]
+struct MoveThreadForm {
+    csrf_token: String,
+    target_forum_id: i32,
+    reason: Option<String>,
+}
+
+/// GET /admin/threads/{id}/move - Show move thread form
+#[get("/admin/threads/{id}/move")]
+pub async fn view_move_thread_form(
+    client: ClientCtx,
+    thread_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("moderate.thread.move")?;
+
+    let db = get_db_pool();
+    let thread_id = thread_id.into_inner();
+
+    // Get the thread
+    let thread = threads::Entity::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to find thread: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found"))?;
+
+    // Get current forum
+    let current_forum = forums::Entity::find_by_id(thread.forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to find forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Get all forums for selection
+    let all_forums = forums::Entity::find()
+        .order_by_asc(forums::Column::Label)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(MoveThreadTemplate {
+        client,
+        thread,
+        current_forum,
+        forums: all_forums,
+    }
+    .to_response())
+}
+
+/// POST /admin/threads/{id}/move - Move thread to another forum
+#[post("/admin/threads/{id}/move")]
+pub async fn move_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    thread_id: web::Path<i32>,
+    form: web::Form<MoveThreadForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.thread.move")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let thread_id = thread_id.into_inner();
+
+    // Get the thread
+    let thread = threads::Entity::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to find thread: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found"))?;
+
+    let old_forum_id = thread.forum_id;
+    let new_forum_id = form.target_forum_id;
+
+    // Don't allow moving to same forum
+    if old_forum_id == new_forum_id {
+        return Err(error::ErrorBadRequest(
+            "Thread is already in the selected forum",
+        ));
+    }
+
+    // Verify target forum exists
+    forums::Entity::find_by_id(new_forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to find target forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Target forum not found"))?;
+
+    // Update thread's forum_id
+    let mut active_thread: threads::ActiveModel = thread.into();
+    active_thread.forum_id = Set(new_forum_id);
+    active_thread.update(db).await.map_err(|e| {
+        log::error!("Failed to move thread: {}", e);
+        error::ErrorInternalServerError("Failed to move thread")
+    })?;
+
+    // Log moderation action with metadata about the move
+    let metadata = serde_json::json!({
+        "from_forum_id": old_forum_id,
+        "to_forum_id": new_forum_id
+    });
+
+    let log_entry = mod_log::ActiveModel {
+        moderator_id: Set(Some(moderator_id)),
+        action: Set("move_thread".to_string()),
+        target_type: Set("thread".to_string()),
+        target_id: Set(thread_id),
+        reason: Set(form.reason.clone()),
+        metadata: Set(Some(metadata)),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    mod_log::Entity::insert(log_entry)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to log moderation action: {}", e);
+            error::ErrorInternalServerError("Failed to log action")
+        })?;
+
+    log::info!(
+        "Thread {} moved from forum {} to forum {} by moderator {}",
+        thread_id,
+        old_forum_id,
+        new_forum_id,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
