@@ -380,25 +380,95 @@ input {
     }
 }
 
+.toolbar-group--preview {
+    margin-left: auto;
+
+    .preview-btn {
+        background: #007bff;
+        color: #fff;
+        border-color: #0069d9;
+        font-weight: 500;
+        padding: 6px 14px;
+
+        &:hover {
+            background: #0056b3;
+            border-color: #004085;
+        }
+
+        &.preview-btn--active {
+            background: #28a745;
+            border-color: #1e7e34;
+
+            &:hover {
+                background: #218838;
+                border-color: #1c7430;
+            }
+        }
+
+        &:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+    }
+}
+
 // BBCode Preview
 .bbcode-preview {
     border: 1px solid #ddd;
     border-radius: 0 0 4px 4px;
     min-height: 150px;
+    background: #fff;
 
     .preview-header {
         padding: 8px 12px;
-        background: #f0f0f0;
-        border-bottom: 1px solid #ddd;
+        background: #e8f4fd;
+        border-bottom: 1px solid #b8daff;
         font-size: 0.9em;
-        color: #666;
+        color: #004085;
+        font-weight: 500;
+
+        &.preview-header--error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+    }
+
+    .preview-edit-hint {
+        font-weight: normal;
+        color: #6c757d;
+        font-size: 0.85em;
     }
 
     .preview-content {
         padding: 12px;
-        white-space: pre-wrap;
         word-wrap: break-word;
         font-family: inherit;
+        line-height: 1.6;
+
+        // Reset pre-wrap for rendered content
+        white-space: normal;
+
+        // Style rendered BBCode elements
+        blockquote {
+            margin: 10px 0;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #6c757d;
+        }
+
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
     }
 }
 

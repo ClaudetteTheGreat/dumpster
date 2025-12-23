@@ -162,26 +162,79 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Toggle preview mode (placeholder - would need server-side rendering)
+     * Toggle preview mode with server-side BBCode rendering
      */
-    function togglePreview(textarea, container) {
+    async function togglePreview(textarea, container) {
         let preview = container.querySelector('.bbcode-preview');
+        const previewBtn = container.querySelector('.preview-btn');
 
         if (preview) {
-            // Hide preview
+            // Hide preview, show textarea
             preview.remove();
             textarea.style.display = '';
+            if (previewBtn) {
+                previewBtn.textContent = 'Preview';
+                previewBtn.classList.remove('preview-btn--active');
+            }
             return;
         }
 
-        // Show preview
-        preview = document.createElement('div');
-        preview.className = 'bbcode-preview';
-        preview.innerHTML = '<div class="preview-header">Preview (BBCode not rendered)</div>' +
-            '<div class="preview-content">' + escapeHtml(textarea.value) + '</div>';
+        // Show loading state
+        if (previewBtn) {
+            previewBtn.textContent = 'Loading...';
+            previewBtn.disabled = true;
+        }
 
-        textarea.style.display = 'none';
-        textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+        try {
+            // Fetch rendered BBCode from server
+            const response = await fetch('/api/bbcode/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ content: textarea.value }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Preview failed');
+            }
+
+            const html = await response.text();
+
+            // Create preview element
+            preview = document.createElement('div');
+            preview.className = 'bbcode-preview';
+            preview.innerHTML = '<div class="preview-header">Preview <span class="preview-edit-hint">(click Edit to continue editing)</span></div>' +
+                '<div class="preview-content ugc">' + html + '</div>';
+
+            // Hide textarea, show preview
+            textarea.style.display = 'none';
+            textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+
+            if (previewBtn) {
+                previewBtn.textContent = 'Edit';
+                previewBtn.classList.add('preview-btn--active');
+            }
+        } catch (error) {
+            console.error('Preview error:', error);
+            // Fallback to showing raw content
+            preview = document.createElement('div');
+            preview.className = 'bbcode-preview';
+            preview.innerHTML = '<div class="preview-header preview-header--error">Preview unavailable</div>' +
+                '<div class="preview-content">' + escapeHtml(textarea.value) + '</div>';
+
+            textarea.style.display = 'none';
+            textarea.parentNode.insertBefore(preview, textarea.nextSibling);
+
+            if (previewBtn) {
+                previewBtn.textContent = 'Edit';
+                previewBtn.classList.add('preview-btn--active');
+            }
+        } finally {
+            if (previewBtn) {
+                previewBtn.disabled = false;
+            }
+        }
     }
 
     /**

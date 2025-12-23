@@ -19,7 +19,8 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_post_by_id)
         .service(view_post_in_thread)
         .service(view_post_history)
-        .service(view_post_history_diff);
+        .service(view_post_history_diff)
+        .service(preview_bbcode);
 }
 
 #[derive(Deserialize)]
@@ -411,4 +412,41 @@ async fn view_post(id: i32) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::Found()
         .append_header(("Location", get_url_for_pos(post.thread_id, post.position)))
         .finish())
+}
+
+/// Preview form data
+#[derive(Deserialize)]
+pub struct PreviewFormData {
+    pub content: String,
+}
+
+/// Preview BBCode as rendered HTML
+/// POST /api/bbcode/preview
+#[post("/api/bbcode/preview")]
+pub async fn preview_bbcode(
+    client: ClientCtx,
+    form: web::Json<PreviewFormData>,
+) -> Result<HttpResponse, Error> {
+    // Require authentication to prevent abuse
+    if !client.is_user() {
+        return Err(error::ErrorUnauthorized("Must be logged in to preview"));
+    }
+
+    // Limit content size to prevent DoS
+    let max_size = if client.can("moderate.post.edit") {
+        100_000
+    } else {
+        50_000
+    };
+
+    if form.content.len() > max_size {
+        return Err(error::ErrorBadRequest("Content too long"));
+    }
+
+    // Parse BBCode and return HTML
+    let html = crate::bbcode::parse(&form.content);
+
+    Ok(HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html))
 }
