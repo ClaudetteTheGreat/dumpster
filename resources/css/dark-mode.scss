@@ -362,4 +362,14 @@ html.dark {
     .mention-username {
         color: #e0e0e0;
     }
+
+    // @mention links in posts
+    .ugc a.mention {
+        color: #64b5f6;
+        background-color: rgba(100, 181, 246, 0.15);
+
+        &:hover {
+            background-color: rgba(100, 181, 246, 0.25);
+        }
+    }
 }

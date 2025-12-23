@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_member)
+        .service(view_member_by_name)
         .service(view_members)
         .service(search_usernames);
 }
@@ -96,6 +97,31 @@ pub async fn view_member(
         stats,
     }
     .to_response())
+}
+
+/// View member profile by username (for @mention links)
+#[get("/members/@{username}")]
+pub async fn view_member_by_name(
+    path: web::Path<String>,
+) -> Result<impl Responder, Error> {
+    let username = path.into_inner();
+    let db = get_db_pool();
+
+    // Look up user by username
+    let user_name = user_names::Entity::find()
+        .filter(user_names::Column::Name.eq(username.clone()))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("error looking up username: {:?}", e);
+            error::ErrorInternalServerError("Couldn't look up user.")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found."))?;
+
+    // Redirect to canonical URL with user_id
+    Ok(actix_web::HttpResponse::Found()
+        .append_header(("Location", format!("/members/{}/", user_name.user_id)))
+        .finish())
 }
 
 #[get("/members")]

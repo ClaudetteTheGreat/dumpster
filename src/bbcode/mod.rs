@@ -8,6 +8,9 @@ mod tag;
 mod token;
 mod tokenize;
 
+use once_cell::sync::Lazy;
+use regex::Regex;
+
 pub use constructor::Constructor;
 pub use element::{Element, ElementDisplay};
 pub use parser::Parser;
@@ -15,6 +18,108 @@ pub use smilie::Smilies;
 pub use tag::Tag;
 pub use token::Token;
 pub use tokenize::tokenize;
+
+/// Regex for matching @mentions
+/// Matches @ preceded by start of string, whitespace, or >
+static MENTION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(^|[\s>])@([a-zA-Z0-9_-]+)").unwrap()
+});
+
+/// Convert @mentions to clickable links
+/// Skips mentions inside <a>, <pre>, and <code> tags
+fn linkify_mentions(html: &str) -> String {
+    // Split by tags to avoid processing inside certain elements
+    let mut result = String::with_capacity(html.len());
+    let mut last_end = 0;
+    let mut skip_depth: usize = 0;
+
+    // Simple tag-aware processing
+    let bytes = html.as_bytes();
+    let len = bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        if bytes[i] == b'<' {
+            // Found a tag, check what it is
+            let tag_start = i;
+            i += 1;
+
+            // Check for closing tag
+            let is_closing = i < len && bytes[i] == b'/';
+            if is_closing {
+                i += 1;
+            }
+
+            // Extract tag name
+            let name_start = i;
+            while i < len && bytes[i] != b'>' && bytes[i] != b' ' && bytes[i] != b'/' {
+                i += 1;
+            }
+            let tag_name = &html[name_start..i].to_lowercase();
+
+            // Skip to end of tag
+            while i < len && bytes[i] != b'>' {
+                i += 1;
+            }
+            if i < len {
+                i += 1; // past >
+            }
+
+            // Check if this is a skip tag (a, pre, code)
+            let is_skip_tag = tag_name == "a" || tag_name == "pre" || tag_name == "code";
+
+            // Process text before this tag (using old skip_depth)
+            let text_before = &html[last_end..tag_start];
+            if !text_before.is_empty() {
+                if skip_depth == 0 {
+                    result.push_str(&process_mentions(text_before));
+                } else {
+                    result.push_str(text_before);
+                }
+            }
+
+            // Update skip_depth for after this tag
+            if is_skip_tag {
+                if is_closing {
+                    skip_depth = skip_depth.saturating_sub(1);
+                } else if !html[tag_start..i].ends_with("/>") {
+                    skip_depth += 1;
+                }
+            }
+
+            // Add the tag itself
+            result.push_str(&html[tag_start..i]);
+            last_end = i;
+        } else {
+            i += 1;
+        }
+    }
+
+    // Process remaining text
+    let remaining = &html[last_end..];
+    if !remaining.is_empty() {
+        if skip_depth == 0 {
+            result.push_str(&process_mentions(remaining));
+        } else {
+            result.push_str(remaining);
+        }
+    }
+
+    result
+}
+
+/// Process @mentions in a text segment (no HTML tags)
+fn process_mentions(text: &str) -> String {
+    MENTION_REGEX.replace_all(text, |caps: &regex::Captures| {
+        let prefix = &caps[1]; // Whitespace, > or empty string
+        let username = &caps[2];
+
+        format!(
+            "{}<a class=\"mention\" href=\"/members/@{}\">@{}</a>",
+            prefix, username, username
+        )
+    }).to_string()
+}
 
 /// Generates a string of HTML from an &str of BbCode.
 #[no_mangle]
@@ -31,7 +136,10 @@ pub fn parse(input: &str) -> String {
     //}
 
     let constructor = Constructor::new();
-    constructor.build(ast)
+    let html = constructor.build(ast);
+
+    // Post-process to linkify @mentions
+    linkify_mentions(&html)
 }
 
 #[cfg(test)]
@@ -484,6 +592,64 @@ mod tests {
         assert_eq!(
             "<img src=\"https://example.com/image.jpg\" width=\"2000\" height=\"2000\" />",
             parse("[img=2000x2000]https://example.com/image.jpg[/img]")
+        );
+    }
+
+    #[test]
+    fn mentions() {
+        use super::parse;
+
+        // Basic mention
+        assert_eq!(
+            "<a class=\"mention\" href=\"/members/@john\">@john</a>",
+            parse("@john")
+        );
+
+        // Mention at start of text
+        assert_eq!(
+            "<a class=\"mention\" href=\"/members/@alice\">@alice</a> said hello",
+            parse("@alice said hello")
+        );
+
+        // Mention after text
+        assert_eq!(
+            "Hello <a class=\"mention\" href=\"/members/@bob\">@bob</a>",
+            parse("Hello @bob")
+        );
+
+        // Multiple mentions
+        assert_eq!(
+            "<a class=\"mention\" href=\"/members/@alice\">@alice</a> and <a class=\"mention\" href=\"/members/@bob\">@bob</a>",
+            parse("@alice and @bob")
+        );
+
+        // Mention with underscore and hyphen
+        assert_eq!(
+            "<a class=\"mention\" href=\"/members/@user_name-123\">@user_name-123</a>",
+            parse("@user_name-123")
+        );
+
+        // Mention with BBCode formatting
+        assert_eq!(
+            "<b><a class=\"mention\" href=\"/members/@john\">@john</a></b>",
+            parse("[b]@john[/b]")
+        );
+
+        // Mention inside URL should NOT be linkified (already a link)
+        // The URL tag creates an <a> so mentions inside shouldn't be processed
+        let result = parse("[url=https://example.com]@notamentionhere[/url]");
+        assert!(!result.contains("href=\"/members/@notamentionhere\""));
+
+        // Mention inside code block should NOT be linkified
+        assert_eq!(
+            "<pre>@codemention</pre>",
+            parse("[code]@codemention[/code]")
+        );
+
+        // Email-like text should NOT be a mention (has @ but preceded by text)
+        assert_eq!(
+            "test@example.com",
+            parse("test@example.com")
         );
     }
 }

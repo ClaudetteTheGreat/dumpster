@@ -108,6 +108,21 @@
         max-height: 80vh;
         max-width: 100%;
     }
+
+    // @mention links
+    a.mention {
+        color: #1976d2;
+        font-weight: 500;
+        text-decoration: none;
+        background-color: rgba(25, 118, 210, 0.08);
+        padding: 1px 4px;
+        border-radius: 3px;
+
+        &:hover {
+            background-color: rgba(25, 118, 210, 0.15);
+            text-decoration: underline;
+        }
+    }
 }
 
 .message-signature {
