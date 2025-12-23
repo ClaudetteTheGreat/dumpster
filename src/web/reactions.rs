@@ -66,7 +66,7 @@ async fn toggle_reaction(
     let reaction_type = reaction_types::Entity::find_by_id(reaction_type_id)
         .one(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?
+        .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
 
     if !reaction_type.is_active {
@@ -80,14 +80,14 @@ async fn toggle_reaction(
         .filter(ugc_reactions::Column::ReactionTypeId.eq(reaction_type_id))
         .one(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?;
+        .map_err(error::ErrorInternalServerError)?;
 
     let added = if let Some(existing_reaction) = existing {
         // Remove reaction
         ugc_reactions::Entity::delete_by_id(existing_reaction.id)
             .exec(db)
             .await
-            .map_err(|e| error::ErrorInternalServerError(e))?;
+            .map_err(error::ErrorInternalServerError)?;
         false
     } else {
         // Add reaction
@@ -98,7 +98,7 @@ async fn toggle_reaction(
             created_at: Set(Utc::now().naive_utc()),
             ..Default::default()
         };
-        new_reaction.insert(db).await.map_err(|e| error::ErrorInternalServerError(e))?;
+        new_reaction.insert(db).await.map_err(error::ErrorInternalServerError)?;
         true
     };
 
@@ -106,7 +106,7 @@ async fn toggle_reaction(
     let ugc = crate::orm::ugc::Entity::find_by_id(ugc_id)
         .one(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?
+        .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Content not found"))?;
 
     // Get user's current reactions on this content
@@ -115,7 +115,7 @@ async fn toggle_reaction(
         .filter(ugc_reactions::Column::UserId.eq(user_id))
         .all(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?
+        .map_err(error::ErrorInternalServerError)?
         .iter()
         .map(|r| r.reaction_type_id)
         .collect();
@@ -148,7 +148,7 @@ async fn get_reactions(
         .find_also_related(reaction_types::Entity)
         .all(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?;
+        .map_err(error::ErrorInternalServerError)?;
 
     // Count reactions by type
     let mut reaction_counts: std::collections::HashMap<i32, (String, String, i64)> = std::collections::HashMap::new();
@@ -196,7 +196,7 @@ async fn get_reaction_types() -> Result<HttpResponse, Error> {
         .order_by_asc(reaction_types::Column::DisplayOrder)
         .all(db)
         .await
-        .map_err(|e| error::ErrorInternalServerError(e))?;
+        .map_err(error::ErrorInternalServerError)?;
 
     let response: Vec<ReactionTypeInfo> = types
         .into_iter()
@@ -236,7 +236,7 @@ pub async fn get_reactions_for_ugc_ids(
         .await?;
 
     // Group by UGC ID
-    let mut result: std::collections::HashMap<i32, (Vec<(i32, String, String, i64)>, Vec<i32>)> = std::collections::HashMap::new();
+    let mut result: std::collections::HashMap<i32, ReactionsData> = std::collections::HashMap::new();
 
     // Initialize empty entries for all requested IDs
     for &id in ugc_ids {
