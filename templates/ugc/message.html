@@ -66,20 +66,29 @@
         </div>
         {% when None %}{% endmatch %}
 
-        {% if client.is_user() %}
         <div class="message-footer">
             <div class="message-footer--left">
                 {# Mod Checkbox, Report, Delete, IP, Warn #}
+                {% if client.is_user() %}
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/edit">Edit</a>{% endif %}
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/delete">Delete</a>{% endif %}
                 {% if post.created_at != post.updated_at && client.can_update_post(post) %}<a
                     href="/posts/{{ post.id }}/history">History</a>{% endif %}
+                {% endif %}
             </div>
             <div class="message-footer--right">
-                {# Like, Quote, Reply #}
+                {# Reactions #}
+                <div class="reactions-container" data-ugc-id="{{ post.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
+                    <div class="reactions-display"></div>
+                    {% if client.is_user() %}
+                    <div class="reactions-picker">
+                        <button type="button" class="reaction-picker-toggle" title="Add reaction">+</button>
+                        <div class="reaction-picker-dropdown" style="display: none;"></div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
-        {% endif %}
 
         {% if let Some(user) = user %}
         {% if let Some(signature_html) = user.get_signature_html() %}

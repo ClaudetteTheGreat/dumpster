@@ -124,3 +124,114 @@
         color: #666;
     }
 }
+
+// Reactions
+.reactions-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reactions-display {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.reaction-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: #e0e0e0;
+        border-color: #ccc;
+    }
+
+    &.reaction-badge--active {
+        background: #e3f2fd;
+        border-color: #90caf9;
+    }
+
+    .reaction-emoji {
+        font-size: 1.1em;
+    }
+
+    .reaction-count {
+        font-weight: 600;
+        color: #555;
+    }
+}
+
+.reactions-picker {
+    position: relative;
+}
+
+.reaction-picker-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #666;
+
+    &:hover {
+        background: #e8e8e8;
+        border-color: #ccc;
+        color: #333;
+    }
+}
+
+.reaction-picker-dropdown {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 4px;
+    z-index: 100;
+}
+
+.reaction-option {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 6px;
+    font-size: 1.3em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: #f0f0f0;
+        transform: scale(1.15);
+    }
+
+    &.reaction-option--active {
+        background: #e3f2fd;
+        border-color: #2196f3;
+    }
+}

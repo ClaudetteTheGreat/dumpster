@@ -23,6 +23,8 @@ pub mod permission_values;
 pub mod permissions;
 pub mod posts;
 pub mod private_messages;
+pub mod reaction_types;
+pub mod ugc_reactions;
 pub mod sessions;
 pub mod threads;
 pub mod ugc;

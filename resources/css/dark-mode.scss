@@ -292,4 +292,53 @@ html.dark {
         border-color: #dc3545;
         background-color: #2a1a1a;
     }
+
+    // Reactions
+    .reaction-badge {
+        background: #3a3a3a;
+        border-color: #555;
+
+        &:hover {
+            background: #454545;
+            border-color: #666;
+        }
+
+        &.reaction-badge--active {
+            background: #1e3a5f;
+            border-color: #4a90d9;
+        }
+
+        .reaction-count {
+            color: #ccc;
+        }
+    }
+
+    .reaction-picker-toggle {
+        background: #3a3a3a;
+        border-color: #555;
+        color: #aaa;
+
+        &:hover {
+            background: #454545;
+            border-color: #666;
+            color: #fff;
+        }
+    }
+
+    .reaction-picker-dropdown {
+        background: #2a2a2a;
+        border-color: #555;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .reaction-option {
+        &:hover {
+            background: #454545;
+        }
+
+        &.reaction-option--active {
+            background: #1e3a5f;
+            border-color: #4a90d9;
+        }
+    }
 }

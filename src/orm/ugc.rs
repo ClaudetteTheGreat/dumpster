@@ -8,6 +8,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub ugc_revision_id: Option<i32>,
+    pub reaction_count: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -20,6 +21,8 @@ pub enum Relation {
     PrivateMessages,
     #[sea_orm(has_many = "super::ugc_attachments::Entity")]
     UgcAttachments,
+    #[sea_orm(has_many = "super::ugc_reactions::Entity")]
+    UgcReactions,
     #[sea_orm(
         belongs_to = "super::ugc_deletions::Entity",
         from = "Column::Id",
@@ -71,6 +74,12 @@ impl Related<super::ugc_deletions::Entity> for Entity {
 impl Related<super::ugc_revisions::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UgcRevisions.def()
+    }
+}
+
+impl Related<super::ugc_reactions::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::UgcReactions.def()
     }
 }
 
