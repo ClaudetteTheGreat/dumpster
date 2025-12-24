@@ -1,6 +1,6 @@
 use actix::Actor;
-use actix_session::{storage::CookieSessionStore, SessionMiddleware};
-use actix_web::cookie::Key;
+use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
+use actix_web::cookie::{Key, SameSite};
 use actix_web::http::StatusCode;
 use actix_web::middleware::{ErrorHandlers, Logger};
 use actix_web::web::Data;
@@ -74,10 +74,13 @@ async fn main() -> std::io::Result<()> {
                     ),
             )
             .wrap(ClientCtx::default())
-            .wrap(SessionMiddleware::new(
-                CookieSessionStore::default(),
-                secret_key.clone(),
-            ))
+            .wrap(
+                SessionMiddleware::builder(CookieSessionStore::default(), secret_key.clone())
+                    .cookie_same_site(SameSite::Lax)
+                    .cookie_secure(false) // Allow HTTP for development
+                    .session_lifecycle(PersistentSession::default())
+                    .build(),
+            )
             .wrap(Logger::new("%a %{User-Agent}i"))
             .configure(ruforo::web::configure)
     })

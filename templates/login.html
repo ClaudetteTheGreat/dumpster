@@ -1,18 +1,6 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<script>
-    'use strict';
-    function login(form) {
-        const xhr = new XMLHttpRequest();
-        xhr.open(form.method, form.action, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-//xhr.onreadystatechange = function() {if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {}}
-        xhr.send(form.segments.join(form.technique === 2 ? "\r\n" : "&"));
-        return false;
-    }
-</script>
-
 <h2>Login</h2>
 
 {% if let Some(msg) = success_message %}
@@ -20,7 +8,7 @@
     {{ msg }}
 </div>
 {% endif %}
-<form action="/login" method="post" onsubmit="return login(this);">
+<form action="/login" method="post">
     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <input type="text" id="username" name="username" placeholder="username"><br>
     <input type="password" id="password" name="password" placeholder="password"><br>

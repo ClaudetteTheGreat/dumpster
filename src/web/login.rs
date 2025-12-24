@@ -53,8 +53,12 @@ pub struct FormData {
     remember_me: bool,
 }
 
-/// Validate TOTP code format (must be exactly 6 digits)
+/// Validate TOTP code format (must be exactly 6 digits, or empty)
 fn validate_totp(code: &str) -> Result<(), validator::ValidationError> {
+    // Allow empty string (no TOTP provided)
+    if code.is_empty() {
+        return Ok(());
+    }
     if code.len() != 6 {
         return Err(validator::ValidationError::new("totp_length"));
     }
