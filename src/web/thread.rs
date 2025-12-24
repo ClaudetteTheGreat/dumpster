@@ -64,6 +64,7 @@ pub struct ThreadTemplate<'a> {
     pub posts: &'a Vec<(PostForTemplate, Option<UserProfile>)>,
     pub attachments: &'a HashMap<i32, Vec<AttachmentForTemplate>>,
     pub is_watching: bool,
+    pub email_on_reply: bool,
     pub breadcrumbs: Vec<Breadcrumb>,
 }
 
@@ -156,13 +157,14 @@ async fn get_thread_and_replies_for_page(
     let attachments =
         get_attachments_for_ugc_by_id(posts.iter().map(|p| p.0.ugc_id).collect()).await;
 
-    // Check if user is watching this thread
-    let is_watching = if let Some(user_id) = client.get_id() {
-        crate::notifications::is_watching_thread(user_id, thread_id)
-            .await
-            .unwrap_or(false)
+    // Check if user is watching this thread and email preference
+    let (is_watching, email_on_reply) = if let Some(user_id) = client.get_id() {
+        match crate::notifications::get_watch_status(user_id, thread_id).await {
+            Ok(Some(watch)) => (true, watch.email_on_reply),
+            _ => (false, false),
+        }
     } else {
-        false
+        (false, false)
     };
 
     let paginator = Paginator {
@@ -195,6 +197,7 @@ async fn get_thread_and_replies_for_page(
         paginator,
         attachments: &attachments,
         is_watching,
+        email_on_reply,
         breadcrumbs,
     }
     .to_response())

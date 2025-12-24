@@ -14,6 +14,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(mark_all_read)
         .service(watch_thread)
         .service(unwatch_thread)
+        .service(toggle_thread_email)
         .service(view_watched_threads)
         .service(view_preferences)
         .service(update_preferences);
@@ -154,6 +155,32 @@ pub async fn unwatch_thread(
     notifications::unwatch_thread(user_id, *thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to the thread
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .finish())
+}
+
+/// POST /threads/{id}/toggle-email - Toggle email notifications for watched thread
+#[post("/threads/{id}/toggle-email")]
+pub async fn toggle_thread_email(
+    client: ClientCtx,
+    thread_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Get current status
+    let watch_status = notifications::get_watch_status(user_id, *thread_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if let Some(watch) = watch_status {
+        // Toggle the email setting
+        notifications::toggle_thread_email(user_id, *thread_id, !watch.email_on_reply)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()

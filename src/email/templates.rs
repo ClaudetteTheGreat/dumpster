@@ -174,3 +174,80 @@ Ruforo Forum
 
     send_email(to, "Welcome to Ruforo Forum!", &body_text, Some(&body_html)).await
 }
+
+/// Send a thread reply notification email
+pub async fn send_thread_reply_email(
+    to: &str,
+    recipient_username: &str,
+    thread_title: &str,
+    thread_id: i32,
+    poster_username: &str,
+    post_preview: &str,
+    base_url: &str,
+) -> EmailResult<()> {
+    let thread_link = format!("{}/threads/{}", base_url, thread_id);
+
+    // Truncate preview to 500 chars
+    let preview = if post_preview.len() > 500 {
+        format!("{}...", &post_preview[..500])
+    } else {
+        post_preview.to_string()
+    };
+
+    let body_text = format!(
+        r#"Hello {},
+
+{} has replied to a thread you're watching:
+
+"{}"
+
+---
+{}
+---
+
+View the thread: {}
+
+To stop receiving these emails, visit the thread and disable email notifications.
+
+---
+Ruforo Forum
+"#,
+        recipient_username, poster_username, thread_title, preview, thread_link
+    );
+
+    let body_html = format!(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>New Reply</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>New Reply in Watched Thread</h2>
+        <p>Hello <strong>{}</strong>,</p>
+        <p><strong>{}</strong> has replied to a thread you're watching:</p>
+        <h3 style="color: #007bff;">{}</h3>
+        <div style="background: #f8f9fa; border-left: 4px solid #007bff; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; white-space: pre-wrap;">{}</p>
+        </div>
+        <p style="margin: 30px 0;">
+            <a href="{}"
+               style="background-color: #007bff; color: white; padding: 12px 24px;
+                      text-decoration: none; border-radius: 4px; display: inline-block;">
+                View Thread
+            </a>
+        </p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 0.9em;">
+            To stop receiving these emails, visit the thread and disable email notifications.
+        </p>
+    </div>
+</body>
+</html>"#,
+        recipient_username, poster_username, thread_title, preview, thread_link
+    );
+
+    let subject = format!("Re: {}", thread_title);
+    send_email(to, &subject, &body_text, Some(&body_html)).await
+}

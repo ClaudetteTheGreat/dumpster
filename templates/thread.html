@@ -36,7 +36,12 @@
             {% if client.is_user() %}
             {% if is_watching %}
             <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
-                <button type="submit" class="watch-button">Unwatch Thread</button>
+                <button type="submit" class="watch-button">Unwatch</button>
+            </form>
+            <form method="post" action="/threads/{{ thread.id }}/toggle-email" style="display: inline;">
+                <button type="submit" class="watch-button {% if email_on_reply %}email-on{% endif %}" title="{% if email_on_reply %}Email notifications ON{% else %}Email notifications OFF{% endif %}">
+                    {% if email_on_reply %}📧{% else %}🔕{% endif %}
+                </button>
             </form>
             {% else %}
             <form method="post" action="/threads/{{ thread.id }}/watch" style="display: inline;">
@@ -212,6 +217,14 @@
 
     .watch-button.watching:hover {
         background: #357abd;
+    }
+
+    .watch-button.email-on {
+        background: #28a745;
+    }
+
+    .watch-button.email-on:hover {
+        background: #218838;
     }
 
     .moderation-tools {

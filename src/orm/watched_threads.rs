@@ -10,6 +10,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub thread_id: i32,
     pub notify_on_reply: bool,
+    pub email_on_reply: bool,
     pub created_at: DateTime,
 }
 

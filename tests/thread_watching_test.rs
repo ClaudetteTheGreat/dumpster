@@ -386,3 +386,87 @@ async fn test_multiple_users_watching_same_thread() {
         .await
         .expect("Failed to check user3"));
 }
+
+#[actix_rt::test]
+#[serial]
+async fn test_toggle_thread_email_notifications() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user = create_test_user_with_email(&db, "email_test_user", "emailtest@example.com", true)
+        .await
+        .expect("Failed to create user");
+
+    let forum_id = create_test_forum(&db, "Test Forum")
+        .await
+        .expect("Failed to create forum");
+
+    let thread_id = create_test_thread(&db, forum_id, user.id, "Email Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Watch the thread
+    notifications::watch_thread(user.id, thread_id)
+        .await
+        .expect("Failed to watch thread");
+
+    // Initially email should be off (default)
+    let status = notifications::get_watch_status(user.id, thread_id)
+        .await
+        .expect("Failed to get watch status")
+        .expect("Watch should exist");
+    assert_eq!(status.email_on_reply, false);
+
+    // Enable email notifications
+    notifications::toggle_thread_email(user.id, thread_id, true)
+        .await
+        .expect("Failed to enable email");
+
+    let status_after = notifications::get_watch_status(user.id, thread_id)
+        .await
+        .expect("Failed to get watch status")
+        .expect("Watch should exist");
+    assert_eq!(status_after.email_on_reply, true);
+
+    // Disable email notifications
+    notifications::toggle_thread_email(user.id, thread_id, false)
+        .await
+        .expect("Failed to disable email");
+
+    let status_final = notifications::get_watch_status(user.id, thread_id)
+        .await
+        .expect("Failed to get watch status")
+        .expect("Watch should exist");
+    assert_eq!(status_final.email_on_reply, false);
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_get_watch_status_returns_none_for_unwatched() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user = create_test_user_with_email(&db, "unwatched_test", "unwatched@example.com", true)
+        .await
+        .expect("Failed to create user");
+
+    let forum_id = create_test_forum(&db, "Test Forum")
+        .await
+        .expect("Failed to create forum");
+
+    let thread_id = create_test_thread(&db, forum_id, user.id, "Unwatched Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Should return None for unwatched thread
+    let status = notifications::get_watch_status(user.id, thread_id)
+        .await
+        .expect("Failed to get watch status");
+    assert!(status.is_none());
+}

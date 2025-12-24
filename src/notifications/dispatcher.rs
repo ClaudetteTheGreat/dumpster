@@ -2,7 +2,7 @@
 
 use crate::db::get_db_pool;
 use crate::notifications::{create_notification, NotificationType};
-use crate::orm::{threads, user_names, watched_threads};
+use crate::orm::{threads, ugc, ugc_revisions, user_names, users, watched_threads};
 use crate::user::Profile;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -88,7 +88,7 @@ pub async fn notify_thread_reply(
     // Get author username
     let author = Profile::get_by_id(db, author_id).await?;
     let author_name = author
-        .map(|a| a.name)
+        .map(|a| a.name.clone())
         .unwrap_or_else(|| "Someone".to_string());
 
     // Notify thread author if they're not the one posting
@@ -108,7 +108,7 @@ pub async fn notify_thread_reply(
         }
     }
 
-    // Notify users watching the thread
+    // Notify users watching the thread (in-app notifications)
     let watchers = watched_threads::Entity::find()
         .filter(watched_threads::Column::ThreadId.eq(thread_id))
         .filter(watched_threads::Column::NotifyOnReply.eq(true))
@@ -135,6 +135,104 @@ pub async fn notify_thread_reply(
             Some(post_id),
         )
         .await?;
+    }
+
+    // Send email notifications to watchers with email_on_reply enabled
+    send_thread_reply_emails(thread_id, post_id, author_id, &author_name, &thread.title).await?;
+
+    Ok(())
+}
+
+/// Send email notifications to thread watchers
+async fn send_thread_reply_emails(
+    thread_id: i32,
+    post_id: i32,
+    author_id: i32,
+    author_name: &str,
+    thread_title: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use crate::orm::posts;
+
+    let db = get_db_pool();
+
+    // Get watchers who want email notifications
+    let email_watchers = watched_threads::Entity::find()
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .filter(watched_threads::Column::EmailOnReply.eq(true))
+        .all(db)
+        .await?;
+
+    if email_watchers.is_empty() {
+        return Ok(());
+    }
+
+    // Get the post content for the email preview
+    let post = posts::Entity::find_by_id(post_id).one(db).await?;
+    let post_content = if let Some(post) = post {
+        // Get UGC content
+        if let Some(ugc_model) = ugc::Entity::find_by_id(post.ugc_id).one(db).await? {
+            if let Some(rev_id) = ugc_model.ugc_revision_id {
+                if let Some(rev) = ugc_revisions::Entity::find_by_id(rev_id).one(db).await? {
+                    rev.content
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    };
+
+    // Get base URL for links
+    let base_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    for watcher in email_watchers {
+        // Skip the author - don't email yourself
+        if watcher.user_id == author_id {
+            continue;
+        }
+
+        // Get user's email and username
+        let user = users::Entity::find_by_id(watcher.user_id).one(db).await?;
+        if let Some(user) = user {
+            // Only send if user has a verified email
+            if !user.email_verified {
+                continue;
+            }
+
+            if let Some(email) = &user.email {
+                // Get username
+                let username = user_names::Entity::find()
+                    .filter(user_names::Column::UserId.eq(watcher.user_id))
+                    .one(db)
+                    .await?
+                    .map(|un| un.name)
+                    .unwrap_or_else(|| "User".to_string());
+
+                // Send email (don't block on errors)
+                if let Err(e) = crate::email::templates::send_thread_reply_email(
+                    email,
+                    &username,
+                    thread_title,
+                    thread_id,
+                    author_name,
+                    &post_content,
+                    &base_url,
+                )
+                .await
+                {
+                    log::error!(
+                        "Failed to send thread reply email to user {}: {}",
+                        watcher.user_id,
+                        e
+                    );
+                }
+            }
+        }
     }
 
     Ok(())

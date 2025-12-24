@@ -197,11 +197,37 @@ pub async fn watch_thread(user_id: i32, thread_id: i32) -> Result<(), DbErr> {
         user_id: Set(user_id),
         thread_id: Set(thread_id),
         notify_on_reply: Set(true),
+        email_on_reply: Set(false), // Off by default, user can enable
         ..Default::default()
     };
 
     watch.insert(db).await?;
     Ok(())
+}
+
+/// Toggle email notifications for a watched thread
+pub async fn toggle_thread_email(user_id: i32, thread_id: i32, enable: bool) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    watched_threads::Entity::update_many()
+        .col_expr(watched_threads::Column::EmailOnReply, Expr::value(enable))
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+/// Get watch status for a thread including email preference
+pub async fn get_watch_status(user_id: i32, thread_id: i32) -> Result<Option<watched_threads::Model>, DbErr> {
+    let db = get_db_pool();
+
+    watched_threads::Entity::find()
+        .filter(watched_threads::Column::UserId.eq(user_id))
+        .filter(watched_threads::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await
 }
 
 /// Remove a thread from user's watch list
