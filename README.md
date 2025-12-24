@@ -79,7 +79,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 12 moderation tests
   - 8 search tests
   - 12 conversation/PM tests
-  - 8 thread watching tests
+  - 9 thread watching tests
   - 6 post reactions tests
   - 7 report system tests
   - 6 user ban tests
@@ -217,6 +217,10 @@ PROJECT_NAME is a traditional web forum built in Rust.
 ### Thread Watching
 - **Subscribe to Threads** - Get notified when someone replies to watched threads
 - **Notification on Reply** - Configurable notifications for thread activity
+- **Email Notifications** - Toggle per-thread email notifications for new replies
+  - Visual toggle button in thread header (📧 on, 🔕 off)
+  - Only sends to users with verified email addresses
+  - Excludes the post author from receiving notifications
 - **Manage Subscriptions** - View and manage all watched threads
 
 ### RSS Feeds
