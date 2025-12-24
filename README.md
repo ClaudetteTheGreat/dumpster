@@ -104,6 +104,8 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Latest Post Navigation** - Quick jump to most recent post from thread header and forum listings
 - **Enhanced Pagination** - Previous/Next buttons, current page highlighting, smart ellipsis (1 2 3 ... 8 [9] 10 ... 15)
 - **Jump to Post** - Direct linking to specific posts with `/threads/{id}/post-{post_id}`
+- **New Posts Feed** - `/recent/posts` shows latest posts across all forums with navigation link in header
+- **New Threads Feed** - `/recent/threads` shows latest threads across all forums
 
 ### Forum Features
 - **Forum Statistics** - Thread and post counts displayed on forum index
@@ -143,6 +145,9 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Inserts `[quote=username]content[/quote]` BBCode
   - Scrolls to and focuses the reply textarea
   - Supports quoting multiple posts
+- **Quick Reply** - Reply button in thread header for fast access
+  - Smooth scroll to reply form
+  - Auto-focus on textarea
 - **Report Post** - Report posts for moderation review
   - Modal dialog with reason selection (spam, harassment, off-topic, illegal content, misinformation, other)
   - Optional details field (required for "Other" reason)
