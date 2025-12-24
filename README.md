@@ -66,7 +66,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **185+ integration tests** covering:
+- **190+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -83,6 +83,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 6 post reactions tests
   - 7 report system tests
   - 6 user ban tests
+  - 5 RSS feed tests
   - 17 BBCode unit tests (including @mention linkification)
 - **Test infrastructure** - Comprehensive test utilities and fixtures
 - **Test database** - Isolated test database with full migration support
@@ -212,6 +213,12 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Subscribe to Threads** - Get notified when someone replies to watched threads
 - **Notification on Reply** - Configurable notifications for thread activity
 - **Manage Subscriptions** - View and manage all watched threads
+
+### RSS Feeds
+- **Latest Threads Feed** - `/feed.rss` - RSS feed of latest threads across all forums
+- **Per-Forum Feeds** - `/forums/{id}/feed.rss` - RSS feed of threads in a specific forum
+- **Feed Discovery** - Automatic `<link rel="alternate">` tags for feed reader detection
+- **Standard RSS 2.0** - Compatible with all major feed readers
 
 ## Environment
  - Example `.env` file
