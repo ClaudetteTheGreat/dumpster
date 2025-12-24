@@ -28,6 +28,11 @@
             </a>
             {% when None %}{% endmatch %}
             {% endif %}
+            {% if client.can_post_in_thread(thread) %}
+            <button type="button" class="action-button" onclick="document.getElementById('reply-form').scrollIntoView({behavior: 'smooth'}); setTimeout(() => document.getElementById('reply-textarea').focus(), 500);">
+                ✏️ Reply
+            </button>
+            {% endif %}
             {% if client.is_user() %}
             {% if is_watching %}
             <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
@@ -91,12 +96,12 @@
     {{ paginator.as_html()|safe }}
 
     {% if client.can_post_in_thread(thread) %}
-    <form action="/threads/{{ thread.id }}/post-reply" method="post" enctype="multipart/form-data">
+    <form id="reply-form" action="/threads/{{ thread.id }}/post-reply" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
         <h2>Post Reply</h2>
         <div class="bbcode-editor-container">
             {% include "components/bbcode_toolbar.html" %}
-            <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
+            <textarea id="reply-textarea" name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
         </div>
         <div>
             <input type="file" name="attachment" class="attachment-input" />
