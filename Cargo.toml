@@ -52,6 +52,7 @@ redis = { version = "^0.21", features = [
     "tokio-native-tls-comp",
 ] } # XF Session compat   
 regex = "1.5" # XF Session parser
+rss = "2.0" # RSS feed generation
 rusoto_core = "^0.48"
 rusoto_s3 = "^0.48"
 sea-orm = { version = "^0.8", features = [

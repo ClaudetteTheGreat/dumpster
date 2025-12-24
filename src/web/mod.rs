@@ -5,6 +5,7 @@ pub mod chat;
 pub mod conversations;
 pub mod email_verification;
 pub mod error;
+pub mod feed;
 pub mod forum;
 pub mod index;
 pub mod login;
@@ -32,6 +33,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     chat::configure(conf);
     conversations::configure(conf);
     email_verification::configure(conf);
+    feed::configure(conf);
     forum::configure(conf);
     login::configure(conf);
     logout::configure(conf);

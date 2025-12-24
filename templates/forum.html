@@ -1,5 +1,9 @@
 {% extends "container/public.html" %}
 
+{% block feeds %}
+<link rel="alternate" type="application/rss+xml" title="{{ forum.label }} - Latest Threads" href="/forums/{{ forum.id }}/feed.rss" />
+{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" %}
 {% endblock %}

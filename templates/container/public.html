@@ -62,6 +62,10 @@
     <link rel="manifest" href="/my.webmanifest" />
     #}
     <meta name="theme-color" content="#B7410E" />
+
+    {% block feeds %}
+    <link rel="alternate" type="application/rss+xml" title="Latest Threads" href="/feed.rss" />
+    {% endblock %}
     {% endblock %}
 </head>
 
