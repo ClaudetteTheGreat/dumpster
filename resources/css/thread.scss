@@ -124,6 +124,103 @@
     }
 }
 
+// Multi-quote add button
+.add-quote-btn {
+    background: none;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 0.85em;
+    color: #555;
+    cursor: pointer;
+    margin-right: 8px;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background-color: #e8f4fc;
+        border-color: #4a9fd4;
+        color: #2980b9;
+    }
+
+    &:active {
+        background-color: #d4edfc;
+    }
+
+    &.quote-selected {
+        background-color: #3498db;
+        border-color: #2980b9;
+        color: white;
+
+        &:hover {
+            background-color: #e74c3c;
+            border-color: #c0392b;
+        }
+    }
+}
+
+// Multi-quote floating indicator
+#multi-quote-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #2c3e50;
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.9em;
+    animation: slideIn 0.3s ease;
+
+    .mq-count {
+        font-weight: 500;
+    }
+
+    .mq-insert {
+        background: #27ae60;
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.15s ease;
+
+        &:hover {
+            background: #219a52;
+        }
+    }
+
+    .mq-clear {
+        background: #7f8c8d;
+        border: none;
+        color: white;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.15s ease;
+
+        &:hover {
+            background: #e74c3c;
+        }
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
 .ugc {
     img {
         height: auto;

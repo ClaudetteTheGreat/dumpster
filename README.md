@@ -144,7 +144,12 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Quote Reply** - Click Quote button on any post to insert quoted content into reply
   - Inserts `[quote=username]content[/quote]` BBCode
   - Scrolls to and focuses the reply textarea
-  - Supports quoting multiple posts
+- **Multi-Quote** - Queue multiple posts to quote at once
+  - Click +Quote to add posts to queue (persists across pages via localStorage)
+  - Floating indicator shows number of selected quotes
+  - "Insert Quotes" inserts all queued quotes at once
+  - "Clear" removes all queued quotes
+  - Button toggles to -Quote when post is in queue
 - **Quick Reply** - Reply button in thread header for fast access
   - Smooth scroll to reply form
   - Auto-focus on textarea

@@ -509,4 +509,59 @@ html.dark {
             color: #e0e0e0;
         }
     }
+
+    // Multi-quote add button
+    .add-quote-btn {
+        background: none;
+        border-color: #555;
+        color: #aaa;
+
+        &:hover {
+            background-color: #1e3a5f;
+            border-color: #4a90d9;
+            color: #64b5f6;
+        }
+
+        &:active {
+            background-color: #2a4a6f;
+        }
+
+        &.quote-selected {
+            background-color: #2980b9;
+            border-color: #3498db;
+            color: white;
+
+            &:hover {
+                background-color: #c0392b;
+                border-color: #e74c3c;
+            }
+        }
+    }
+
+    // Multi-quote floating indicator
+    #multi-quote-indicator {
+        background: #1a1a1a;
+        border: 1px solid #444;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+        .mq-count {
+            color: #e0e0e0;
+        }
+
+        .mq-insert {
+            background: #27ae60;
+
+            &:hover {
+                background: #2ecc71;
+            }
+        }
+
+        .mq-clear {
+            background: #555;
+
+            &:hover {
+                background: #e74c3c;
+            }
+        }
+    }
 }

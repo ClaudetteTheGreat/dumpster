@@ -75,6 +75,12 @@
                     data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
                     data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
                     title="Quote this post">Quote</button>
+                <button type="button" class="add-quote-btn"
+                    data-post-id="{{ post.id }}"
+                    data-thread-id="{{ post.thread_id }}"
+                    data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
+                    data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
+                    title="Add to quotes">+Quote</button>
                 <button type="button" class="report-btn"
                     data-content-type="post"
                     data-content-id="{{ post.id }}"
