@@ -1,37 +1,37 @@
-<div class="bbcode-toolbar">
-    <div class="toolbar-group">
-        <button type="button" data-bbcode="b" title="Bold [b]"><strong>B</strong></button>
-        <button type="button" data-bbcode="i" title="Italic [i]"><em>I</em></button>
-        <button type="button" data-bbcode="u" title="Underline [u]"><u>U</u></button>
-        <button type="button" data-bbcode="s" title="Strikethrough [s]"><s>S</s></button>
+<div class="bbcode-toolbar" role="toolbar" aria-label="Text formatting options">
+    <div class="toolbar-group" role="group" aria-label="Text style">
+        <button type="button" data-bbcode="b" title="Bold [b]" aria-label="Bold"><strong>B</strong></button>
+        <button type="button" data-bbcode="i" title="Italic [i]" aria-label="Italic"><em>I</em></button>
+        <button type="button" data-bbcode="u" title="Underline [u]" aria-label="Underline"><u>U</u></button>
+        <button type="button" data-bbcode="s" title="Strikethrough [s]" aria-label="Strikethrough"><s>S</s></button>
     </div>
-    <div class="toolbar-group">
-        <button type="button" data-bbcode="url" title="Insert Link [url]">Link</button>
-        <button type="button" data-bbcode="img" title="Insert Image [img]">Img</button>
+    <div class="toolbar-group" role="group" aria-label="Insert content">
+        <button type="button" data-bbcode="url" title="Insert Link [url]" aria-label="Insert link">Link</button>
+        <button type="button" data-bbcode="img" title="Insert Image [img]" aria-label="Insert image">Img</button>
     </div>
-    <div class="toolbar-group">
-        <button type="button" data-bbcode="quote" title="Quote [quote]">Quote</button>
-        <button type="button" data-bbcode="code" title="Code [code]">Code</button>
-        <button type="button" data-bbcode="spoiler" title="Spoiler [spoiler]">Spoiler</button>
+    <div class="toolbar-group" role="group" aria-label="Blocks">
+        <button type="button" data-bbcode="quote" title="Quote [quote]" aria-label="Insert quote block">Quote</button>
+        <button type="button" data-bbcode="code" title="Code [code]" aria-label="Insert code block">Code</button>
+        <button type="button" data-bbcode="spoiler" title="Spoiler [spoiler]" aria-label="Insert spoiler block">Spoiler</button>
     </div>
-    <div class="toolbar-group">
-        <button type="button" data-bbcode="list" title="List [list]">List</button>
+    <div class="toolbar-group" role="group" aria-label="Lists">
+        <button type="button" data-bbcode="list" title="List [list]" aria-label="Insert list">List</button>
     </div>
-    <div class="toolbar-group toolbar-group--media">
-        <button type="button" data-bbcode="video" title="Embed Video [video]">🎬</button>
-        <button type="button" data-bbcode="audio" title="Embed Audio [audio]">🔊</button>
+    <div class="toolbar-group toolbar-group--media" role="group" aria-label="Media">
+        <button type="button" data-bbcode="video" title="Embed Video [video]" aria-label="Embed video"><span aria-hidden="true">🎬</span><span class="visually-hidden">Video</span></button>
+        <button type="button" data-bbcode="audio" title="Embed Audio [audio]" aria-label="Embed audio"><span aria-hidden="true">🔊</span><span class="visually-hidden">Audio</span></button>
     </div>
-    <div class="toolbar-group toolbar-group--colors">
-        <button type="button" data-bbcode="color" data-param="red" title="Red text" class="color-btn color-red"></button>
-        <button type="button" data-bbcode="color" data-param="green" title="Green text" class="color-btn color-green"></button>
-        <button type="button" data-bbcode="color" data-param="blue" title="Blue text" class="color-btn color-blue"></button>
-        <button type="button" data-bbcode="color" title="Custom color..." class="color-btn color-custom">...</button>
+    <div class="toolbar-group toolbar-group--colors" role="group" aria-label="Text colors">
+        <button type="button" data-bbcode="color" data-param="red" title="Red text" aria-label="Red text color" class="color-btn color-red"></button>
+        <button type="button" data-bbcode="color" data-param="green" title="Green text" aria-label="Green text color" class="color-btn color-green"></button>
+        <button type="button" data-bbcode="color" data-param="blue" title="Blue text" aria-label="Blue text color" class="color-btn color-blue"></button>
+        <button type="button" data-bbcode="color" title="Custom color..." aria-label="Custom color picker" class="color-btn color-custom">...</button>
     </div>
-    <div class="toolbar-group toolbar-group--sizes">
-        <button type="button" data-bbcode="size" data-param="10" title="Small text">A-</button>
-        <button type="button" data-bbcode="size" data-param="18" title="Large text">A+</button>
+    <div class="toolbar-group toolbar-group--sizes" role="group" aria-label="Text sizes">
+        <button type="button" data-bbcode="size" data-param="10" title="Small text" aria-label="Decrease text size">A-</button>
+        <button type="button" data-bbcode="size" data-param="18" title="Large text" aria-label="Increase text size">A+</button>
     </div>
-    <div class="toolbar-group toolbar-group--preview">
-        <button type="button" data-action="preview" title="Preview post" class="preview-btn">Preview</button>
+    <div class="toolbar-group toolbar-group--preview" role="group" aria-label="Actions">
+        <button type="button" data-action="preview" title="Preview post" aria-label="Preview post" class="preview-btn">Preview</button>
     </div>
 </div>

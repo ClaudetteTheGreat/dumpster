@@ -1,27 +1,27 @@
 {% if paginator.has_pages() %}
-<nav class="paginated-nav">
-    <div class="pagination">
+<nav class="paginated-nav" aria-label="Pagination">
+    <div class="pagination" role="list">
         {# Previous button #}
         {% if paginator.this_page > 1 %}
-        <a href="{% if paginator.this_page == 2 %}{{ paginator.base_url }}{% else %}{{ paginator.base_url }}page-{{ paginator.this_page - 1 }}{% endif %}" class="page-link page-link--prev">← Previous</a>
+        <a href="{% if paginator.this_page == 2 %}{{ paginator.base_url }}{% else %}{{ paginator.base_url }}page-{{ paginator.this_page - 1 }}{% endif %}" class="page-link page-link--prev" aria-label="Go to previous page">← Previous</a>
         {% else %}
-        <span class="page-link page-link--prev page-link--disabled">← Previous</span>
+        <span class="page-link page-link--prev page-link--disabled" aria-disabled="true">← Previous</span>
         {% endif %}
 
         {# First page #}
         {% if paginator.this_page == 1 %}
-        <span class="page-link page-link--current">1</span>
+        <span class="page-link page-link--current" aria-current="page" aria-label="Page 1, current page">1</span>
         {% else %}
-        <a href="{{ paginator.base_url }}" class="page-link">1</a>
+        <a href="{{ paginator.base_url }}" class="page-link" aria-label="Go to page 1">1</a>
         {% endif %}
 
         {# First pages (pages 2-4) #}
         {% let first_pages = paginator.get_first_pages() %}
         {% for page in first_pages %}
         {% if paginator.is_current_page(page) %}
-        <span class="page-link page-link--current">{{ page }}</span>
+        <span class="page-link page-link--current" aria-current="page" aria-label="Page {{ page }}, current page">{{ page }}</span>
         {% else %}
-        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link" aria-label="Go to page {{ page }}">{{ page }}</a>
         {% endif %}
         {% endfor %}
 
@@ -29,14 +29,14 @@
         {% match paginator.get_inner_pages() %}
         {% when Some with (inner_pages) %}
         {% if !inner_pages.is_empty() %}
-        <span class="page-link page-link--ellipsis">…</span>
+        <span class="page-link page-link--ellipsis" aria-hidden="true">…</span>
 
         {# Inner pages (around current page) #}
         {% for page in inner_pages %}
         {% if paginator.is_current_page(page) %}
-        <span class="page-link page-link--current">{{ page }}</span>
+        <span class="page-link page-link--current" aria-current="page" aria-label="Page {{ page }}, current page">{{ page }}</span>
         {% else %}
-        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link" aria-label="Go to page {{ page }}">{{ page }}</a>
         {% endif %}
         {% endfor %}
         {% endif %}
@@ -46,14 +46,14 @@
         {% match paginator.get_last_pages() %}
         {% when Some with (last_pages) %}
         {% if !last_pages.is_empty() %}
-        <span class="page-link page-link--ellipsis">…</span>
+        <span class="page-link page-link--ellipsis" aria-hidden="true">…</span>
 
         {# Last pages #}
         {% for page in last_pages %}
         {% if paginator.is_current_page(page) %}
-        <span class="page-link page-link--current">{{ page }}</span>
+        <span class="page-link page-link--current" aria-current="page" aria-label="Page {{ page }}, current page">{{ page }}</span>
         {% else %}
-        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link">{{ page }}</a>
+        <a href="{{ paginator.base_url }}page-{{ page }}" class="page-link" aria-label="Go to page {{ page }}">{{ page }}</a>
         {% endif %}
         {% endfor %}
         {% endif %}
@@ -61,9 +61,9 @@
 
         {# Next button #}
         {% if paginator.this_page < paginator.page_count %}
-        <a href="{{ paginator.base_url }}page-{{ paginator.this_page + 1 }}" class="page-link page-link--next">Next →</a>
+        <a href="{{ paginator.base_url }}page-{{ paginator.this_page + 1 }}" class="page-link page-link--next" aria-label="Go to next page">Next →</a>
         {% else %}
-        <span class="page-link page-link--next page-link--disabled">Next →</span>
+        <span class="page-link page-link--next page-link--disabled" aria-disabled="true">Next →</span>
         {% endif %}
     </div>
 </nav>

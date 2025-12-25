@@ -2,6 +2,39 @@
     box-sizing: border-box;
 }
 
+/* Skip link for keyboard accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #000;
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 10000;
+    text-decoration: none;
+    font-weight: 600;
+    transition: top 0.2s;
+
+    &:focus {
+        top: 0;
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+}
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 html,
 body {
     width: 100%;

@@ -5,12 +5,12 @@
         </li>
         {% for crumb in breadcrumbs %}
         <li class="breadcrumb-item">
-            <span class="breadcrumb-separator">›</span>
+            <span class="breadcrumb-separator" aria-hidden="true">›</span>
             {% match crumb.url %}
             {% when Some with (url) %}
             <a href="{{ url }}" class="breadcrumb-link">{{ crumb.title }}</a>
             {% when None %}
-            <span class="breadcrumb-current">{{ crumb.title }}</span>
+            <span class="breadcrumb-current" aria-current="page">{{ crumb.title }}</span>
             {% endmatch %}
         </li>
         {% endfor %}
