@@ -137,6 +137,13 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
 - **Attachments** - File upload support with S3 storage integration
+- **Thread Polls** - Create polls when starting threads
+  - Single or multiple choice voting with configurable max choices
+  - Optional vote changing after initial vote
+  - Results visibility before/after voting
+  - Optional poll closing date
+  - Real-time vote count display with percentage bars
+  - Full dark mode support
 - **Post Reactions** - React to posts with emoji reactions (like, thanks, funny, informative, agree, disagree)
   - Toggle reactions on/off with single click
   - Real-time reaction count updates
