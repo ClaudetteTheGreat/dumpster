@@ -652,4 +652,64 @@ mod tests {
             parse("test@example.com")
         );
     }
+
+    #[test]
+    fn media_embeds() {
+        use super::parse;
+
+        // YouTube embed with full URL
+        let youtube_result = parse("[video]https://www.youtube.com/watch?v=dQw4w9WgXcQ[/video]");
+        assert!(youtube_result.contains("youtube-nocookie.com/embed/dQw4w9WgXcQ"));
+        assert!(youtube_result.contains("video-embed--youtube"));
+
+        // YouTube short URL
+        let youtube_short = parse("[video]https://youtu.be/dQw4w9WgXcQ[/video]");
+        assert!(youtube_short.contains("youtube-nocookie.com/embed/dQw4w9WgXcQ"));
+
+        // YouTube tag shorthand
+        let youtube_tag = parse("[youtube]dQw4w9WgXcQ[/youtube]");
+        assert!(youtube_tag.contains("youtube-nocookie.com/embed/dQw4w9WgXcQ"));
+
+        // YouTube tag with full URL
+        let youtube_tag_url = parse("[youtube]https://www.youtube.com/watch?v=abc123xyz[/youtube]");
+        assert!(youtube_tag_url.contains("youtube-nocookie.com/embed/abc123xyz"));
+
+        // Vimeo embed
+        let vimeo_result = parse("[video]https://vimeo.com/123456789[/video]");
+        assert!(vimeo_result.contains("player.vimeo.com/video/123456789"));
+        assert!(vimeo_result.contains("video-embed--vimeo"));
+
+        // Direct video file
+        let video_file = parse("[video]https://example.com/video.mp4[/video]");
+        assert!(video_file.contains("<video"));
+        assert!(video_file.contains("video-embed--direct"));
+        assert!(video_file.contains("example.com/video.mp4"));
+
+        // Audio embed
+        let audio_result = parse("[audio]https://example.com/audio.mp3[/audio]");
+        assert!(audio_result.contains("<audio"));
+        assert!(audio_result.contains("audio-embed"));
+        assert!(audio_result.contains("example.com/audio.mp3"));
+
+        // Media tag auto-detection - YouTube
+        let media_yt = parse("[media]https://www.youtube.com/watch?v=test123[/media]");
+        assert!(media_yt.contains("youtube-nocookie.com/embed/test123"));
+
+        // Media tag auto-detection - direct video
+        let media_video = parse("[media]https://example.com/clip.webm[/media]");
+        assert!(media_video.contains("<video"));
+
+        // Media tag auto-detection - audio
+        let media_audio = parse("[media]https://example.com/song.mp3[/media]");
+        assert!(media_audio.contains("<audio"));
+
+        // Invalid URL should render as broken (text)
+        let invalid = parse("[video]not-a-url[/video]");
+        assert!(invalid.contains("[video]"));
+        assert!(invalid.contains("[/video]"));
+
+        // Invalid scheme should render as broken
+        let invalid_scheme = parse("[video]ftp://example.com/video.mp4[/video]");
+        assert!(invalid_scheme.contains("[video]"));
+    }
 }

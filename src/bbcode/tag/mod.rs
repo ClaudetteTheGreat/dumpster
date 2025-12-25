@@ -45,6 +45,12 @@ pub enum Tag {
     // Embed Tags
     Image,
     Link,
+
+    // Media Embed Tags
+    Video,
+    Audio,
+    YouTube,
+    Media,
 }
 
 impl Tag {
@@ -70,6 +76,10 @@ impl Tag {
             "spoiler" => Tag::Spoiler,
             "u" => Tag::Underline,
             "url" => Tag::Link,
+            "video" => Tag::Video,
+            "audio" => Tag::Audio,
+            "youtube" => Tag::YouTube,
+            "media" => Tag::Media,
             _ => Tag::Invalid,
         }
     }

@@ -121,6 +121,11 @@ impl Constructor {
                     Tag::Image => Tag::open_img_tag(el),
                     Tag::Link => Tag::open_url_tag(el),
 
+                    Tag::Video => Tag::open_video_tag(el),
+                    Tag::Audio => Tag::open_audio_tag(el),
+                    Tag::YouTube => Tag::open_youtube_tag(el),
+                    Tag::Media => Tag::open_media_tag(el),
+
                     _ => el.to_open_str(),
                 }
             }
@@ -138,6 +143,10 @@ impl Constructor {
             match Tag::get_by_name(tag) {
                 Tag::Image => Tag::fill_img_tag(el, contents),
                 Tag::Link => Tag::fill_url_tag(el, contents),
+                Tag::Video => Tag::fill_video_tag(el, contents),
+                Tag::Audio => Tag::fill_audio_tag(el, contents),
+                Tag::YouTube => Tag::fill_youtube_tag(el, contents),
+                Tag::Media => Tag::fill_media_tag(el, contents),
                 _ => contents,
             }
         } else {

@@ -632,4 +632,24 @@ html.dark {
         outline-color: #4a90d9;
         box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.3);
     }
+
+    // Media embeds
+    .ugc {
+        .video-embed {
+            &.video-embed--youtube,
+            &.video-embed--vimeo {
+                background: #111;
+            }
+
+            &.video-embed--direct {
+                background: #111;
+            }
+        }
+
+        // Audio player styling is mostly handled by browser
+        // but we can ensure it fits dark mode
+        .audio-embed {
+            filter: invert(1) hue-rotate(180deg);
+        }
+    }
 }

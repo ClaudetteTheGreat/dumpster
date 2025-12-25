@@ -66,6 +66,10 @@ impl<'str> Element<'str> {
             Tag::ListItem => ElementDisplay::Block,
             Tag::Image => ElementDisplay::Plain,
             Tag::Link => ElementDisplay::Inline,
+            Tag::Video => ElementDisplay::Plain,
+            Tag::Audio => ElementDisplay::Plain,
+            Tag::YouTube => ElementDisplay::Plain,
+            Tag::Media => ElementDisplay::Plain,
             _ => ElementDisplay::Inline,
         };
 

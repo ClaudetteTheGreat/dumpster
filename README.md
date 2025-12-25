@@ -178,7 +178,13 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - **Quotes**: Basic `[quote]` and attributed `[quote=username]` with "username said:" display
   - **Spoilers**: Collapsible content with `[spoiler]` and custom titles `[spoiler=title]`
   - **Code**: Preformatted code blocks `[code]` with preserved whitespace
-  - **Media**: Images `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
+  - **Images**: `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
+  - **Video Embeds**: `[video]` for YouTube, Vimeo, and direct video files (.mp4, .webm, .ogg)
+    - YouTube privacy-enhanced embeds via youtube-nocookie.com
+    - Responsive 16:9 aspect ratio for embedded players
+    - `[youtube]videoId[/youtube]` shorthand for YouTube videos
+  - **Audio Embeds**: `[audio]` for audio files (.mp3, .ogg, .wav, .flac, .m4a)
+  - **Media Auto-Detect**: `[media]` automatically detects and embeds YouTube, Vimeo, video, or audio based on URL
   - **Security**: HTML entity sanitization, XSS prevention at tokenizer level, dimension validation (max 2000px)
   - **BBCode Toolbar**: Visual editor toolbar for post formatting
     - One-click buttons for bold, italic, underline, strikethrough

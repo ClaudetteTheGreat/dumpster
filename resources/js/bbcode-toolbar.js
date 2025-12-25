@@ -106,6 +106,48 @@ document.addEventListener('DOMContentLoaded', function() {
                 closeTag = '[/spoiler]';
                 break;
 
+            case 'video':
+                if (!selectedText) {
+                    const videoUrl = prompt('Enter video URL (YouTube, Vimeo, or direct video):', 'https://');
+                    if (videoUrl === null) return;
+                    textarea.value = beforeText + `[video]${videoUrl}[/video]` + afterText;
+                    textarea.selectionStart = textarea.selectionEnd = start + 7 + videoUrl.length + 8;
+                    textarea.focus();
+                    triggerInput(textarea);
+                    return;
+                }
+                openTag = '[video]';
+                closeTag = '[/video]';
+                break;
+
+            case 'audio':
+                if (!selectedText) {
+                    const audioUrl = prompt('Enter audio URL:', 'https://');
+                    if (audioUrl === null) return;
+                    textarea.value = beforeText + `[audio]${audioUrl}[/audio]` + afterText;
+                    textarea.selectionStart = textarea.selectionEnd = start + 7 + audioUrl.length + 8;
+                    textarea.focus();
+                    triggerInput(textarea);
+                    return;
+                }
+                openTag = '[audio]';
+                closeTag = '[/audio]';
+                break;
+
+            case 'youtube':
+                if (!selectedText) {
+                    const ytUrl = prompt('Enter YouTube video URL or ID:', '');
+                    if (ytUrl === null) return;
+                    textarea.value = beforeText + `[youtube]${ytUrl}[/youtube]` + afterText;
+                    textarea.selectionStart = textarea.selectionEnd = start + 9 + ytUrl.length + 10;
+                    textarea.focus();
+                    triggerInput(textarea);
+                    return;
+                }
+                openTag = '[youtube]';
+                closeTag = '[/youtube]';
+                break;
+
             case 'list':
                 // Insert a list template
                 if (!selectedText) {
