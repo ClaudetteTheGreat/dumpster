@@ -4,7 +4,7 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::posts::Entity as Post;
 use crate::orm::threads::Entity as Thread;
-use crate::orm::{posts, threads, ugc_deletions};
+use crate::orm::{poll_options, poll_votes, polls, posts, threads, ugc_deletions};
 use crate::template::{Paginator, PaginatorToHtml};
 use crate::user::Profile as UserProfile;
 use actix_multipart::Multipart;
@@ -52,6 +52,57 @@ pub struct NewThreadFormData {
     pub subtitle: Option<String>,
     pub content: String,
     pub csrf_token: String,
+    // Poll fields (all optional - only create poll if question is provided)
+    pub poll_question: Option<String>,
+    #[serde(default)]
+    pub poll_options: Vec<String>,
+    #[serde(default = "default_max_choices")]
+    pub poll_max_choices: i32,
+    #[serde(default)]
+    pub poll_allow_change_vote: bool,
+    #[serde(default)]
+    pub poll_show_results_before_vote: bool,
+    pub poll_closes_at: Option<String>,
+}
+
+fn default_max_choices() -> i32 {
+    1
+}
+
+/// Validated poll data ready for insertion
+#[derive(Debug, Clone)]
+pub struct ValidatedPoll {
+    pub question: String,
+    pub options: Vec<String>,
+    pub max_choices: i32,
+    pub allow_change_vote: bool,
+    pub show_results_before_vote: bool,
+    pub closes_at: Option<chrono::NaiveDateTime>,
+}
+
+/// Poll option for template display
+#[derive(Debug, Clone)]
+pub struct PollOptionForTemplate {
+    pub id: i32,
+    pub option_text: String,
+    pub vote_count: i32,
+    pub percentage: f64,
+    pub user_selected: bool,
+}
+
+/// Poll data for template display
+#[derive(Debug, Clone)]
+pub struct PollForTemplate {
+    pub id: i32,
+    pub question: String,
+    pub max_choices: i32,
+    pub allow_change_vote: bool,
+    pub show_results_before_vote: bool,
+    pub closes_at: Option<chrono::NaiveDateTime>,
+    pub is_closed: bool,
+    pub total_votes: i32,
+    pub options: Vec<PollOptionForTemplate>,
+    pub has_voted: bool,
 }
 
 #[derive(Template)]
@@ -66,6 +117,7 @@ pub struct ThreadTemplate<'a> {
     pub is_watching: bool,
     pub email_on_reply: bool,
     pub breadcrumbs: Vec<Breadcrumb>,
+    pub poll: Option<PollForTemplate>,
 }
 
 mod filters {
@@ -98,6 +150,91 @@ pub fn get_url_for_pos(thread_id: i32, pos: i32) -> String {
             format!("page-{}", page)
         }
     )
+}
+
+/// Fetches poll data for a thread, if one exists.
+pub async fn get_poll_for_thread(
+    thread_id: i32,
+    user_id: Option<i32>,
+) -> Result<Option<PollForTemplate>, sea_orm::DbErr> {
+    use sea_orm::EntityTrait;
+
+    let db = get_db_pool();
+
+    // Try to find poll for this thread
+    let poll = polls::Entity::find()
+        .filter(polls::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await?;
+
+    let poll = match poll {
+        Some(p) => p,
+        None => return Ok(None),
+    };
+
+    // Fetch poll options
+    let options = poll_options::Entity::find()
+        .filter(poll_options::Column::PollId.eq(poll.id))
+        .order_by_asc(poll_options::Column::DisplayOrder)
+        .all(db)
+        .await?;
+
+    // Calculate total votes
+    let total_votes: i32 = options.iter().map(|o| o.vote_count).sum();
+
+    // Check if user has voted
+    let user_voted_options = if let Some(uid) = user_id {
+        poll_votes::Entity::find()
+            .filter(poll_votes::Column::PollId.eq(poll.id))
+            .filter(poll_votes::Column::UserId.eq(uid))
+            .all(db)
+            .await?
+            .into_iter()
+            .map(|v| v.option_id)
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // Check if poll is closed
+    let is_closed = poll.closes_at.map_or(false, |closes_at| {
+        closes_at < chrono::Utc::now().naive_utc()
+    });
+
+    // Build options with percentages
+    let options_for_template: Vec<PollOptionForTemplate> = options
+        .into_iter()
+        .map(|opt| {
+            let percentage = if total_votes > 0 {
+                (opt.vote_count as f64 / total_votes as f64) * 100.0
+            } else {
+                0.0
+            };
+            let user_selected = user_voted_options.contains(&opt.id);
+            PollOptionForTemplate {
+                id: opt.id,
+                option_text: opt.option_text,
+                vote_count: opt.vote_count,
+                percentage,
+                user_selected,
+            }
+        })
+        .collect();
+
+    let has_voted = !user_voted_options.is_empty();
+
+    Ok(Some(PollForTemplate {
+        id: poll.id,
+        question: poll.question,
+        max_choices: poll.max_choices,
+        allow_change_vote: poll.allow_change_vote,
+        show_results_before_vote: poll.show_results_before_vote,
+        closes_at: poll.closes_at,
+        is_closed,
+        total_votes,
+        options: options_for_template,
+        has_voted,
+    }))
 }
 
 /// Returns a Responder for a thread at a specific page.
@@ -189,6 +326,11 @@ async fn get_thread_and_replies_for_page(
         },
     ];
 
+    // Fetch poll if exists
+    let poll = get_poll_for_thread(thread_id, client.get_id())
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
     Ok(ThreadTemplate {
         client,
         forum,
@@ -199,6 +341,7 @@ async fn get_thread_and_replies_for_page(
         is_watching,
         email_on_reply,
         breadcrumbs,
+        poll,
     }
     .to_response())
 }
@@ -519,7 +662,7 @@ pub async fn view_thread_page(
 
 pub fn validate_thread_form(
     form: web::Form<NewThreadFormData>,
-) -> Result<NewThreadFormData, Error> {
+) -> Result<(NewThreadFormData, Option<ValidatedPoll>), Error> {
     let title = form.title.trim().to_owned();
     let subtitle = form.subtitle.to_owned().filter(|x| !x.is_empty());
 
@@ -539,10 +682,92 @@ pub fn validate_thread_form(
         )));
     }
 
-    Ok(NewThreadFormData {
-        title,
-        subtitle,
-        content: form.content.to_owned(),
-        csrf_token: form.csrf_token.to_owned(),
-    })
+    // Validate poll if question is provided
+    let validated_poll = if let Some(ref question) = form.poll_question {
+        let question = question.trim();
+        if !question.is_empty() {
+            // Validate question length
+            if question.len() > 500 {
+                return Err(error::ErrorBadRequest(
+                    "Poll question must be 500 characters or less.",
+                ));
+            }
+
+            // Filter out empty options and validate
+            let options: Vec<String> = form
+                .poll_options
+                .iter()
+                .map(|o| o.trim().to_owned())
+                .filter(|o| !o.is_empty())
+                .collect();
+
+            if options.len() < 2 {
+                return Err(error::ErrorBadRequest("Poll must have at least 2 options."));
+            }
+
+            if options.len() > 20 {
+                return Err(error::ErrorBadRequest(
+                    "Poll cannot have more than 20 options.",
+                ));
+            }
+
+            // Validate each option length
+            for opt in &options {
+                if opt.len() > 200 {
+                    return Err(error::ErrorBadRequest(
+                        "Each poll option must be 200 characters or less.",
+                    ));
+                }
+            }
+
+            // Validate max_choices
+            let max_choices = form.poll_max_choices.clamp(1, options.len() as i32);
+
+            // Parse closes_at if provided
+            let closes_at = if let Some(ref closes_str) = form.poll_closes_at {
+                let closes_str = closes_str.trim();
+                if !closes_str.is_empty() {
+                    Some(
+                        chrono::NaiveDateTime::parse_from_str(closes_str, "%Y-%m-%dT%H:%M")
+                            .map_err(|_| {
+                                error::ErrorBadRequest("Invalid poll closing date format.")
+                            })?,
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            Some(ValidatedPoll {
+                question: question.to_owned(),
+                options,
+                max_choices,
+                allow_change_vote: form.poll_allow_change_vote,
+                show_results_before_vote: form.poll_show_results_before_vote,
+                closes_at,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    Ok((
+        NewThreadFormData {
+            title,
+            subtitle,
+            content: form.content.to_owned(),
+            csrf_token: form.csrf_token.to_owned(),
+            poll_question: form.poll_question.clone(),
+            poll_options: form.poll_options.clone(),
+            poll_max_choices: form.poll_max_choices,
+            poll_allow_change_vote: form.poll_allow_change_vote,
+            poll_show_results_before_vote: form.poll_show_results_before_vote,
+            poll_closes_at: form.poll_closes_at.clone(),
+        },
+        validated_poll,
+    ))
 }

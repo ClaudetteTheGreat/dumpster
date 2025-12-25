@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{posts, threads, user_names};
+use crate::orm::{poll_options, polls, posts, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
@@ -78,7 +78,7 @@ pub async fn create_thread(
     let forum_id = path.into_inner();
 
     // Run form data through validator.
-    let form = validate_thread_form(form)?;
+    let (form, validated_poll) = validate_thread_form(form)?;
 
     // Begin Transaction
     let txn = get_db_pool()
@@ -144,6 +144,39 @@ pub async fn create_thread(
         .exec(&txn)
         .await
         .map_err(error::ErrorInternalServerError)?;
+
+    // Step 5. Create poll if provided.
+    if let Some(poll_data) = validated_poll {
+        let poll = polls::ActiveModel {
+            thread_id: Set(thread_res.last_insert_id),
+            question: Set(poll_data.question),
+            max_choices: Set(poll_data.max_choices),
+            allow_change_vote: Set(poll_data.allow_change_vote),
+            show_results_before_vote: Set(poll_data.show_results_before_vote),
+            closes_at: Set(poll_data.closes_at),
+            created_at: Set(revision.created_at),
+            ..Default::default()
+        };
+        let poll_res = polls::Entity::insert(poll)
+            .exec(&txn)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+
+        // Create poll options
+        for (i, option_text) in poll_data.options.iter().enumerate() {
+            let option = poll_options::ActiveModel {
+                poll_id: Set(poll_res.last_insert_id),
+                option_text: Set(option_text.clone()),
+                display_order: Set(i as i32),
+                vote_count: Set(0),
+                ..Default::default()
+            };
+            poll_options::Entity::insert(option)
+                .exec(&txn)
+                .await
+                .map_err(error::ErrorInternalServerError)?;
+        }
+    }
 
     // Close transaction
     txn.commit()

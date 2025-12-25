@@ -91,6 +91,75 @@
     </div>
     {% endif %}
 
+    {% if let Some(poll) = poll %}
+    <div class="poll-container">
+        <div class="poll-header">
+            <h3>📊 {{ poll.question }}</h3>
+            {% if poll.is_closed %}
+            <span class="poll-status poll-status--closed">Closed</span>
+            {% else if let Some(closes_at) = poll.closes_at %}
+            <span class="poll-status poll-status--closing">Closes: {{ closes_at.format("%b %d, %Y %H:%M") }}</span>
+            {% endif %}
+        </div>
+
+        {% let can_see_results = poll.show_results_before_vote || poll.has_voted || poll.is_closed %}
+
+        {% if !poll.is_closed && client.is_user() && (!poll.has_voted || poll.allow_change_vote) %}
+        <form action="/polls/{{ poll.id }}/vote" method="post" class="poll-form">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+            <div class="poll-options">
+                {% for option in poll.options %}
+                <label class="poll-option {% if option.user_selected %}poll-option--selected{% endif %}">
+                    {% if poll.max_choices == 1 %}
+                    <input type="radio" name="option_ids" value="{{ option.id }}" {% if option.user_selected %}checked{% endif %}>
+                    {% else %}
+                    <input type="checkbox" name="option_ids" value="{{ option.id }}" {% if option.user_selected %}checked{% endif %}>
+                    {% endif %}
+                    <span class="poll-option-text">{{ option.option_text }}</span>
+                    {% if can_see_results %}
+                    <div class="poll-results">
+                        <div class="poll-bar" style="width: {{ option.percentage }}%"></div>
+                        <span class="poll-votes">{{ option.vote_count }} votes ({{ "{:.1}"|format(option.percentage) }}%)</span>
+                    </div>
+                    {% endif %}
+                </label>
+                {% endfor %}
+            </div>
+            <div class="poll-actions">
+                <button type="submit" class="poll-vote-btn">{% if poll.has_voted %}Change Vote{% else %}Vote{% endif %}</button>
+                {% if poll.max_choices > 1 %}
+                <span class="poll-hint">Select up to {{ poll.max_choices }} options</span>
+                {% endif %}
+            </div>
+        </form>
+        {% else %}
+        <div class="poll-options poll-options--readonly">
+            {% for option in poll.options %}
+            <div class="poll-option {% if option.user_selected %}poll-option--selected{% endif %}">
+                <span class="poll-option-text">{{ option.option_text }}</span>
+                {% if can_see_results %}
+                <div class="poll-results">
+                    <div class="poll-bar" style="width: {{ option.percentage }}%"></div>
+                    <span class="poll-votes">{{ option.vote_count }} votes ({{ "{:.1}"|format(option.percentage) }}%)</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% if !client.is_user() && !poll.is_closed %}
+        <p class="poll-login-hint">Log in to vote</p>
+        {% endif %}
+        {% endif %}
+
+        <div class="poll-footer">
+            <span class="poll-total">Total votes: {{ poll.total_votes }}</span>
+            {% if poll.allow_change_vote && !poll.is_closed %}
+            <span class="poll-info">Vote can be changed</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     {{ paginator.as_html()|safe }}
 
     {% for (post, user) in posts %}
@@ -313,6 +382,223 @@
         .action-button, .watch-button {
             flex: 1;
         }
+    }
+
+    /* Poll styles */
+    .poll-container {
+        margin: 20px 0;
+        padding: 20px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .poll-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .poll-header h3 {
+        margin: 0;
+        font-size: 1.1em;
+    }
+
+    .poll-status {
+        font-size: 0.85em;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+
+    .poll-status--closed {
+        background: #dc3545;
+        color: white;
+    }
+
+    .poll-status--closing {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .poll-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .poll-option {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.2s, border-color 0.2s;
+    }
+
+    .poll-option:hover {
+        background: #e9ecef;
+        border-color: #0066cc;
+    }
+
+    .poll-option--selected {
+        background: #e8f4fd;
+        border-color: #0066cc;
+    }
+
+    .poll-options--readonly .poll-option {
+        cursor: default;
+    }
+
+    .poll-options--readonly .poll-option:hover {
+        background: white;
+        border-color: #ddd;
+    }
+
+    .poll-options--readonly .poll-option--selected {
+        background: #e8f4fd;
+        border-color: #0066cc;
+    }
+
+    .poll-option input[type="radio"],
+    .poll-option input[type="checkbox"] {
+        margin: 0;
+    }
+
+    .poll-option-text {
+        flex: 1;
+        min-width: 150px;
+    }
+
+    .poll-results {
+        flex: 2;
+        min-width: 200px;
+        position: relative;
+        height: 24px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .poll-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        background: linear-gradient(90deg, #28a745, #20c997);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .poll-votes {
+        position: absolute;
+        top: 50%;
+        left: 10px;
+        transform: translateY(-50%);
+        font-size: 0.85em;
+        color: #333;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .poll-actions {
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .poll-vote-btn {
+        padding: 10px 24px;
+        background: #0066cc;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background 0.2s;
+    }
+
+    .poll-vote-btn:hover {
+        background: #0052a3;
+    }
+
+    .poll-hint {
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .poll-login-hint {
+        margin: 15px 0 0;
+        color: #666;
+        font-style: italic;
+    }
+
+    .poll-footer {
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #ddd;
+        display: flex;
+        gap: 20px;
+        font-size: 0.9em;
+        color: #666;
+    }
+
+    .poll-info {
+        font-style: italic;
+    }
+
+    /* Dark mode poll styles */
+    html.dark .poll-container {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .poll-option {
+        background: #333;
+        border-color: #555;
+    }
+
+    html.dark .poll-option:hover {
+        background: #3a3a3a;
+        border-color: #0088ff;
+    }
+
+    html.dark .poll-option--selected {
+        background: #1a3a5c;
+        border-color: #0088ff;
+    }
+
+    html.dark .poll-options--readonly .poll-option:hover {
+        background: #333;
+        border-color: #555;
+    }
+
+    html.dark .poll-options--readonly .poll-option--selected {
+        background: #1a3a5c;
+        border-color: #0088ff;
+    }
+
+    html.dark .poll-results {
+        background: #444;
+    }
+
+    html.dark .poll-votes {
+        color: #e0e0e0;
+    }
+
+    html.dark .poll-footer {
+        border-top-color: #444;
+        color: #999;
+    }
+
+    html.dark .poll-hint,
+    html.dark .poll-login-hint {
+        color: #999;
     }
 </style>
 {% endblock %}
