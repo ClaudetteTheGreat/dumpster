@@ -352,10 +352,7 @@ async fn test_update_profile_custom_title() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(
-        updated_user.custom_title,
-        Some("Forum Regular".to_string())
-    );
+    assert_eq!(updated_user.custom_title, Some("Forum Regular".to_string()));
 
     cleanup_test_data(&db).await.unwrap();
 }

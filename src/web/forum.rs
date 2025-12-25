@@ -3,6 +3,7 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{poll_options, polls, posts, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use serde::Deserialize;
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
 
@@ -25,6 +26,12 @@ pub struct ForumTemplate<'a> {
     pub forum: &'a crate::orm::forums::Model,
     pub threads: &'a Vec<ThreadWithTags>,
     pub breadcrumbs: Vec<super::thread::Breadcrumb>,
+    pub active_tag: Option<super::thread::TagForTemplate>,
+}
+
+#[derive(Deserialize)]
+pub struct ForumQuery {
+    pub tag: Option<String>,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -253,7 +260,11 @@ pub async fn create_thread(
 }
 
 #[get("/forums/{forum}/")]
-pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
+pub async fn view_forum(
+    client: ClientCtx,
+    path: web::Path<i32>,
+    query: web::Query<ForumQuery>,
+) -> Result<impl Responder, Error> {
     use crate::orm::forums;
 
     let forum_id = path.into_inner();
@@ -263,22 +274,83 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         .map_err(|_| error::ErrorInternalServerError("Could not look up forum."))?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
 
-    let threads: Vec<ThreadForTemplate> = threads::Entity::find()
-        // Authoring User
-        .left_join(user_names::Entity)
-        .column_as(user_names::Column::Name, "username")
-        // Last Post
-        // TODO: This is an actual nightmare.
-        //.join_join(JoinType::LeftJoin, threads::Relations::::to(), threads::Relation::LastPost<posts::Entity>::via())
-        //.column_as(users::Column::Name, "username")
-        // Execute
-        .filter(threads::Column::ForumId.eq(forum_id))
-        .order_by_desc(threads::Column::IsPinned)
-        .order_by_desc(threads::Column::LastPostAt)
-        .into_model::<ThreadForTemplate>()
-        .all(get_db_pool())
-        .await
-        .unwrap_or_default();
+    // Check if filtering by tag
+    let (threads, active_tag) = if let Some(ref tag_slug) = query.tag {
+        // Find the tag
+        let tag = tags::Entity::find()
+            .filter(tags::Column::Slug.eq(tag_slug.clone()))
+            .filter(
+                tags::Column::ForumId
+                    .eq(forum_id)
+                    .or(tags::Column::ForumId.is_null()),
+            )
+            .one(get_db_pool())
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+
+        if let Some(tag) = tag {
+            // Get thread IDs that have this tag
+            let thread_tag_records = thread_tags::Entity::find()
+                .filter(thread_tags::Column::TagId.eq(tag.id))
+                .all(get_db_pool())
+                .await
+                .unwrap_or_default();
+
+            let tagged_thread_ids: Vec<i32> =
+                thread_tag_records.iter().map(|tt| tt.thread_id).collect();
+
+            let threads: Vec<ThreadForTemplate> = if tagged_thread_ids.is_empty() {
+                Vec::new()
+            } else {
+                threads::Entity::find()
+                    .left_join(user_names::Entity)
+                    .column_as(user_names::Column::Name, "username")
+                    .filter(threads::Column::ForumId.eq(forum_id))
+                    .filter(threads::Column::Id.is_in(tagged_thread_ids))
+                    .order_by_desc(threads::Column::IsPinned)
+                    .order_by_desc(threads::Column::LastPostAt)
+                    .into_model::<ThreadForTemplate>()
+                    .all(get_db_pool())
+                    .await
+                    .unwrap_or_default()
+            };
+
+            let active_tag = super::thread::TagForTemplate {
+                id: tag.id,
+                name: tag.name,
+                slug: tag.slug,
+                color: tag.color.unwrap_or_else(|| "#6c757d".to_string()),
+            };
+
+            (threads, Some(active_tag))
+        } else {
+            // Tag not found, show all threads
+            let threads: Vec<ThreadForTemplate> = threads::Entity::find()
+                .left_join(user_names::Entity)
+                .column_as(user_names::Column::Name, "username")
+                .filter(threads::Column::ForumId.eq(forum_id))
+                .order_by_desc(threads::Column::IsPinned)
+                .order_by_desc(threads::Column::LastPostAt)
+                .into_model::<ThreadForTemplate>()
+                .all(get_db_pool())
+                .await
+                .unwrap_or_default();
+            (threads, None)
+        }
+    } else {
+        // No tag filter
+        let threads: Vec<ThreadForTemplate> = threads::Entity::find()
+            .left_join(user_names::Entity)
+            .column_as(user_names::Column::Name, "username")
+            .filter(threads::Column::ForumId.eq(forum_id))
+            .order_by_desc(threads::Column::IsPinned)
+            .order_by_desc(threads::Column::LastPostAt)
+            .into_model::<ThreadForTemplate>()
+            .all(get_db_pool())
+            .await
+            .unwrap_or_default();
+        (threads, None)
+    };
 
     // Build breadcrumbs
     let breadcrumbs = vec![
@@ -294,7 +366,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
 
     // Fetch tags for all threads
     let thread_ids: Vec<i32> = threads.iter().map(|t| t.id).collect();
-    let mut thread_tags = super::thread::get_tags_for_threads(&thread_ids)
+    let mut thread_tags_map = super::thread::get_tags_for_threads(&thread_ids)
         .await
         .unwrap_or_default();
 
@@ -302,7 +374,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
     let threads_with_tags: Vec<ThreadWithTags> = threads
         .into_iter()
         .map(|t| {
-            let tags = thread_tags.remove(&t.id).unwrap_or_default();
+            let tags = thread_tags_map.remove(&t.id).unwrap_or_default();
             ThreadWithTags { thread: t, tags }
         })
         .collect();
@@ -312,6 +384,7 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         forum: &forum,
         threads: &threads_with_tags,
         breadcrumbs,
+        active_tag,
     }
     .to_response())
 }

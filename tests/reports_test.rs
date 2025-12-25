@@ -5,7 +5,7 @@ use serial_test::serial;
 
 use chrono::Utc;
 use common::{database::*, fixtures::*};
-use sea_orm::{entity::*, ActiveValue::Set, EntityTrait, QueryFilter, ColumnTrait};
+use sea_orm::{entity::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 
 #[actix_rt::test]
 #[serial]
@@ -28,9 +28,18 @@ async fn test_report_reasons_exist() {
 
     // Check for expected reasons
     let names: Vec<String> = reasons.iter().map(|r| r.name.clone()).collect();
-    assert!(names.contains(&"spam".to_string()), "Should have 'spam' reason");
-    assert!(names.contains(&"harassment".to_string()), "Should have 'harassment' reason");
-    assert!(names.contains(&"other".to_string()), "Should have 'other' reason");
+    assert!(
+        names.contains(&"spam".to_string()),
+        "Should have 'spam' reason"
+    );
+    assert!(
+        names.contains(&"harassment".to_string()),
+        "Should have 'harassment' reason"
+    );
+    assert!(
+        names.contains(&"other".to_string()),
+        "Should have 'other' reason"
+    );
 }
 
 #[actix_rt::test]
@@ -42,7 +51,7 @@ async fn test_create_report() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{reports, posts, ugc};
+    use ruforo::orm::{posts, reports, ugc};
 
     // Create a test user (reporter)
     let reporter = create_test_user(&db, "report_user1", "password123")
@@ -140,7 +149,10 @@ async fn test_report_status_update() {
     active_report.resolved_at = Set(Some(Utc::now().naive_utc()));
     active_report.updated_at = Set(Utc::now().naive_utc());
 
-    let updated_report = active_report.update(&db).await.expect("Failed to update report");
+    let updated_report = active_report
+        .update(&db)
+        .await
+        .expect("Failed to update report");
 
     // Verify update
     assert_eq!(updated_report.status, "resolved");
@@ -184,7 +196,11 @@ async fn test_report_with_other_reason_requires_details() {
     // Verify report was created with details
     assert_eq!(report_model.reason, "other");
     assert!(report_model.details.is_some());
-    assert!(report_model.details.as_ref().unwrap().contains("impersonating"));
+    assert!(report_model
+        .details
+        .as_ref()
+        .unwrap()
+        .contains("impersonating"));
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -243,7 +259,11 @@ async fn test_multiple_reports_on_same_content() {
         .await
         .expect("Failed to fetch reports");
 
-    assert_eq!(content_reports.len(), 2, "Should have 2 reports for the same content");
+    assert_eq!(
+        content_reports.len(),
+        2,
+        "Should have 2 reports for the same content"
+    );
 
     // Verify different reporters
     let reporter_ids: Vec<i32> = content_reports.iter().map(|r| r.reporter_id).collect();
@@ -294,7 +314,10 @@ async fn test_report_dismissal() {
     active_report.resolved_at = Set(Some(Utc::now().naive_utc()));
     active_report.updated_at = Set(Utc::now().naive_utc());
 
-    let dismissed_report = active_report.update(&db).await.expect("Failed to dismiss report");
+    let dismissed_report = active_report
+        .update(&db)
+        .await
+        .expect("Failed to dismiss report");
 
     // Verify dismissal
     assert_eq!(dismissed_report.status, "dismissed");
@@ -321,7 +344,10 @@ async fn test_filter_reports_by_status() {
         .expect("Failed to create reporter");
 
     // Create reports with different statuses
-    for (i, status) in ["open", "reviewed", "resolved", "dismissed"].iter().enumerate() {
+    for (i, status) in ["open", "reviewed", "resolved", "dismissed"]
+        .iter()
+        .enumerate()
+    {
         let report = reports::ActiveModel {
             reporter_id: Set(reporter.id),
             content_type: Set("post".to_string()),
@@ -343,7 +369,10 @@ async fn test_filter_reports_by_status() {
         .await
         .expect("Failed to fetch open reports");
 
-    assert!(!open_reports.is_empty(), "Should have at least 1 open report");
+    assert!(
+        !open_reports.is_empty(),
+        "Should have at least 1 open report"
+    );
     for report in &open_reports {
         assert_eq!(report.status, "open");
     }
@@ -355,7 +384,10 @@ async fn test_filter_reports_by_status() {
         .await
         .expect("Failed to fetch resolved reports");
 
-    assert!(!resolved_reports.is_empty(), "Should have at least 1 resolved report");
+    assert!(
+        !resolved_reports.is_empty(),
+        "Should have at least 1 resolved report"
+    );
     for report in &resolved_reports {
         assert_eq!(report.status, "resolved");
     }

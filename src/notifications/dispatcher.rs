@@ -188,7 +188,8 @@ async fn send_thread_reply_emails(
     };
 
     // Get base URL for links
-    let base_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let base_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     for watcher in email_watchers {
         // Skip the author - don't email yourself

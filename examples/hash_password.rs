@@ -6,7 +6,9 @@ use argon2::{
 fn main() {
     dotenv::dotenv().ok();
 
-    let password = std::env::args().nth(1).unwrap_or_else(|| "password123".to_string());
+    let password = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "password123".to_string());
     let salt = SaltString::generate(&mut OsRng);
 
     // Use the same secret as the application
@@ -16,7 +18,8 @@ fn main() {
         argon2::Algorithm::default(),
         argon2::Version::default(),
         argon2::Params::default(),
-    ).expect("Failed to create Argon2");
+    )
+    .expect("Failed to create Argon2");
 
     let hash = argon2
         .hash_password(password.as_bytes(), &salt)

@@ -220,7 +220,10 @@ pub async fn toggle_thread_email(user_id: i32, thread_id: i32, enable: bool) -> 
 }
 
 /// Get watch status for a thread including email preference
-pub async fn get_watch_status(user_id: i32, thread_id: i32) -> Result<Option<watched_threads::Model>, DbErr> {
+pub async fn get_watch_status(
+    user_id: i32,
+    thread_id: i32,
+) -> Result<Option<watched_threads::Model>, DbErr> {
     let db = get_db_pool();
 
     watched_threads::Entity::find()

@@ -207,8 +207,9 @@ impl<'str> Parser<'str> {
 
         // Special case: if we're opening a table cell/header while already inside one,
         // we need to close the previous one first
-        if (el.is_tag("td") || el.is_tag("th")) &&
-           (self.node.borrow().is_tag("td") || self.node.borrow().is_tag("th")) {
+        if (el.is_tag("td") || el.is_tag("th"))
+            && (self.node.borrow().is_tag("td") || self.node.borrow().is_tag("th"))
+        {
             self.close_open_tag(false);
         }
 

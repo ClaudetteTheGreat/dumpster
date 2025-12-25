@@ -21,9 +21,8 @@ pub use tokenize::tokenize;
 
 /// Regex for matching @mentions
 /// Matches @ preceded by start of string, whitespace, or >
-static MENTION_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(^|[\s>])@([a-zA-Z0-9_-]+)").unwrap()
-});
+static MENTION_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(^|[\s>])@([a-zA-Z0-9_-]+)").unwrap());
 
 /// Convert @mentions to clickable links
 /// Skips mentions inside <a>, <pre>, and <code> tags
@@ -110,15 +109,17 @@ fn linkify_mentions(html: &str) -> String {
 
 /// Process @mentions in a text segment (no HTML tags)
 fn process_mentions(text: &str) -> String {
-    MENTION_REGEX.replace_all(text, |caps: &regex::Captures| {
-        let prefix = &caps[1]; // Whitespace, > or empty string
-        let username = &caps[2];
+    MENTION_REGEX
+        .replace_all(text, |caps: &regex::Captures| {
+            let prefix = &caps[1]; // Whitespace, > or empty string
+            let username = &caps[2];
 
-        format!(
-            "{}<a class=\"mention\" href=\"/members/@{}\">@{}</a>",
-            prefix, username, username
-        )
-    }).to_string()
+            format!(
+                "{}<a class=\"mention\" href=\"/members/@{}\">@{}</a>",
+                prefix, username, username
+            )
+        })
+        .to_string()
 }
 
 /// Generates a string of HTML from an &str of BbCode.
@@ -368,7 +369,10 @@ mod tests {
         use super::parse;
 
         assert_eq!("<pre><code>Test</code></pre>", parse("[code]Test[/code]"));
-        assert_eq!("<pre><code>Foo\r\nbar</code></pre>", parse("[code]Foo\r\nbar[/code]"));
+        assert_eq!(
+            "<pre><code>Foo\r\nbar</code></pre>",
+            parse("[code]Foo\r\nbar[/code]")
+        );
         assert_eq!(
             "<pre><code>Foo\r\nbar&lt;/pre&gt;&lt;iframe&gt;</code></pre>",
             parse("[code]Foo\r\nbar</pre><iframe>[/code]")
@@ -712,10 +716,7 @@ mod tests {
         );
 
         // Email-like text should NOT be a mention (has @ but preceded by text)
-        assert_eq!(
-            "test@example.com",
-            parse("test@example.com")
-        );
+        assert_eq!("test@example.com", parse("test@example.com"));
     }
 
     #[test]

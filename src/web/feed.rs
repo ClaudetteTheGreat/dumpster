@@ -7,8 +7,7 @@ use crate::orm::{forums, threads, ugc, ugc_revisions};
 const FEED_ITEM_LIMIT: u64 = 25;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(latest_threads_feed)
-        .service(forum_feed);
+    cfg.service(latest_threads_feed).service(forum_feed);
 }
 
 /// RSS feed for latest threads across all forums
@@ -30,7 +29,8 @@ pub async fn latest_threads_feed(db: web::Data<DatabaseConnection>) -> impl Resp
         }
     };
 
-    let site_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let mut items = Vec::new();
     for thread in threads {
@@ -51,7 +51,12 @@ pub async fn latest_threads_feed(db: web::Data<DatabaseConnection>) -> impl Resp
             .title(Some(thread.title))
             .link(Some(link))
             .description(Some(truncate_content(&description, 500)))
-            .pub_date(Some(thread.created_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string()))
+            .pub_date(Some(
+                thread
+                    .created_at
+                    .format("%a, %d %b %Y %H:%M:%S GMT")
+                    .to_string(),
+            ))
             .guid(Some(guid))
             .build();
 
@@ -72,10 +77,7 @@ pub async fn latest_threads_feed(db: web::Data<DatabaseConnection>) -> impl Resp
 
 /// RSS feed for threads in a specific forum
 #[get("/forums/{id}/feed.rss")]
-pub async fn forum_feed(
-    db: web::Data<DatabaseConnection>,
-    path: web::Path<i32>,
-) -> impl Responder {
+pub async fn forum_feed(db: web::Data<DatabaseConnection>, path: web::Path<i32>) -> impl Responder {
     let db = db.get_ref();
     let forum_id = path.into_inner();
 
@@ -104,7 +106,8 @@ pub async fn forum_feed(
         }
     };
 
-    let site_url = std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
 
     let mut items = Vec::new();
     for thread in threads {
@@ -124,7 +127,12 @@ pub async fn forum_feed(
             .title(Some(thread.title))
             .link(Some(link))
             .description(Some(truncate_content(&description, 500)))
-            .pub_date(Some(thread.created_at.format("%a, %d %b %Y %H:%M:%S GMT").to_string()))
+            .pub_date(Some(
+                thread
+                    .created_at
+                    .format("%a, %d %b %Y %H:%M:%S GMT")
+                    .to_string(),
+            ))
             .guid(Some(guid))
             .build();
 
@@ -134,7 +142,11 @@ pub async fn forum_feed(
     let channel = ChannelBuilder::default()
         .title(format!("{} - Latest Threads", forum.label))
         .link(format!("{}/forums/{}", site_url, forum_id))
-        .description(forum.description.unwrap_or_else(|| format!("Latest threads from {}", forum.label)))
+        .description(
+            forum
+                .description
+                .unwrap_or_else(|| format!("Latest threads from {}", forum.label)),
+        )
         .items(items)
         .build();
 
@@ -151,7 +163,10 @@ async fn get_post_content(db: &DatabaseConnection, post_id: i32) -> Option<Strin
     let post = posts::Entity::find_by_id(post_id).one(db).await.ok()??;
     let ugc = ugc::Entity::find_by_id(post.ugc_id).one(db).await.ok()??;
     let revision_id = ugc.ugc_revision_id?;
-    let revision = ugc_revisions::Entity::find_by_id(revision_id).one(db).await.ok()??;
+    let revision = ugc_revisions::Entity::find_by_id(revision_id)
+        .one(db)
+        .await
+        .ok()??;
 
     Some(revision.content)
 }

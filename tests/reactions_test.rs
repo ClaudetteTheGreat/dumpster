@@ -5,7 +5,7 @@ use serial_test::serial;
 
 use chrono::Utc;
 use common::{database::*, fixtures::*};
-use sea_orm::{entity::*, ActiveValue::Set, EntityTrait, QueryFilter, ColumnTrait};
+use sea_orm::{entity::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 
 #[actix_rt::test]
 #[serial]
@@ -28,9 +28,18 @@ async fn test_reaction_types_exist() {
 
     // Check for expected reactions
     let names: Vec<String> = types.iter().map(|t| t.name.clone()).collect();
-    assert!(names.contains(&"like".to_string()), "Should have 'like' reaction");
-    assert!(names.contains(&"thanks".to_string()), "Should have 'thanks' reaction");
-    assert!(names.contains(&"funny".to_string()), "Should have 'funny' reaction");
+    assert!(
+        names.contains(&"like".to_string()),
+        "Should have 'like' reaction"
+    );
+    assert!(
+        names.contains(&"thanks".to_string()),
+        "Should have 'thanks' reaction"
+    );
+    assert!(
+        names.contains(&"funny".to_string()),
+        "Should have 'funny' reaction"
+    );
 }
 
 #[actix_rt::test]
@@ -146,7 +155,10 @@ async fn test_remove_reaction() {
         .expect("Failed to fetch UGC")
         .expect("UGC not found");
 
-    assert_eq!(updated_ugc.reaction_count, 0, "Reaction count should be 0 after removal");
+    assert_eq!(
+        updated_ugc.reaction_count, 0,
+        "Reaction count should be 0 after removal"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -186,7 +198,10 @@ async fn test_multiple_users_can_react() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    reaction1.insert(&db).await.expect("Failed to add reaction1");
+    reaction1
+        .insert(&db)
+        .await
+        .expect("Failed to add reaction1");
 
     let reaction2 = ugc_reactions::ActiveModel {
         ugc_id: Set(ugc_model.id),
@@ -195,7 +210,10 @@ async fn test_multiple_users_can_react() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    reaction2.insert(&db).await.expect("Failed to add reaction2");
+    reaction2
+        .insert(&db)
+        .await
+        .expect("Failed to add reaction2");
 
     // Check reaction count
     let updated_ugc = ugc::Entity::find_by_id(ugc_model.id)
@@ -311,7 +329,10 @@ async fn test_unique_constraint_prevents_duplicate() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    reaction1.insert(&db).await.expect("Failed to add first reaction");
+    reaction1
+        .insert(&db)
+        .await
+        .expect("Failed to add first reaction");
 
     // Try to add the same reaction again (should fail)
     let reaction2 = ugc_reactions::ActiveModel {
@@ -323,7 +344,10 @@ async fn test_unique_constraint_prevents_duplicate() {
     };
     let result = reaction2.insert(&db).await;
 
-    assert!(result.is_err(), "Duplicate reaction should fail due to unique constraint");
+    assert!(
+        result.is_err(),
+        "Duplicate reaction should fail due to unique constraint"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }

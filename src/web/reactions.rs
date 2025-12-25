@@ -54,7 +54,9 @@ async fn toggle_reaction(
     path: web::Path<(i32, i32)>,
     form: web::Form<CsrfForm>,
 ) -> Result<HttpResponse, Error> {
-    let user_id = client.get_id().ok_or_else(|| error::ErrorUnauthorized("Must be logged in to react"))?;
+    let user_id = client
+        .get_id()
+        .ok_or_else(|| error::ErrorUnauthorized("Must be logged in to react"))?;
 
     // Validate CSRF
     crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
@@ -70,7 +72,9 @@ async fn toggle_reaction(
         .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
 
     if !reaction_type.is_active {
-        return Err(error::ErrorBadRequest("This reaction type is not available"));
+        return Err(error::ErrorBadRequest(
+            "This reaction type is not available",
+        ));
     }
 
     // Check if user already has this reaction
@@ -98,7 +102,10 @@ async fn toggle_reaction(
             created_at: Set(Utc::now().naive_utc()),
             ..Default::default()
         };
-        new_reaction.insert(db).await.map_err(error::ErrorInternalServerError)?;
+        new_reaction
+            .insert(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
         true
     };
 
@@ -135,10 +142,7 @@ struct CsrfForm {
 
 /// Get reactions for a UGC item
 #[get("/reactions/{ugc_id}")]
-async fn get_reactions(
-    client: ClientCtx,
-    path: web::Path<i32>,
-) -> Result<HttpResponse, Error> {
+async fn get_reactions(client: ClientCtx, path: web::Path<i32>) -> Result<HttpResponse, Error> {
     let ugc_id = path.into_inner();
     let db = get_db_pool();
 
@@ -151,10 +155,15 @@ async fn get_reactions(
         .map_err(error::ErrorInternalServerError)?;
 
     // Count reactions by type
-    let mut reaction_counts: std::collections::HashMap<i32, (String, String, i64)> = std::collections::HashMap::new();
+    let mut reaction_counts: std::collections::HashMap<i32, (String, String, i64)> =
+        std::collections::HashMap::new();
     for (reaction, reaction_type) in &reactions {
         if let Some(rt) = reaction_type {
-            let entry = reaction_counts.entry(reaction.reaction_type_id).or_insert((rt.name.clone(), rt.emoji.clone(), 0));
+            let entry = reaction_counts.entry(reaction.reaction_type_id).or_insert((
+                rt.name.clone(),
+                rt.emoji.clone(),
+                0,
+            ));
             entry.2 += 1;
         }
     }
@@ -236,7 +245,8 @@ pub async fn get_reactions_for_ugc_ids(
         .await?;
 
     // Group by UGC ID
-    let mut result: std::collections::HashMap<i32, ReactionsData> = std::collections::HashMap::new();
+    let mut result: std::collections::HashMap<i32, ReactionsData> =
+        std::collections::HashMap::new();
 
     // Initialize empty entries for all requested IDs
     for &id in ugc_ids {
@@ -244,12 +254,15 @@ pub async fn get_reactions_for_ugc_ids(
     }
 
     // Count reactions by type for each UGC
-    let mut counts: std::collections::HashMap<(i32, i32), (String, String, i64)> = std::collections::HashMap::new();
+    let mut counts: std::collections::HashMap<(i32, i32), (String, String, i64)> =
+        std::collections::HashMap::new();
 
     for (reaction, reaction_type) in &reactions {
         if let Some(rt) = reaction_type {
             let key = (reaction.ugc_id, reaction.reaction_type_id);
-            let entry = counts.entry(key).or_insert((rt.name.clone(), rt.emoji.clone(), 0));
+            let entry = counts
+                .entry(key)
+                .or_insert((rt.name.clone(), rt.emoji.clone(), 0));
             entry.2 += 1;
         }
 

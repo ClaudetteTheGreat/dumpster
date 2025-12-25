@@ -4,7 +4,7 @@ use crate::orm::{attachments, posts, threads, user_names, users};
 use crate::user::Profile as UserProfile;
 use actix_web::{error, get, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*, DatabaseConnection, sea_query::Expr};
+use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection};
 use serde::{Deserialize, Serialize};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
@@ -101,9 +101,7 @@ pub async fn view_member(
 
 /// View member profile by username (for @mention links)
 #[get("/members/@{username}")]
-pub async fn view_member_by_name(
-    path: web::Path<String>,
-) -> Result<impl Responder, Error> {
+pub async fn view_member_by_name(path: web::Path<String>) -> Result<impl Responder, Error> {
     let username = path.into_inner();
     let db = get_db_pool();
 
@@ -198,9 +196,10 @@ pub async fn search_usernames(
 
     // Search for usernames starting with the search term (case-insensitive)
     let results = user_names::Entity::find()
-        .filter(
-            Expr::cust_with_values("LOWER(name) LIKE $1", [format!("{}%", search_term.to_lowercase())])
-        )
+        .filter(Expr::cust_with_values(
+            "LOWER(name) LIKE $1",
+            [format!("{}%", search_term.to_lowercase())],
+        ))
         .order_by_asc(user_names::Column::Name)
         .limit(10)
         .all(db)

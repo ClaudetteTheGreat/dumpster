@@ -5,24 +5,77 @@ use std::cell::RefMut;
 /// Using highlight.js language identifiers
 const SUPPORTED_LANGUAGES: &[&str] = &[
     // Common web languages
-    "html", "css", "javascript", "js", "typescript", "ts", "json", "xml",
+    "html",
+    "css",
+    "javascript",
+    "js",
+    "typescript",
+    "ts",
+    "json",
+    "xml",
     // Backend languages
-    "rust", "python", "py", "ruby", "rb", "php", "go", "java", "kotlin", "scala",
-    "c", "cpp", "csharp", "cs", "swift", "objectivec",
+    "rust",
+    "python",
+    "py",
+    "ruby",
+    "rb",
+    "php",
+    "go",
+    "java",
+    "kotlin",
+    "scala",
+    "c",
+    "cpp",
+    "csharp",
+    "cs",
+    "swift",
+    "objectivec",
     // Shell and config
-    "bash", "shell", "sh", "zsh", "powershell", "ps1",
-    "yaml", "yml", "toml", "ini", "dockerfile",
+    "bash",
+    "shell",
+    "sh",
+    "zsh",
+    "powershell",
+    "ps1",
+    "yaml",
+    "yml",
+    "toml",
+    "ini",
+    "dockerfile",
     // Database
-    "sql", "mysql", "postgresql", "pgsql",
+    "sql",
+    "mysql",
+    "postgresql",
+    "pgsql",
     // Markup and data
-    "markdown", "md", "latex", "tex",
+    "markdown",
+    "md",
+    "latex",
+    "tex",
     // Other
-    "lua", "perl", "r", "haskell", "elixir", "erlang", "clojure",
-    "lisp", "scheme", "ocaml", "fsharp",
-    "asm", "nasm", "wasm",
-    "makefile", "cmake", "nginx", "apache",
-    "diff", "patch",
-    "plaintext", "text", "plain",
+    "lua",
+    "perl",
+    "r",
+    "haskell",
+    "elixir",
+    "erlang",
+    "clojure",
+    "lisp",
+    "scheme",
+    "ocaml",
+    "fsharp",
+    "asm",
+    "nasm",
+    "wasm",
+    "makefile",
+    "cmake",
+    "nginx",
+    "apache",
+    "diff",
+    "patch",
+    "plaintext",
+    "text",
+    "plain",
 ];
 
 /// Normalize language aliases to canonical names
@@ -59,10 +112,7 @@ impl super::Tag {
 
             if !lang.is_empty() && is_valid_language(lang) {
                 let normalized = normalize_language(lang);
-                return format!(
-                    "<pre><code class=\"language-{}\">",
-                    normalized
-                );
+                return format!("<pre><code class=\"language-{}\">", normalized);
             }
         }
 

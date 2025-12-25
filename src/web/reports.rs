@@ -7,7 +7,9 @@ use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
 use askama_actix::TemplateToResponse;
 use chrono::Utc;
-use sea_orm::{entity::*, query::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
+use sea_orm::{
+    entity::*, query::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter, QueryOrder,
+};
 use serde::{Deserialize, Serialize};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
@@ -80,7 +82,9 @@ async fn submit_report(
     session: actix_session::Session,
     form: web::Form<ReportForm>,
 ) -> Result<HttpResponse, Error> {
-    let reporter_id = client.get_id().ok_or_else(|| error::ErrorUnauthorized("Must be logged in"))?;
+    let reporter_id = client
+        .get_id()
+        .ok_or_else(|| error::ErrorUnauthorized("Must be logged in"))?;
 
     // Validate CSRF
     crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
@@ -189,7 +193,8 @@ async fn submit_report(
 
     Ok(HttpResponse::Ok().json(ReportResponse {
         success: true,
-        message: "Report submitted successfully. Thank you for helping keep the community safe.".to_string(),
+        message: "Report submitted successfully. Thank you for helping keep the community safe."
+            .to_string(),
         report_id: Some(result.id),
     }))
 }
@@ -230,8 +235,7 @@ async fn view_reports(
     let status_filter = query.status.clone().unwrap_or_else(|| "open".to_string());
 
     // Get reports with filter
-    let mut query_builder = reports::Entity::find()
-        .order_by_desc(reports::Column::CreatedAt);
+    let mut query_builder = reports::Entity::find().order_by_desc(reports::Column::CreatedAt);
 
     if status_filter != "all" {
         query_builder = query_builder.filter(reports::Column::Status.eq(status_filter.clone()));
@@ -357,10 +361,7 @@ struct ReportDetailView {
 
 /// View single report details
 #[get("/admin/reports/{id}")]
-async fn view_report(
-    client: ClientCtx,
-    path: web::Path<i32>,
-) -> Result<impl Responder, Error> {
+async fn view_report(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     client.require_login()?;
     client.require_permission("moderate.reports.view")?;
 
@@ -433,13 +434,14 @@ async fn view_report(
                 ("#".to_string(), "Thread deleted".to_string())
             }
         }
-        "user" => {
-            (
-                format!("/members/{}/", report.content_id),
-                format!("User #{}", report.content_id),
-            )
-        }
-        _ => ("#".to_string(), format!("{} #{}", report.content_type, report.content_id)),
+        "user" => (
+            format!("/members/{}/", report.content_id),
+            format!("User #{}", report.content_id),
+        ),
+        _ => (
+            "#".to_string(),
+            format!("{} #{}", report.content_type, report.content_id),
+        ),
     };
 
     Ok(ReportDetailTemplate {

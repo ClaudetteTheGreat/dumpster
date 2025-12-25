@@ -119,10 +119,10 @@ fn parse_image_dimensions(arg: &str) -> String {
 
 /// Media type for auto-detection
 enum MediaType {
-    YouTube(String),  // video ID
-    Vimeo(String),    // video ID
-    Video(String),    // direct URL
-    Audio(String),    // direct URL
+    YouTube(String), // video ID
+    Vimeo(String),   // video ID
+    Video(String),   // direct URL
+    Audio(String),   // direct URL
     Unknown,
 }
 
@@ -133,7 +133,8 @@ fn extract_youtube_id(url: &Url) -> Option<String> {
     // youtube.com/watch?v=ID or youtube.com/embed/ID
     if host == "youtube.com" || host == "www.youtube.com" {
         if url.path() == "/watch" {
-            return url.query_pairs()
+            return url
+                .query_pairs()
                 .find(|(k, _)| k == "v")
                 .map(|(_, v)| v.to_string());
         }
@@ -171,14 +172,21 @@ fn extract_vimeo_id(url: &Url) -> Option<String> {
 /// Check if URL points to a video file
 fn is_video_url(url: &Url) -> bool {
     let path = url.path().to_lowercase();
-    path.ends_with(".mp4") || path.ends_with(".webm") || path.ends_with(".ogg") || path.ends_with(".ogv")
+    path.ends_with(".mp4")
+        || path.ends_with(".webm")
+        || path.ends_with(".ogg")
+        || path.ends_with(".ogv")
 }
 
 /// Check if URL points to an audio file
 fn is_audio_url(url: &Url) -> bool {
     let path = url.path().to_lowercase();
-    path.ends_with(".mp3") || path.ends_with(".ogg") || path.ends_with(".oga")
-        || path.ends_with(".wav") || path.ends_with(".flac") || path.ends_with(".m4a")
+    path.ends_with(".mp3")
+        || path.ends_with(".ogg")
+        || path.ends_with(".oga")
+        || path.ends_with(".wav")
+        || path.ends_with(".flac")
+        || path.ends_with(".m4a")
 }
 
 /// Detect media type from URL
@@ -303,7 +311,11 @@ impl super::Tag {
             }
         } else {
             // Validate ID format (alphanumeric, underscores, hyphens, typically 11 chars)
-            if id.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') && !id.is_empty() {
+            if id
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+                && !id.is_empty()
+            {
                 Some(id.to_string())
             } else {
                 None
