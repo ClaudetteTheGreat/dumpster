@@ -22,6 +22,9 @@
             <span class="user-badge user-badge--op" title="Thread Starter">OP</span>
             {% endif %}
         </div>
+        {% if let Some(title) = user.custom_title.as_ref() %}
+        <div class="user-title">{{ title }}</div>
+        {% endif %}
         <div class="user-info">
             <div class="user-joined">
                 Joined: {{ user.created_at.format("%b %Y") }}

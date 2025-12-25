@@ -300,6 +300,19 @@ async fn update_profile(
         }
     }
 
+    // Get and validate custom title (max 100 chars)
+    let custom_title = form
+        .get("custom_title")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    if let Some(ref title) = custom_title {
+        if title.len() > 100 {
+            return Err(error::ErrorBadRequest(
+                "Custom title must be 100 characters or less",
+            ));
+        }
+    }
+
     // Update the user's profile
     let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
         .one(get_db_pool())
@@ -312,6 +325,7 @@ async fn update_profile(
     user.location = Set(location);
     user.website_url = Set(website_url);
     user.signature = Set(signature);
+    user.custom_title = Set(custom_title);
 
     user.update(get_db_pool())
         .await

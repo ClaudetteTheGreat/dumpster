@@ -58,6 +58,7 @@ pub struct Profile {
     pub location: Option<String>,
     pub website_url: Option<String>,
     pub signature: Option<String>,
+    pub custom_title: Option<String>,
 }
 
 impl Profile {
@@ -84,14 +85,15 @@ impl Profile {
                 u.bio,
                 u.location,
                 u.website_url,
-                u.signature
+                u.signature,
+                u.custom_title
             FROM users u
             LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
             LEFT JOIN posts p ON p.user_id = u.id
             WHERE u.id = $1
-            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.bio, u.location, u.website_url, u.signature
+            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.bio, u.location, u.website_url, u.signature, u.custom_title
         "#;
 
         Self::find_by_statement(Statement::from_sql_and_values(

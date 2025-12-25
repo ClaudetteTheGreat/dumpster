@@ -154,6 +154,12 @@
         </div>
 
         <div class="profile-item">
+            <label for="custom_title">Custom Title:</label>
+            <input type="text" name="custom_title" id="custom_title" maxlength="100" value="{% match profile.custom_title %}{% when Some with (title) %}{{ title }}{% when None %}{% endmatch %}" placeholder="e.g. Forum Regular, Developer, etc.">
+            <p class="help-text">A custom title displayed under your username in posts (up to 100 characters).</p>
+        </div>
+
+        <div class="profile-item">
             <label for="signature">Signature:</label>
             <textarea name="signature" id="signature" rows="3" maxlength="500" placeholder="Your signature appears below your posts">{% match profile.signature %}{% when Some with (sig) %}{{ sig }}{% when None %}{% endmatch %}</textarea>
             <p class="help-text">Up to 500 characters. Supports BBCode formatting.</p>

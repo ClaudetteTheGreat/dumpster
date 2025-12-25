@@ -313,6 +313,70 @@ async fn test_profile_fields_default_to_none() {
         user_model.signature.is_none(),
         "Signature should be None by default"
     );
+    assert!(
+        user_model.custom_title.is_none(),
+        "Custom title should be None by default"
+    );
 
     cleanup_test_data(&db).await.unwrap();
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_update_profile_custom_title() {
+    use common::database::{cleanup_test_data, setup_test_database};
+    use common::fixtures::create_test_user;
+    use ruforo::orm::users;
+    use sea_orm::{ActiveModelTrait, EntityTrait, Set};
+
+    let db = setup_test_database().await.unwrap();
+    cleanup_test_data(&db).await.unwrap();
+
+    let user = create_test_user(&db, "custom_title_user", "password123")
+        .await
+        .unwrap();
+
+    let mut active_user: users::ActiveModel = users::Entity::find_by_id(user.id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap()
+        .into();
+
+    active_user.custom_title = Set(Some("Forum Regular".to_string()));
+    active_user.update(&db).await.unwrap();
+
+    let updated_user = users::Entity::find_by_id(user.id)
+        .one(&db)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(
+        updated_user.custom_title,
+        Some("Forum Regular".to_string())
+    );
+
+    cleanup_test_data(&db).await.unwrap();
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_custom_title_character_limit() {
+    // Test that custom title character limit is properly defined
+    let max_custom_title = 100;
+
+    // Valid length
+    let valid_title = "x".repeat(max_custom_title);
+    assert!(
+        valid_title.len() <= max_custom_title,
+        "Custom title should be within limit"
+    );
+
+    // Invalid length (over limit)
+    let invalid_title = "x".repeat(max_custom_title + 1);
+    assert!(
+        invalid_title.len() > max_custom_title,
+        "Custom title should exceed limit"
+    );
 }

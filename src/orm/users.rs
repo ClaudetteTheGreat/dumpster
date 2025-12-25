@@ -21,6 +21,7 @@ pub struct Model {
     pub location: Option<String>,
     pub website_url: Option<String>,
     pub signature: Option<String>,
+    pub custom_title: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

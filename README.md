@@ -129,6 +129,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **User Post Counts** - Total post count shown in message sidebar
 - **Join Date Display** - User registration date shown as "Joined: Mon YYYY"
 - **User Avatars** - Avatar display with multiple size options (S/M/L)
+- **Custom Title** - User-defined title displayed under username in posts (100 character limit)
 
 ### Thread Features
 - **Thread Prefixes** - Categorize threads with prefixes like [SOLVED], [QUESTION], [DISCUSSION] displayed as badges
