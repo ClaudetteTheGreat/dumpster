@@ -236,6 +236,13 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - Statistics and metadata hidden on mobile for cleaner layout
 - Touch-friendly button sizes and spacing
 
+### Accessibility
+- **Skip Links** - Keyboard users can skip to main content
+- **ARIA Labels** - Screen reader support for navigation, forms, and interactive elements
+- **Semantic Roles** - Proper banner, main, and contentinfo roles
+- **Pagination** - Accessible page navigation with current page indication
+- **Form Accessibility** - Proper labels and autocomplete attributes
+
 ### User Preferences & Customization
 - **Dark Mode** - Toggle between light, dark, and auto (system preference) themes
   - Persistent theme preference stored per user
