@@ -314,23 +314,23 @@ mod tests {
         use super::parse;
 
         assert_eq!(
-            "Welcome, to <a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>",
+            "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>",
             parse("Welcome, to https://zombo.com/")
         );
         assert_eq!(
-            "Welcome, to <a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>!",
+            "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>!",
             parse("Welcome, to [url]https://zombo.com/[/url]!")
         );
         assert_eq!(
-            "Welcome, to <b><a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a></b>!",
+            "Welcome, to <b><a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a></b>!",
             parse("Welcome, to [b][url]https://zombo.com/[/url][/b]!")
         );
         assert_eq!(
-            "Welcome, to <a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"https://zombo.com/\">Zombo.com</a>!",
+            "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">Zombo.com</a>!",
             parse("Welcome, to [url=https://zombo.com/]Zombo.com[/url]!")
         );
         assert_eq!(
-            "<a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"https://zombo.com/\"><img src=\"https://zombo.com/images/zombocom.png\" /></a>",
+            "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\"><img src=\"https://zombo.com/images/zombocom.png\" /></a>",
             parse("[url=https://zombo.com/][img]https://zombo.com/images/zombocom.png[/img][/url]")
         );
         assert_eq!(
