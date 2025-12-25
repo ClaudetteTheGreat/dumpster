@@ -177,7 +177,11 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - **Lists**: Unordered `[list][*]`, Numbered `[list=1][*]`, Alphabetic `[list=a][*]` with nesting support
   - **Quotes**: Basic `[quote]` and attributed `[quote=username]` with "username said:" display
   - **Spoilers**: Collapsible content with `[spoiler]` and custom titles `[spoiler=title]`
-  - **Code**: Preformatted code blocks `[code]` with preserved whitespace
+  - **Code**: Preformatted code blocks `[code]` with preserved whitespace and syntax highlighting
+    - Language-specific highlighting with `[code=language]` (e.g., `[code=rust]`, `[code=javascript]`)
+    - 50+ languages supported with highlight.js (client-side)
+    - Common aliases: js→javascript, py→python, ts→typescript, sh→bash
+    - GitHub-inspired color theme with automatic dark mode support
   - **Images**: `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
   - **Video Embeds**: `[video]` for YouTube, Vimeo, and direct video files (.mp4, .webm, .ogg)
     - YouTube privacy-enhanced embeds via youtube-nocookie.com

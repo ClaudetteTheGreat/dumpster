@@ -367,11 +367,76 @@ mod tests {
     fn pre() {
         use super::parse;
 
-        assert_eq!("<pre>Test</pre>", parse("[code]Test[/code]"));
-        assert_eq!("<pre>Foo\r\nbar</pre>", parse("[code]Foo\r\nbar[/code]"));
+        assert_eq!("<pre><code>Test</code></pre>", parse("[code]Test[/code]"));
+        assert_eq!("<pre><code>Foo\r\nbar</code></pre>", parse("[code]Foo\r\nbar[/code]"));
         assert_eq!(
-            "<pre>Foo\r\nbar&lt;/pre&gt;&lt;iframe&gt;</pre>",
+            "<pre><code>Foo\r\nbar&lt;/pre&gt;&lt;iframe&gt;</code></pre>",
             parse("[code]Foo\r\nbar</pre><iframe>[/code]")
+        );
+    }
+
+    #[test]
+    fn code_with_language() {
+        use super::parse;
+
+        // Valid languages with class
+        assert_eq!(
+            "<pre><code class=\"language-rust\">fn main() {}</code></pre>",
+            parse("[code=rust]fn main() {}[/code]")
+        );
+        // Note: single quotes are escaped by sanitize()
+        assert_eq!(
+            "<pre><code class=\"language-javascript\">console.log(&#x27;hello&#x27;);</code></pre>",
+            parse("[code=javascript]console.log('hello');[/code]")
+        );
+        assert_eq!(
+            "<pre><code class=\"language-python\">print(&#x27;hello&#x27;)</code></pre>",
+            parse("[code=python]print('hello')[/code]")
+        );
+
+        // Language aliases should be normalized
+        assert_eq!(
+            "<pre><code class=\"language-javascript\">let x = 1;</code></pre>",
+            parse("[code=js]let x = 1;[/code]")
+        );
+        assert_eq!(
+            "<pre><code class=\"language-python\">x = 1</code></pre>",
+            parse("[code=py]x = 1[/code]")
+        );
+        assert_eq!(
+            "<pre><code class=\"language-typescript\">const x: number = 1;</code></pre>",
+            parse("[code=ts]const x: number = 1;[/code]")
+        );
+        assert_eq!(
+            "<pre><code class=\"language-bash\">echo &#x27;hello&#x27;</code></pre>",
+            parse("[code=sh]echo 'hello'[/code]")
+        );
+
+        // Invalid languages should fall back to no class
+        assert_eq!(
+            "<pre><code>some code</code></pre>",
+            parse("[code=invalidlang]some code[/code]")
+        );
+        // XSS attempt in language should fall back to no class
+        assert_eq!(
+            "<pre><code>some code</code></pre>",
+            parse("[code=malicious]some code[/code]")
+        );
+
+        // Case insensitive
+        assert_eq!(
+            "<pre><code class=\"language-rust\">code</code></pre>",
+            parse("[code=RUST]code[/code]")
+        );
+        assert_eq!(
+            "<pre><code class=\"language-javascript\">code</code></pre>",
+            parse("[code=JavaScript]code[/code]")
+        );
+
+        // HTML content is still escaped
+        assert_eq!(
+            "<pre><code class=\"language-html\">&lt;div&gt;Hello&lt;/div&gt;</code></pre>",
+            parse("[code=html]<div>Hello</div>[/code]")
         );
     }
 
@@ -642,7 +707,7 @@ mod tests {
 
         // Mention inside code block should NOT be linkified
         assert_eq!(
-            "<pre>@codemention</pre>",
+            "<pre><code>@codemention</code></pre>",
             parse("[code]@codemention[/code]")
         );
 

@@ -1,5 +1,6 @@
 extern crate nom;
 
+mod code;
 mod embed;
 mod font;
 mod list;

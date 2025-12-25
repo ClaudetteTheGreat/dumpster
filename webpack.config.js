@@ -44,6 +44,7 @@ module.exports = {
             path.resolve(__dirname, './resources/js/char-counter.js'),
             path.resolve(__dirname, './resources/js/chat.js'),
             path.resolve(__dirname, './resources/js/draft.js'),
+            path.resolve(__dirname, './resources/js/highlight.js'),
             path.resolve(__dirname, './resources/js/keyboard.js'),
             path.resolve(__dirname, './resources/js/mentions.js'),
             path.resolve(__dirname, './resources/js/quote.js'),

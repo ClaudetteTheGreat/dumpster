@@ -106,7 +106,7 @@ impl Constructor {
                     Tag::Underline => Tag::open_simple_tag("u"),
                     Tag::Strikethrough => Tag::open_simple_tag("s"),
 
-                    Tag::Code => Tag::open_simple_tag("pre"),
+                    Tag::Code => Tag::open_code_tag(el),
 
                     Tag::Quote => Tag::open_quote_tag(el),
                     Tag::Spoiler => Tag::open_spoiler_tag(el),
@@ -175,7 +175,7 @@ impl Constructor {
                     Tag::Underline => Tag::close_simple_tag("u"),
                     Tag::Strikethrough => Tag::close_simple_tag("s"),
 
-                    Tag::Code => Tag::close_simple_tag("pre"),
+                    Tag::Code => Tag::close_code_tag(),
 
                     Tag::Quote => Tag::close_quote_tag(el),
                     Tag::Spoiler => Tag::close_spoiler_tag(),
