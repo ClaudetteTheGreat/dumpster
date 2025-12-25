@@ -150,6 +150,13 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - "Insert Quotes" inserts all queued quotes at once
   - "Clear" removes all queued quotes
   - Button toggles to -Quote when post is in queue
+- **Draft Auto-Save** - Prevent data loss with automatic draft saving
+  - Automatically saves post content to localStorage every 2 seconds
+  - Restores draft when returning to page (with "Draft restored" indicator)
+  - Clears draft on successful form submission
+  - Works for thread replies, new threads, and conversations
+  - Drafts expire after 7 days
+  - "Clear draft" button to discard saved content
 - **Quick Reply** - Reply button in thread header for fast access
   - Smooth scroll to reply form
   - Auto-focus on textarea

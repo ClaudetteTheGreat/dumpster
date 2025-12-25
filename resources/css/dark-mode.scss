@@ -564,4 +564,24 @@ html.dark {
             }
         }
     }
+
+    // Draft indicator
+    .draft-indicator {
+        color: #aaa;
+        background: #3a3a3a;
+
+        &.draft-indicator--restored {
+            color: #90ee90;
+            background: #1a3a1a;
+            border-color: #2d5a2d;
+        }
+    }
+
+    .draft-clear-btn {
+        color: #ff9999;
+
+        &:hover {
+            color: #ffcccc;
+        }
+    }
 }

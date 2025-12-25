@@ -499,3 +499,42 @@ input {
         min-width: 22px;
     }
 }
+
+// Draft auto-save indicator
+.draft-indicator {
+    display: inline-block;
+    margin-left: 10px;
+    padding: 4px 10px;
+    font-size: 0.85em;
+    color: #666;
+    background: #f0f0f0;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    vertical-align: middle;
+
+    &.draft-indicator--visible {
+        opacity: 1;
+    }
+
+    &.draft-indicator--restored {
+        color: #155724;
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+    }
+}
+
+.draft-clear-btn {
+    background: none;
+    border: none;
+    color: #721c24;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: underline;
+    padding: 0;
+    margin-left: 8px;
+
+    &:hover {
+        color: #491217;
+    }
+}
