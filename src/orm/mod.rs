@@ -9,6 +9,7 @@ pub mod chat_rooms;
 pub mod conversation_participants;
 pub mod conversations;
 pub mod email_verification_tokens;
+pub mod forum_moderators;
 pub mod forum_permissions;
 pub mod forums;
 pub mod groups;

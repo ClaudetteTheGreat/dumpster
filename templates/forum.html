@@ -28,6 +28,15 @@
 </div>
 {% endif %}
 
+{% if !moderators.is_empty() %}
+<div class="forum-moderators">
+    <span class="moderators-label">Moderators:</span>
+    {% for mod in moderators %}
+    <a href="/members/{{ mod.user_id }}/" class="moderator-link">{{ mod.username }}</a>{% if !loop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
 <h2>Threads</h2>
 <div class="struct-container">
     {% for item in threads %}
@@ -501,6 +510,46 @@ function addPollOption() {
 
     html.dark .clear-filter:hover {
         background: rgba(239, 83, 80, 0.2);
+    }
+
+    /* Forum moderators */
+    .forum-moderators {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 15px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-size: 0.9em;
+    }
+
+    .moderators-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .moderator-link {
+        color: #007bff;
+        text-decoration: none;
+    }
+
+    .moderator-link:hover {
+        text-decoration: underline;
+    }
+
+    html.dark .forum-moderators {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .moderators-label {
+        color: #adb5bd;
+    }
+
+    html.dark .moderator-link {
+        color: #6ea8fe;
     }
 </style>
 {% endblock %}

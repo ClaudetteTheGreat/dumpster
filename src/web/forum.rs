@@ -27,11 +27,57 @@ pub struct ForumTemplate<'a> {
     pub threads: &'a Vec<ThreadWithTags>,
     pub breadcrumbs: Vec<super::thread::Breadcrumb>,
     pub active_tag: Option<super::thread::TagForTemplate>,
+    pub moderators: Vec<ModeratorForTemplate>,
 }
 
 #[derive(Deserialize)]
 pub struct ForumQuery {
     pub tag: Option<String>,
+}
+
+/// Moderator info for template display
+#[derive(Debug, Clone)]
+pub struct ModeratorForTemplate {
+    pub user_id: i32,
+    pub username: String,
+}
+
+/// Fetch moderators for a forum
+pub async fn get_forum_moderators(forum_id: i32) -> Result<Vec<ModeratorForTemplate>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let db = get_db_pool();
+
+    // Use raw SQL to join forum_moderators with user_names
+    let sql = r#"
+        SELECT fm.user_id, un.name as username
+        FROM forum_moderators fm
+        LEFT JOIN user_names un ON un.user_id = fm.user_id
+        WHERE fm.forum_id = $1
+        ORDER BY un.name
+    "#;
+
+    let moderators = ModeratorQueryResult::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [forum_id.into()],
+    ))
+    .all(db)
+    .await?;
+
+    Ok(moderators
+        .into_iter()
+        .map(|m| ModeratorForTemplate {
+            user_id: m.user_id,
+            username: m.username.unwrap_or_else(|| "Unknown".to_string()),
+        })
+        .collect())
+}
+
+#[derive(Debug, FromQueryResult)]
+struct ModeratorQueryResult {
+    user_id: i32,
+    username: Option<String>,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -379,12 +425,16 @@ pub async fn view_forum(
         })
         .collect();
 
+    // Fetch forum moderators
+    let moderators = get_forum_moderators(forum_id).await.unwrap_or_default();
+
     Ok(ForumTemplate {
         client: client.to_owned(),
         forum: &forum,
         threads: &threads_with_tags,
         breadcrumbs,
         active_tag,
+        moderators,
     }
     .to_response())
 }
