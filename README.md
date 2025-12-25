@@ -133,6 +133,11 @@ PROJECT_NAME is a traditional web forum built in Rust.
 
 ### Thread Features
 - **Thread Prefixes** - Categorize threads with prefixes like [SOLVED], [QUESTION], [DISCUSSION] displayed as badges
+- **Thread Tags** - Add tags during thread creation for categorization and discoverability
+  - Comma-separated tag input with auto-slug generation
+  - Colored badge display in listings and thread views
+  - Forum-specific or global tag scope
+  - Automatic tag use count tracking
 - **Watch Threads** - Subscribe to threads for notifications on new posts
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
