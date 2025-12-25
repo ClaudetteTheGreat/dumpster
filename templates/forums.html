@@ -4,31 +4,59 @@
 <h1>Forums</h1>
 <div class="struct-container">
     {% if forums.len() > 0 %}
-    {% for forum in forums %}
-    <div class="struct-item struct-item--forum" data-id="{{ forum.id }}">
+    {% for item in forums %}
+    {# Parent forum #}
+    <div class="struct-item struct-item--forum" data-id="{{ item.forum.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
             <span class="forum-icon">📁</span>
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
-                <a href="/forums/{{ forum.id }}/">{{ forum.label }}</a>
+                <a href="/forums/{{ item.forum.id }}/">{{ item.forum.label }}</a>
             </div>
-            {% if let Some(description) = forum.description %}
+            {% if let Some(description) = item.forum.description %}
             <div class="forum-description">{{ description }}</div>
             {% endif %}
         </div>
         <div class="struct-item-cell struct-item-cell--stats">
             <dl>
                 <dt>Threads:</dt>
-                <dd>{{ forum.thread_count }}</dd>
+                <dd>{{ item.forum.thread_count }}</dd>
             </dl>
             <dl>
                 <dt>Posts:</dt>
-                <dd>{{ forum.post_count }}</dd>
+                <dd>{{ item.forum.post_count }}</dd>
             </dl>
         </div>
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
     </div>
+    {# Sub-forums #}
+    {% for child in item.children %}
+    <div class="struct-item struct-item--forum struct-item--subforum" data-id="{{ child.id }}" data-parent="{{ item.forum.id }}">
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <span class="forum-icon forum-icon--sub">📂</span>
+        </div>
+        <div class="struct-item-cell struct-item-cell--main">
+            <div class="forum-title">
+                <a href="/forums/{{ child.id }}/">{{ child.label }}</a>
+            </div>
+            {% if let Some(description) = child.description %}
+            <div class="forum-description">{{ description }}</div>
+            {% endif %}
+        </div>
+        <div class="struct-item-cell struct-item-cell--stats">
+            <dl>
+                <dt>Threads:</dt>
+                <dd>{{ child.thread_count }}</dd>
+            </dl>
+            <dl>
+                <dt>Posts:</dt>
+                <dd>{{ child.post_count }}</dd>
+            </dl>
+        </div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+    </div>
+    {% endfor %}
     {% endfor %}
     {% else %}
     <div class="no-forums">No forums available.</div>
@@ -45,6 +73,25 @@
         font-size: 2em;
         display: block;
         text-align: center;
+    }
+
+    .forum-icon--sub {
+        font-size: 1.5em;
+        opacity: 0.8;
+    }
+
+    .struct-item--subforum {
+        margin-left: 30px;
+        border-left: 3px solid #e0e0e0;
+        background-color: #fafafa;
+    }
+
+    .struct-item--subforum .forum-title {
+        font-size: 1em;
+    }
+
+    .struct-item--subforum .struct-item-cell--stats dl dd {
+        font-size: 1em;
     }
 
     .forum-title {
@@ -114,6 +161,23 @@
 
         .forum-title {
             font-size: 1em;
+        }
+
+        .struct-item--subforum {
+            margin-left: 15px;
+        }
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .struct-item--subforum {
+        border-left-color: #444;
+        background-color: #1a1a1a;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) .struct-item--subforum {
+            border-left-color: #444;
+            background-color: #1a1a1a;
         }
     }
 </style>

@@ -37,6 +37,38 @@
 </div>
 {% endif %}
 
+{% if !sub_forums.is_empty() %}
+<h2>Sub-Forums</h2>
+<div class="struct-container struct-container--subforums">
+    {% for child in sub_forums %}
+    <div class="struct-item struct-item--forum struct-item--subforum-inline" data-id="{{ child.id }}">
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <span class="forum-icon forum-icon--sub">📂</span>
+        </div>
+        <div class="struct-item-cell struct-item-cell--main">
+            <div class="forum-title">
+                <a href="/forums/{{ child.id }}/">{{ child.label }}</a>
+            </div>
+            {% if let Some(description) = child.description %}
+            <div class="forum-description">{{ description }}</div>
+            {% endif %}
+        </div>
+        <div class="struct-item-cell struct-item-cell--stats">
+            <dl>
+                <dt>Threads:</dt>
+                <dd>{{ child.thread_count }}</dd>
+            </dl>
+            <dl>
+                <dt>Posts:</dt>
+                <dd>{{ child.post_count }}</dd>
+            </dl>
+        </div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <h2>Threads</h2>
 <div class="struct-container">
     {% for item in threads %}
@@ -550,6 +582,40 @@ function addPollOption() {
 
     html.dark .moderator-link {
         color: #6ea8fe;
+    }
+
+    /* Sub-forums section */
+    .struct-container--subforums {
+        margin-bottom: 30px;
+    }
+
+    .struct-item--subforum-inline {
+        background-color: #f8f9fa;
+        border-left: 3px solid #6c757d;
+    }
+
+    .struct-item--subforum-inline .forum-icon--sub {
+        font-size: 1.5em;
+        opacity: 0.8;
+    }
+
+    .struct-item--subforum-inline .forum-title {
+        font-size: 1em;
+    }
+
+    .struct-item--subforum-inline .forum-description {
+        font-size: 0.85em;
+        color: #666;
+        margin-top: 4px;
+    }
+
+    html.dark .struct-item--subforum-inline {
+        background-color: #1a1a1a;
+        border-left-color: #555;
+    }
+
+    html.dark .struct-item--subforum-inline .forum-description {
+        color: #999;
     }
 </style>
 {% endblock %}

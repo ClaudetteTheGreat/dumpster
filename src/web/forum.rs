@@ -28,6 +28,7 @@ pub struct ForumTemplate<'a> {
     pub breadcrumbs: Vec<super::thread::Breadcrumb>,
     pub active_tag: Option<super::thread::TagForTemplate>,
     pub moderators: Vec<ModeratorForTemplate>,
+    pub sub_forums: Vec<ForumWithStats>,
 }
 
 #[derive(Deserialize)]
@@ -80,7 +81,82 @@ struct ModeratorQueryResult {
     username: Option<String>,
 }
 
-#[derive(Debug, FromQueryResult)]
+/// Build breadcrumbs for a forum, including parent forums
+pub async fn build_forum_breadcrumbs(forum: &crate::orm::forums::Model) -> Vec<super::thread::Breadcrumb> {
+    use crate::orm::forums;
+
+    let mut breadcrumbs = vec![super::thread::Breadcrumb {
+        title: "Forums".to_string(),
+        url: Some("/forums".to_string()),
+    }];
+
+    // Build list of parent forums (in reverse order)
+    let mut parent_chain = Vec::new();
+    let mut current_parent_id = forum.parent_id;
+
+    while let Some(parent_id) = current_parent_id {
+        if let Ok(Some(parent)) = forums::Entity::find_by_id(parent_id)
+            .one(get_db_pool())
+            .await
+        {
+            parent_chain.push(super::thread::Breadcrumb {
+                title: parent.label.clone(),
+                url: Some(format!("/forums/{}/", parent.id)),
+            });
+            current_parent_id = parent.parent_id;
+        } else {
+            break;
+        }
+    }
+
+    // Add parents in correct order (top-level first)
+    parent_chain.reverse();
+    breadcrumbs.extend(parent_chain);
+
+    // Add current forum
+    breadcrumbs.push(super::thread::Breadcrumb {
+        title: forum.label.clone(),
+        url: None, // Current page, no link
+    });
+
+    breadcrumbs
+}
+
+/// Fetch sub-forums for a parent forum
+pub async fn get_sub_forums(parent_forum_id: i32) -> Result<Vec<ForumWithStats>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let db = get_db_pool();
+
+    let sql = r#"
+        SELECT
+            f.id,
+            f.label,
+            f.description,
+            f.last_post_id,
+            f.last_thread_id,
+            COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
+            COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
+            f.parent_id,
+            f.display_order
+        FROM forums f
+        LEFT JOIN threads t ON t.forum_id = f.id
+        LEFT JOIN posts p ON p.thread_id = t.id
+        WHERE f.parent_id = $1
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order
+        ORDER BY f.display_order, f.id
+    "#;
+
+    ForumWithStats::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [parent_forum_id.into()],
+    ))
+    .all(db)
+    .await
+}
+
+#[derive(Debug, Clone, FromQueryResult)]
 pub struct ForumWithStats {
     pub id: i32,
     pub label: String,
@@ -89,13 +165,22 @@ pub struct ForumWithStats {
     pub last_thread_id: Option<i32>,
     pub thread_count: i64,
     pub post_count: i64,
+    pub parent_id: Option<i32>,
+    pub display_order: i32,
+}
+
+/// Forum with its sub-forums for hierarchical display
+#[derive(Debug, Clone)]
+pub struct ForumWithChildren {
+    pub forum: ForumWithStats,
+    pub children: Vec<ForumWithStats>,
 }
 
 #[derive(Template)]
 #[template(path = "forums.html")]
 pub struct ForumIndexTemplate<'a> {
     pub client: ClientCtx,
-    pub forums: &'a Vec<ForumWithStats>,
+    pub forums: &'a Vec<ForumWithChildren>,
 }
 
 #[post("/forums/{forum}/post-thread")]
@@ -398,17 +483,8 @@ pub async fn view_forum(
         (threads, None)
     };
 
-    // Build breadcrumbs
-    let breadcrumbs = vec![
-        super::thread::Breadcrumb {
-            title: "Forums".to_string(),
-            url: Some("/forums".to_string()),
-        },
-        super::thread::Breadcrumb {
-            title: forum.label.clone(),
-            url: None, // Current page, no link
-        },
-    ];
+    // Build breadcrumbs (including parent forums)
+    let breadcrumbs = build_forum_breadcrumbs(&forum).await;
 
     // Fetch tags for all threads
     let thread_ids: Vec<i32> = threads.iter().map(|t| t.id).collect();
@@ -428,6 +504,9 @@ pub async fn view_forum(
     // Fetch forum moderators
     let moderators = get_forum_moderators(forum_id).await.unwrap_or_default();
 
+    // Fetch sub-forums
+    let sub_forums = get_sub_forums(forum_id).await.unwrap_or_default();
+
     Ok(ForumTemplate {
         client: client.to_owned(),
         forum: &forum,
@@ -435,6 +514,7 @@ pub async fn view_forum(
         breadcrumbs,
         active_tag,
         moderators,
+        sub_forums,
     }
     .to_response())
 }
@@ -460,15 +540,17 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
             f.last_post_id,
             f.last_thread_id,
             COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
-            COALESCE(COUNT(DISTINCT p.id), 0) as post_count
+            COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
+            f.parent_id,
+            f.display_order
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
-        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id
-        ORDER BY f.id
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order
+        ORDER BY f.display_order, f.id
     "#;
 
-    let forums = ForumWithStats::find_by_statement(Statement::from_string(
+    let all_forums = ForumWithStats::find_by_statement(Statement::from_string(
         DbBackend::Postgres,
         sql.to_string(),
     ))
@@ -476,9 +558,47 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
     .await
     .unwrap_or_default();
 
+    // Organize forums into hierarchical structure
+    // Top-level forums (parent_id = NULL) with their children
+    let forums = organize_forums_hierarchy(&all_forums);
+
     Ok(ForumIndexTemplate {
         client: client.to_owned(),
         forums: &forums,
     }
     .to_response())
+}
+
+/// Organize flat list of forums into hierarchical structure
+fn organize_forums_hierarchy(all_forums: &[ForumWithStats]) -> Vec<ForumWithChildren> {
+    use std::collections::HashMap;
+
+    // Build a map of parent_id -> children
+    let mut children_map: HashMap<i32, Vec<ForumWithStats>> = HashMap::new();
+    let mut top_level: Vec<ForumWithStats> = Vec::new();
+
+    for forum in all_forums {
+        if let Some(parent_id) = forum.parent_id {
+            children_map
+                .entry(parent_id)
+                .or_default()
+                .push(forum.clone());
+        } else {
+            top_level.push(forum.clone());
+        }
+    }
+
+    // Sort children by display_order
+    for children in children_map.values_mut() {
+        children.sort_by(|a, b| a.display_order.cmp(&b.display_order));
+    }
+
+    // Build the final structure
+    top_level
+        .into_iter()
+        .map(|forum| {
+            let children = children_map.remove(&forum.id).unwrap_or_default();
+            ForumWithChildren { forum, children }
+        })
+        .collect()
 }

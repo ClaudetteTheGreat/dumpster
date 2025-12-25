@@ -15,6 +15,8 @@ pub struct Model {
     pub last_thread_id: Option<i32>,
     #[sea_orm(column_type = "Text", nullable)]
     pub rules: Option<String>,
+    pub parent_id: Option<i32>,
+    pub display_order: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -35,6 +37,14 @@ pub enum Relation {
         on_delete = "SetNull"
     )]
     Threads,
+    #[sea_orm(
+        belongs_to = "Entity",
+        from = "Column::ParentId",
+        to = "Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Parent,
 }
 
 impl Related<super::posts::Entity> for Entity {

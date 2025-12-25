@@ -514,21 +514,17 @@ async fn get_thread_and_replies_for_page(
         page_count: get_pages_in_thread(thread.post_count, posts_per_page),
     };
 
-    // Build breadcrumbs
-    let breadcrumbs = vec![
-        Breadcrumb {
-            title: "Forums".to_string(),
-            url: Some("/forums".to_string()),
-        },
-        Breadcrumb {
-            title: forum.label.clone(),
-            url: Some(format!("/forums/{}/", forum.id)),
-        },
-        Breadcrumb {
-            title: thread.title.clone(),
-            url: None, // Current page, no link
-        },
-    ];
+    // Build breadcrumbs (including parent forums)
+    let mut breadcrumbs = super::forum::build_forum_breadcrumbs(&forum).await;
+    // Change last item (forum) to have a link since we're in thread view
+    if let Some(last) = breadcrumbs.last_mut() {
+        last.url = Some(format!("/forums/{}/", forum.id));
+    }
+    // Add thread as current page
+    breadcrumbs.push(Breadcrumb {
+        title: thread.title.clone(),
+        url: None, // Current page, no link
+    });
 
     // Fetch poll if exists
     let poll = get_poll_for_thread(thread_id, client.get_id())
