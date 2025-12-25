@@ -46,16 +46,34 @@ impl super::Tag {
 
     pub fn fill_url_tag(mut el: RefMut<Element>, contents: String) -> String {
         let mut url: Option<Url> = None;
+        let mut unfurl = false;
 
         if let Some(arg) = el.get_argument() {
-            url = match url_arg(arg).transpose() {
-                Ok(url) => url,
-                Err(_) => {
-                    el.set_broken();
-                    return contents;
+            // Check for unfurl attribute in the argument
+            // Supports: [url unfurl], [url=http://... unfurl], [url unfurl=true]
+            let arg_lower = arg.to_lowercase();
+            unfurl = arg_lower.contains(" unfurl")
+                || arg_lower.ends_with(" unfurl")
+                || arg_lower.contains(" unfurl=true")
+                || arg_lower.contains(" unfurl=\"true\"")
+                || arg_lower == " unfurl"
+                || arg_lower == "unfurl";
+
+            // Parse URL from argument (strip unfurl part if present)
+            let url_part = arg
+                .split_whitespace()
+                .next()
+                .unwrap_or("");
+
+            if url_part.starts_with('=') {
+                url = match url_arg(url_part).transpose() {
+                    Ok(url) => url,
+                    Err(_) => {
+                        el.set_broken();
+                        return contents;
+                    }
                 }
             }
-            // TODO: Check for unfurl="true/false"
         }
 
         if url.is_none() {
@@ -65,11 +83,27 @@ impl super::Tag {
         }
 
         match url {
-            Some(url) => format!(
-                "<a class=\"bbCode tagUrl\" ref=\"nofollow\" href=\"{}\">{}",
-                url.as_str(),
-                contents
-            ),
+            Some(url) => {
+                if unfurl {
+                    // Render unfurl placeholder that JavaScript will hydrate
+                    let url_str = url.as_str();
+                    format!(
+                        "<div class=\"unfurl-container\" data-url=\"{}\">\
+                         <a class=\"unfurl-link\" href=\"{}\" rel=\"nofollow\">{}</a>\
+                         <div class=\"unfurl-preview unfurl-loading\"></div>\
+                         </div>",
+                        html_escape(url_str),
+                        url_str,
+                        contents
+                    )
+                } else {
+                    format!(
+                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}",
+                        url.as_str(),
+                        contents
+                    )
+                }
+            }
             // If we have no content, we are broken.
             None => {
                 el.set_broken();
@@ -77,6 +111,15 @@ impl super::Tag {
             }
         }
     }
+}
+
+/// Escape HTML special characters for use in attributes
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
 }
 
 fn url_arg(input: &str) -> Option<Result<Url, &str>> {

@@ -20,6 +20,7 @@ pub mod recent;
 pub mod reports;
 pub mod search;
 pub mod thread;
+pub mod unfurl;
 
 /// Configures the web app by adding services from each web file.
 ///
@@ -48,6 +49,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     reports::configure(conf);
     search::configure(conf);
     thread::configure(conf);
+    unfurl::configure(conf);
 
     conf.service(crate::create_user::create_user_get)
         .service(crate::create_user::create_user_post)

@@ -216,6 +216,12 @@ PROJECT_NAME is a traditional web forum built in Rust.
     - Auto-closing cells when opening new ones
     - Validation ensures proper nesting (cells inside rows, rows inside tables)
     - Responsive styling with dark mode support
+  - **URL Unfurl**: Rich link previews with `[url unfurl]https://example.com[/url]`
+    - Extracts Open Graph metadata (title, description, image)
+    - Shows site favicon and site name
+    - 24-hour server-side cache for performance
+    - Async JavaScript hydration for fast page loads
+    - Responsive card layout with dark mode support
   - **Security**: HTML entity sanitization, XSS prevention at tokenizer level, dimension validation (max 2000px)
   - **BBCode Toolbar**: Visual editor toolbar for post formatting
     - One-click buttons for bold, italic, underline, strikethrough

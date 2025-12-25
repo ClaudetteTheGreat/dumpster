@@ -35,6 +35,7 @@ pub mod tags;
 pub mod thread_tags;
 pub mod threads;
 pub mod ugc;
+pub mod unfurl_cache;
 pub mod ugc_attachments;
 pub mod ugc_deletions;
 pub mod ugc_reactions;

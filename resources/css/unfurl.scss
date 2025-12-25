@@ -1,0 +1,166 @@
+// URL Unfurl preview card styles
+
+.unfurl-container {
+    margin: 10px 0;
+    max-width: 500px;
+}
+
+.unfurl-link {
+    display: block;
+    margin-bottom: 8px;
+    color: #0066cc;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+.unfurl-preview {
+    &.unfurl-loading {
+        padding: 15px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        text-align: center;
+        color: #6c757d;
+        font-size: 0.9em;
+
+        &::before {
+            content: 'Loading preview...';
+        }
+    }
+
+    &.unfurl-loaded {
+        // Styles when loaded
+    }
+}
+
+.unfurl-card {
+    display: flex;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    transition: box-shadow 0.2s;
+
+    &:hover {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+}
+
+.unfurl-image {
+    flex-shrink: 0;
+    width: 120px;
+    min-height: 80px;
+    background: #f0f0f0;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+}
+
+.unfurl-content {
+    flex: 1;
+    padding: 12px;
+    min-width: 0; // Allow text truncation
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.unfurl-site {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.unfurl-favicon {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+}
+
+.unfurl-site-name {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.unfurl-title {
+    font-weight: 600;
+    font-size: 0.95em;
+    color: #212529;
+    line-height: 1.3;
+
+    // Truncate long titles
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.unfurl-description {
+    font-size: 0.85em;
+    color: #6c757d;
+    line-height: 1.4;
+
+    // Truncate long descriptions
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// Responsive: stack image on top on narrow screens
+@media (max-width: 400px) {
+    .unfurl-card {
+        flex-direction: column;
+    }
+
+    .unfurl-image {
+        width: 100%;
+        height: 150px;
+    }
+}
+
+// Dark mode support
+html.dark {
+    .unfurl-link {
+        color: #6ea8fe;
+    }
+
+    .unfurl-preview.unfurl-loading {
+        background: #2a2a2a;
+        border-color: #444;
+        color: #999;
+    }
+
+    .unfurl-card {
+        background: #2a2a2a;
+        border-color: #444;
+
+        &:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+    }
+
+    .unfurl-image {
+        background: #333;
+    }
+
+    .unfurl-site {
+        color: #999;
+    }
+
+    .unfurl-title {
+        color: #e0e0e0;
+    }
+
+    .unfurl-description {
+        color: #999;
+    }
+}
