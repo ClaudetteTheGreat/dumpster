@@ -138,6 +138,8 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Colored badge display in listings and thread views
   - Forum-specific or global tag scope
   - Automatic tag use count tracking
+  - Filter threads by tag via `?tag=slug` query parameter
+  - Active filter indicator with clear button
 - **Watch Threads** - Subscribe to threads for notifications on new posts
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
