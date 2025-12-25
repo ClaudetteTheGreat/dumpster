@@ -193,6 +193,14 @@ PROJECT_NAME is a traditional web forum built in Rust.
     - Shows rendered HTML exactly as it will appear
     - Dark mode support
 
+### Keyboard Shortcuts
+- **Post Navigation**: `j`/`k` to navigate between posts (vim-style)
+- **Go To Navigation**: `g` then `h` (home), `f` (forums), `n` (new posts), `w` (watched threads)
+- **Quick Actions**: `r` (reply), `q` (quote focused post), `/` (focus search)
+- **Help & Escape**: `?` (show shortcuts help), `Escape` (close modals, unfocus)
+- **Smart Detection**: Shortcuts disabled when typing in text fields
+- **Help Modal**: Press `?` to view all available shortcuts
+
 ### Responsive Design
 - All UI components are mobile-friendly with appropriate breakpoints
 - Statistics and metadata hidden on mobile for cleaner layout

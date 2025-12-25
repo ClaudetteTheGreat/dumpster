@@ -538,3 +538,126 @@ input {
         color: #491217;
     }
 }
+
+// Keyboard shortcuts help modal
+.keyboard-help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.keyboard-help-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.keyboard-help-content {
+    position: relative;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.keyboard-help-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+
+    h3 {
+        margin: 0;
+        font-size: 1.2em;
+    }
+}
+
+.keyboard-help-close {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+
+    &:hover {
+        color: #333;
+    }
+}
+
+.keyboard-help-body {
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+
+    @media (max-width: 500px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.shortcut-group {
+    h4 {
+        margin: 0 0 12px 0;
+        font-size: 0.9em;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+}
+
+.shortcut-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+
+    span {
+        color: #555;
+    }
+}
+
+kbd {
+    display: inline-block;
+    padding: 3px 8px;
+    font-family: monospace;
+    font-size: 0.9em;
+    background: #f4f4f4;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.keyboard-help-footer {
+    padding: 12px 20px;
+    border-top: 1px solid #eee;
+    text-align: center;
+    color: #888;
+
+    kbd {
+        font-size: 0.8em;
+        padding: 2px 6px;
+    }
+}
+
+// Focused post highlight (for j/k navigation)
+.message.post-focused {
+    outline: 3px solid #007bff;
+    outline-offset: -3px;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+}
