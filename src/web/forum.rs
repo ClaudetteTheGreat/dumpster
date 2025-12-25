@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{poll_options, polls, posts, tags, thread_tags, threads, user_names};
+use crate::orm::{forum_read, poll_options, polls, posts, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use serde::Deserialize;
 use askama_actix::{Template, TemplateToResponse};
@@ -9,6 +9,8 @@ use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
+        .service(mark_forum_read)
+        .service(mark_all_forums_read)
         .service(view_forums)
         .service(view_forum);
 }
@@ -138,7 +140,8 @@ pub async fn get_sub_forums(parent_forum_id: i32) -> Result<Vec<ForumWithStats>,
             COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
             COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
             f.parent_id,
-            f.display_order
+            f.display_order,
+            MAX(p.created_at) as last_post_at
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
@@ -167,6 +170,7 @@ pub struct ForumWithStats {
     pub post_count: i64,
     pub parent_id: Option<i32>,
     pub display_order: i32,
+    pub last_post_at: Option<chrono::NaiveDateTime>,
 }
 
 /// Forum with its sub-forums for hierarchical display
@@ -176,11 +180,14 @@ pub struct ForumWithChildren {
     pub children: Vec<ForumWithStats>,
 }
 
+use std::collections::HashSet;
+
 #[derive(Template)]
 #[template(path = "forums.html")]
 pub struct ForumIndexTemplate<'a> {
     pub client: ClientCtx,
     pub forums: &'a Vec<ForumWithChildren>,
+    pub unread_forums: HashSet<i32>,
 }
 
 #[post("/forums/{forum}/post-thread")]
@@ -531,7 +538,7 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
 
     let db = get_db_pool();
 
-    // Query forums with thread and post counts using subqueries
+    // Query forums with thread and post counts and latest post timestamp
     let sql = r#"
         SELECT
             f.id,
@@ -542,7 +549,8 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
             COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
             COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
             f.parent_id,
-            f.display_order
+            f.display_order,
+            MAX(p.created_at) as last_post_at
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
@@ -558,6 +566,13 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
     .await
     .unwrap_or_default();
 
+    // Get unread forums for logged-in users
+    let unread_forums = if let Some(user_id) = client.get_id() {
+        get_unread_forums(user_id, &all_forums).await.unwrap_or_default()
+    } else {
+        HashSet::new()
+    };
+
     // Organize forums into hierarchical structure
     // Top-level forums (parent_id = NULL) with their children
     let forums = organize_forums_hierarchy(&all_forums);
@@ -565,8 +580,45 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
     Ok(ForumIndexTemplate {
         client: client.to_owned(),
         forums: &forums,
+        unread_forums,
     }
     .to_response())
+}
+
+/// Get set of forum IDs that have unread posts for the given user
+async fn get_unread_forums(user_id: i32, forums: &[ForumWithStats]) -> Result<HashSet<i32>, sea_orm::DbErr> {
+    let db = get_db_pool();
+
+    // Get all forum read timestamps for this user
+    let read_records = forum_read::Entity::find()
+        .filter(forum_read::Column::UserId.eq(user_id))
+        .all(db)
+        .await?;
+
+    // Build a map of forum_id -> read_at
+    let read_map: std::collections::HashMap<i32, chrono::NaiveDateTime> = read_records
+        .into_iter()
+        .map(|r| (r.forum_id, r.read_at))
+        .collect();
+
+    // Find forums with posts newer than the read timestamp
+    let mut unread = HashSet::new();
+    for forum in forums {
+        if let Some(last_post_at) = forum.last_post_at {
+            match read_map.get(&forum.id) {
+                Some(read_at) if last_post_at > *read_at => {
+                    unread.insert(forum.id);
+                }
+                None => {
+                    // Never marked as read, so it's unread if it has posts
+                    unread.insert(forum.id);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    Ok(unread)
 }
 
 /// Organize flat list of forums into hierarchical structure
@@ -601,4 +653,102 @@ fn organize_forums_hierarchy(all_forums: &[ForumWithStats]) -> Vec<ForumWithChil
             ForumWithChildren { forum, children }
         })
         .collect()
+}
+
+/// Mark a specific forum as read
+#[post("/forums/{forum}/mark-read")]
+pub async fn mark_forum_read(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<CsrfForm>,
+) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Require authentication
+    let user_id = client.require_login()?;
+    let forum_id = path.into_inner();
+
+    let db = get_db_pool();
+    let now = chrono::Utc::now().naive_utc();
+
+    // Delete existing record if any
+    forum_read::Entity::delete_many()
+        .filter(forum_read::Column::UserId.eq(user_id))
+        .filter(forum_read::Column::ForumId.eq(forum_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Insert new record
+    let record = forum_read::ActiveModel {
+        user_id: Set(user_id),
+        forum_id: Set(forum_id),
+        read_at: Set(now),
+    };
+    forum_read::Entity::insert(record)
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to forum
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/forums/{}/", forum_id)))
+        .finish())
+}
+
+#[derive(Deserialize)]
+pub struct CsrfForm {
+    pub csrf_token: String,
+}
+
+/// Mark all forums as read
+#[post("/forums/mark-all-read")]
+pub async fn mark_all_forums_read(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<CsrfForm>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::forums;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Require authentication
+    let user_id = client.require_login()?;
+
+    let db = get_db_pool();
+    let now = chrono::Utc::now().naive_utc();
+
+    // Delete all existing read records for this user
+    forum_read::Entity::delete_many()
+        .filter(forum_read::Column::UserId.eq(user_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get all forum IDs and insert read records
+    let all_forums = forums::Entity::find()
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    for forum in all_forums {
+        let record = forum_read::ActiveModel {
+            user_id: Set(user_id),
+            forum_id: Set(forum.id),
+            read_at: Set(now),
+        };
+
+        forum_read::Entity::insert(record)
+            .exec(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
+    // Redirect back to forums list
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/forums"))
+        .finish())
 }

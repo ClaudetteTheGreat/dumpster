@@ -1,14 +1,24 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<h1>Forums</h1>
+<div class="forums-header">
+    <h1>Forums</h1>
+    {% if client.get_id().is_some() %}
+    <form action="/forums/mark-all-read" method="post" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+        <button type="submit" class="btn btn--secondary btn--small" title="Mark all forums as read">
+            ✓ Mark All Read
+        </button>
+    </form>
+    {% endif %}
+</div>
 <div class="struct-container">
     {% if forums.len() > 0 %}
     {% for item in forums %}
     {# Parent forum #}
-    <div class="struct-item struct-item--forum" data-id="{{ item.forum.id }}">
+    <div class="struct-item struct-item--forum{% if unread_forums.contains(item.forum.id) %} struct-item--unread{% endif %}" data-id="{{ item.forum.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
-            <span class="forum-icon">📁</span>
+            <span class="forum-icon">{% if unread_forums.contains(item.forum.id) %}📂{% else %}📁{% endif %}</span>
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
@@ -32,9 +42,9 @@
     </div>
     {# Sub-forums #}
     {% for child in item.children %}
-    <div class="struct-item struct-item--forum struct-item--subforum" data-id="{{ child.id }}" data-parent="{{ item.forum.id }}">
+    <div class="struct-item struct-item--forum struct-item--subforum{% if unread_forums.contains(child.id) %} struct-item--unread{% endif %}" data-id="{{ child.id }}" data-parent="{{ item.forum.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
-            <span class="forum-icon forum-icon--sub">📂</span>
+            <span class="forum-icon forum-icon--sub">{% if unread_forums.contains(child.id) %}📂{% else %}📁{% endif %}</span>
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
@@ -64,15 +74,59 @@
 </div>
 
 <style>
+    .forums-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .forums-header h1 {
+        margin: 0;
+    }
+
     h1 {
         margin-bottom: 20px;
         color: #333;
+    }
+
+    .inline-form {
+        display: inline;
+    }
+
+    .btn--secondary {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.2s;
+    }
+
+    .btn--secondary:hover {
+        background: #5a6268;
+    }
+
+    .btn--small {
+        padding: 6px 12px;
+        font-size: 0.85em;
     }
 
     .forum-icon {
         font-size: 2em;
         display: block;
         text-align: center;
+    }
+
+    /* Unread forum indicator */
+    .struct-item--unread {
+        border-left: 3px solid #007bff;
+    }
+
+    .struct-item--unread .forum-title a {
+        font-weight: 600;
     }
 
     .forum-icon--sub {
@@ -174,10 +228,34 @@
         background-color: #1a1a1a;
     }
 
+    [data-theme="dark"] .btn--secondary {
+        background: #495057;
+    }
+
+    [data-theme="dark"] .btn--secondary:hover {
+        background: #5a6268;
+    }
+
+    [data-theme="dark"] .struct-item--unread {
+        border-left-color: #6ea8fe;
+    }
+
     @media (prefers-color-scheme: dark) {
         html:not([data-theme="light"]) .struct-item--subforum {
             border-left-color: #444;
             background-color: #1a1a1a;
+        }
+
+        html:not([data-theme="light"]) .btn--secondary {
+            background: #495057;
+        }
+
+        html:not([data-theme="light"]) .btn--secondary:hover {
+            background: #5a6268;
+        }
+
+        html:not([data-theme="light"]) .struct-item--unread {
+            border-left-color: #6ea8fe;
         }
     }
 </style>

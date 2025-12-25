@@ -37,6 +37,17 @@
 </div>
 {% endif %}
 
+{% if client.get_id().is_some() %}
+<div class="forum-actions">
+    <form action="/forums/{{ forum.id }}/mark-read" method="post" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+        <button type="submit" class="btn btn--secondary btn--small" title="Mark all threads in this forum as read">
+            ✓ Mark Forum Read
+        </button>
+    </form>
+</div>
+{% endif %}
+
 {% if !sub_forums.is_empty() %}
 <h2>Sub-Forums</h2>
 <div class="struct-container struct-container--subforums">
@@ -616,6 +627,45 @@ function addPollOption() {
 
     html.dark .struct-item--subforum-inline .forum-description {
         color: #999;
+    }
+
+    /* Forum actions */
+    .forum-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .inline-form {
+        display: inline;
+    }
+
+    .btn--secondary {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background 0.2s;
+    }
+
+    .btn--secondary:hover {
+        background: #5a6268;
+    }
+
+    .btn--small {
+        padding: 6px 12px;
+        font-size: 0.85em;
+    }
+
+    html.dark .btn--secondary {
+        background: #495057;
+    }
+
+    html.dark .btn--secondary:hover {
+        background: #5a6268;
     }
 </style>
 {% endblock %}
