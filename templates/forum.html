@@ -125,9 +125,16 @@
                 <div class="latest-time">
                     <time datetime="{{ last_post_at }}">{{ last_post_at.format("%b %d, %Y") }}</time>
                 </div>
-                <a href="/threads/{{ item.thread.id }}/post-{{ last_post_id }}" class="latest-link" title="Go to latest post">
-                    Latest →
-                </a>
+                <div class="latest-links">
+                    {% if client.get_id().is_some() %}
+                    <a href="/threads/{{ item.thread.id }}/unread" class="unread-link" title="Jump to first unread post">
+                        Unread
+                    </a>
+                    {% endif %}
+                    <a href="/threads/{{ item.thread.id }}/post-{{ last_post_id }}" class="latest-link" title="Go to latest post">
+                        Latest →
+                    </a>
+                </div>
             </div>
             {% when None %}{% endmatch %}
             {% when None %}{% endmatch %}
@@ -312,6 +319,27 @@ function addPollOption() {
 
     .latest-link:hover {
         background: #218838;
+    }
+
+    .latest-links {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .unread-link {
+        display: inline-block;
+        padding: 4px 12px;
+        background: #007bff;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: background 0.2s;
+    }
+
+    .unread-link:hover {
+        background: #0056b3;
     }
 
     .struct-item-cell--latest {

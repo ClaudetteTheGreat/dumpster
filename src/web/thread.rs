@@ -5,7 +5,7 @@ use crate::middleware::ClientCtx;
 use crate::orm::posts::Entity as Post;
 use crate::orm::threads::Entity as Thread;
 use crate::orm::{
-    poll_options, poll_votes, polls, posts, tags, thread_tags, threads, ugc_deletions,
+    poll_options, poll_votes, polls, posts, tags, thread_read, thread_tags, threads, ugc_deletions,
 };
 use crate::template::{Paginator, PaginatorToHtml};
 use crate::user::Profile as UserProfile;
@@ -18,6 +18,7 @@ use std::{collections::HashMap, str};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_reply)
+        .service(view_thread_unread)
         .service(view_thread)
         .service(view_thread_page);
 }
@@ -500,6 +501,12 @@ async fn get_thread_and_replies_for_page(
 
     // Check if user is watching this thread and email preference
     let (is_watching, email_on_reply) = if let Some(user_id) = client.get_id() {
+        // Update thread read timestamp (async, don't wait)
+        let db_for_read = get_db_pool();
+        actix_web::rt::spawn(async move {
+            let _ = update_thread_read(user_id, thread_id, db_for_read).await;
+        });
+
         match crate::notifications::get_watch_status(user_id, thread_id).await {
             Ok(Some(watch)) => (true, watch.email_on_reply),
             _ => (false, false),
@@ -852,6 +859,39 @@ pub async fn create_reply(
         .finish())
 }
 
+/// Redirect to first unread post in a thread
+#[get("/threads/{thread_id}/unread")]
+pub async fn view_thread_unread(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let thread_id = path.into_inner();
+
+    // Check if user is logged in
+    if let Some(user_id) = client.get_id() {
+        // Try to find first unread post
+        match get_first_unread_post_id(user_id, thread_id).await {
+            Ok(Some(post_id)) => {
+                // Redirect to the specific unread post
+                return Ok(HttpResponse::Found()
+                    .append_header(("Location", format!("/threads/{}/post-{}", thread_id, post_id)))
+                    .finish());
+            }
+            Ok(None) => {
+                // No unread posts or never read, go to first page
+            }
+            Err(_) => {
+                // On error, just go to thread start
+            }
+        }
+    }
+
+    // Default: redirect to thread start
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
+}
+
 #[get("/threads/{thread_id}/")]
 pub async fn view_thread(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     get_thread_and_replies_for_page(client, path.into_inner(), 1).await
@@ -996,4 +1036,99 @@ pub fn validate_thread_form(
         },
         validated_poll,
     ))
+}
+
+/// Update the thread_read timestamp for a user viewing a thread
+async fn update_thread_read(
+    user_id: i32,
+    thread_id: i32,
+    db: &sea_orm::DatabaseConnection,
+) -> Result<(), DbErr> {
+    let now = chrono::Utc::now().naive_utc();
+
+    // Delete existing record if any
+    thread_read::Entity::delete_many()
+        .filter(thread_read::Column::UserId.eq(user_id))
+        .filter(thread_read::Column::ThreadId.eq(thread_id))
+        .exec(db)
+        .await?;
+
+    // Insert new record
+    let record = thread_read::ActiveModel {
+        user_id: Set(user_id),
+        thread_id: Set(thread_id),
+        read_at: Set(now),
+    };
+    thread_read::Entity::insert(record).exec(db).await?;
+
+    Ok(())
+}
+
+/// Get the first unread post ID in a thread for a user
+/// Returns None if all posts are read or user hasn't viewed thread before
+pub async fn get_first_unread_post_id(user_id: i32, thread_id: i32) -> Result<Option<i32>, DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let db = get_db_pool();
+
+    // First check if user has a read record for this thread
+    let read_record = thread_read::Entity::find()
+        .filter(thread_read::Column::UserId.eq(user_id))
+        .filter(thread_read::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await?;
+
+    let read_at = match read_record {
+        Some(r) => r.read_at,
+        None => return Ok(None), // Never read this thread, go to beginning
+    };
+
+    // Find the first post created after the read timestamp
+    let sql = r#"
+        SELECT p.id
+        FROM posts p
+        WHERE p.thread_id = $1
+          AND p.created_at > $2
+          AND p.deleted_at IS NULL
+        ORDER BY p.position ASC
+        LIMIT 1
+    "#;
+
+    #[derive(Debug, FromQueryResult)]
+    struct PostId {
+        id: i32,
+    }
+
+    let result = PostId::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [thread_id.into(), read_at.into()],
+    ))
+    .one(db)
+    .await?;
+
+    Ok(result.map(|r| r.id))
+}
+
+/// Check if a thread has unread posts for a user
+pub async fn has_unread_posts(user_id: i32, thread_id: i32, last_post_at: Option<chrono::NaiveDateTime>) -> bool {
+    let last_post = match last_post_at {
+        Some(t) => t,
+        None => return false, // No posts in thread
+    };
+
+    let db = get_db_pool();
+
+    let read_record = thread_read::Entity::find()
+        .filter(thread_read::Column::UserId.eq(user_id))
+        .filter(thread_read::Column::ThreadId.eq(thread_id))
+        .one(db)
+        .await
+        .ok()
+        .flatten();
+
+    match read_record {
+        Some(r) => last_post > r.read_at, // Unread if last post is newer than read time
+        None => true, // Never read this thread
+    }
 }
