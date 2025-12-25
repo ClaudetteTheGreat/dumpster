@@ -110,6 +110,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 ### Forum Features
 - **Forum Statistics** - Thread and post counts displayed on forum index
 - **Forum Rules Display** - Optional forum-specific rules displayed at the top of each forum in a highlighted box
+- **Forum Moderators** - Display moderators assigned to each forum with profile links
 - **Thread Status Badges** - Visual indicators for pinned (📌) and locked (🔒) threads
 - **Thread Metadata** - Post count and view count displayed in thread headers
 - **Latest Activity** - Timestamp and link to latest post in forum thread listings
