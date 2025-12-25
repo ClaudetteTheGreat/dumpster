@@ -7,31 +7,172 @@
 <h2>Avatar</h2>
 
 <div class="avatar-section">
-    {% match profile.avatar_filename %}
-    {% when Some with (filename) %}
-    <div class="current-avatar" style="margin-bottom: 15px;">
-        <p>Current avatar:</p>
-        {{ profile.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
+    <div class="avatar-current">
+        {% match profile.avatar_filename %}
+        {% when Some with (filename) %}
+        <div class="current-avatar">
+            <p class="avatar-label">Current avatar:</p>
+            {{ profile.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
+        </div>
+        {% when None %}
+        <div class="no-avatar">
+            <div class="avatar-placeholder">
+                <span class="avatar-placeholder-icon">👤</span>
+            </div>
+            <p>No avatar set</p>
+        </div>
+        {% endmatch %}
     </div>
-    {% when None %}
-    <p>You don't have an avatar yet.</p>
-    {% endmatch %}
 
-    <form action="/account/avatar" method="post" enctype="multipart/form-data" style="display: inline-block; margin-right: 10px;">
-        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-        <input type="file" name="avatar" required />
-        <button type="submit">Upload Avatar</button>
-    </form>
+    <div class="avatar-upload-container">
+        <form action="/account/avatar" method="post" enctype="multipart/form-data" id="avatar-form">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
 
-    {% match profile.avatar_filename %}
-    {% when Some with (filename) %}
-    <form action="/account/avatar/delete" method="post" style="display: inline-block;">
-        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-        <button type="submit" onclick="return confirm('Are you sure you want to delete your avatar?');">Delete Avatar</button>
-    </form>
-    {% when None %}
-    {% endmatch %}
+            <div class="avatar-dropzone" id="avatar-dropzone">
+                <div class="dropzone-content">
+                    <span class="dropzone-icon">📷</span>
+                    <p class="dropzone-text">Drag & drop an image here</p>
+                    <p class="dropzone-or">or</p>
+                    <label class="dropzone-button" for="avatar-input">Choose File</label>
+                    <input type="file" name="avatar" id="avatar-input" accept="image/jpeg,image/png,image/gif,image/webp" class="visually-hidden" />
+                </div>
+                <div class="dropzone-preview" id="avatar-preview" style="display: none;">
+                    <img id="preview-image" src="" alt="Preview" />
+                    <button type="button" class="preview-clear" id="clear-preview" aria-label="Clear selection">✕</button>
+                </div>
+            </div>
+
+            <div class="avatar-info">
+                <p class="file-requirements">Accepted formats: JPEG, PNG, GIF, WebP (max 2MB)</p>
+                <p class="selected-file" id="selected-file"></p>
+                <p class="file-error" id="file-error"></p>
+            </div>
+
+            <div class="avatar-actions">
+                <button type="submit" id="upload-btn" disabled>Upload Avatar</button>
+                {% match profile.avatar_filename %}
+                {% when Some with (filename) %}
+                <button type="button" class="delete-btn" id="delete-avatar-btn">Delete Avatar</button>
+                {% when None %}
+                {% endmatch %}
+            </div>
+        </form>
+
+        {% match profile.avatar_filename %}
+        {% when Some with (filename) %}
+        <form action="/account/avatar/delete" method="post" id="delete-avatar-form" style="display: none;">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+        </form>
+        {% when None %}
+        {% endmatch %}
+    </div>
 </div>
+
+<script nonce="{{ client.get_nonce() }}">
+(function() {
+    const dropzone = document.getElementById('avatar-dropzone');
+    const fileInput = document.getElementById('avatar-input');
+    const previewContainer = document.getElementById('avatar-preview');
+    const previewImage = document.getElementById('preview-image');
+    const clearBtn = document.getElementById('clear-preview');
+    const uploadBtn = document.getElementById('upload-btn');
+    const selectedFileText = document.getElementById('selected-file');
+    const fileError = document.getElementById('file-error');
+    const deleteBtn = document.getElementById('delete-avatar-btn');
+    const deleteForm = document.getElementById('delete-avatar-form');
+
+    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+    function validateFile(file) {
+        fileError.textContent = '';
+
+        if (!ALLOWED_TYPES.includes(file.type)) {
+            fileError.textContent = 'Invalid file type. Please use JPEG, PNG, GIF, or WebP.';
+            return false;
+        }
+
+        if (file.size > MAX_SIZE) {
+            fileError.textContent = `File is too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 2MB.`;
+            return false;
+        }
+
+        return true;
+    }
+
+    function showPreview(file) {
+        if (!validateFile(file)) {
+            clearPreview();
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImage.src = e.target.result;
+            previewContainer.style.display = 'block';
+            dropzone.querySelector('.dropzone-content').style.display = 'none';
+            uploadBtn.disabled = false;
+            selectedFileText.textContent = `Selected: ${file.name}`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function clearPreview() {
+        previewContainer.style.display = 'none';
+        dropzone.querySelector('.dropzone-content').style.display = 'flex';
+        previewImage.src = '';
+        fileInput.value = '';
+        uploadBtn.disabled = true;
+        selectedFileText.textContent = '';
+    }
+
+    // File input change
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            showPreview(this.files[0]);
+        }
+    });
+
+    // Clear preview button
+    if (clearBtn) {
+        clearBtn.addEventListener('click', clearPreview);
+    }
+
+    // Drag and drop
+    dropzone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+
+        const files = e.dataTransfer.files;
+        if (files && files[0]) {
+            // Create a new DataTransfer to set files on input
+            const dt = new DataTransfer();
+            dt.items.add(files[0]);
+            fileInput.files = dt.files;
+            showPreview(files[0]);
+        }
+    });
+
+    // Delete button
+    if (deleteBtn && deleteForm) {
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete your avatar?')) {
+                deleteForm.submit();
+            }
+        });
+    }
+})();
+</script>
 
 <h2>Preferences</h2>
 
@@ -65,6 +206,255 @@
 </div>
 
 <style>
+    /* Avatar Section */
+    .avatar-section {
+        display: flex;
+        gap: 30px;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+    }
+
+    .avatar-current {
+        flex-shrink: 0;
+    }
+
+    .current-avatar {
+        text-align: center;
+    }
+
+    .avatar-label {
+        margin-bottom: 10px;
+        font-weight: 600;
+        color: #555;
+    }
+
+    .no-avatar {
+        text-align: center;
+        color: #888;
+    }
+
+    .avatar-placeholder {
+        width: 150px;
+        height: 150px;
+        background: #e9ecef;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 10px;
+    }
+
+    .avatar-placeholder-icon {
+        font-size: 60px;
+        opacity: 0.5;
+    }
+
+    .avatar-upload-container {
+        flex: 1;
+        min-width: 280px;
+    }
+
+    .avatar-dropzone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        transition: border-color 0.2s, background-color 0.2s;
+        cursor: pointer;
+        min-height: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .avatar-dropzone:hover {
+        border-color: #007bff;
+        background-color: #f8f9ff;
+    }
+
+    .avatar-dropzone.dragover {
+        border-color: #007bff;
+        background-color: #e7f1ff;
+    }
+
+    .dropzone-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .dropzone-icon {
+        font-size: 40px;
+    }
+
+    .dropzone-text {
+        font-size: 1.1em;
+        color: #555;
+        margin: 0;
+    }
+
+    .dropzone-or {
+        color: #888;
+        margin: 5px 0;
+    }
+
+    .dropzone-button {
+        display: inline-block;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .dropzone-button:hover {
+        background: #0056b3;
+    }
+
+    .dropzone-preview {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropzone-preview img {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .preview-clear {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 28px;
+        height: 28px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .preview-clear:hover {
+        background: #c82333;
+    }
+
+    .avatar-info {
+        margin-top: 15px;
+    }
+
+    .file-requirements {
+        font-size: 0.85em;
+        color: #666;
+        margin: 0 0 5px 0;
+    }
+
+    .selected-file {
+        font-size: 0.9em;
+        color: #28a745;
+        margin: 5px 0;
+    }
+
+    .file-error {
+        font-size: 0.9em;
+        color: #dc3545;
+        margin: 5px 0;
+    }
+
+    .avatar-actions {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .avatar-actions button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .avatar-actions button[type="submit"] {
+        background: #28a745;
+        color: white;
+    }
+
+    .avatar-actions button[type="submit"]:hover:not(:disabled) {
+        background: #218838;
+    }
+
+    .avatar-actions button[type="submit"]:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .avatar-actions .delete-btn {
+        background: #dc3545;
+        color: white;
+    }
+
+    .avatar-actions .delete-btn:hover {
+        background: #c82333;
+    }
+
+    /* Dark mode */
+    html.dark .avatar-label {
+        color: #adb5bd;
+    }
+
+    html.dark .no-avatar {
+        color: #888;
+    }
+
+    html.dark .avatar-placeholder {
+        background: #3a3a3a;
+    }
+
+    html.dark .avatar-dropzone {
+        border-color: #555;
+        background: #2a2a2a;
+    }
+
+    html.dark .avatar-dropzone:hover {
+        border-color: #6ea8fe;
+        background-color: #1a2a3a;
+    }
+
+    html.dark .avatar-dropzone.dragover {
+        border-color: #6ea8fe;
+        background-color: #1a3050;
+    }
+
+    html.dark .dropzone-text {
+        color: #ccc;
+    }
+
+    html.dark .file-requirements {
+        color: #999;
+    }
+
+    @media (max-width: 600px) {
+        .avatar-section {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .avatar-upload-container {
+            width: 100%;
+        }
+    }
+
     .preferences-section {
         margin-top: 30px;
         padding: 20px;
