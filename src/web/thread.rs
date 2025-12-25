@@ -119,6 +119,15 @@ pub struct PollForTemplate {
     pub has_voted: bool,
 }
 
+/// Similar thread for display in sidebar
+#[derive(Debug, Clone)]
+pub struct SimilarThreadForTemplate {
+    pub id: i32,
+    pub title: String,
+    pub post_count: i32,
+    pub matching_tags: i32,
+}
+
 #[derive(Template)]
 #[template(path = "thread.html")]
 pub struct ThreadTemplate<'a> {
@@ -133,6 +142,7 @@ pub struct ThreadTemplate<'a> {
     pub breadcrumbs: Vec<Breadcrumb>,
     pub poll: Option<PollForTemplate>,
     pub tags: Vec<TagForTemplate>,
+    pub similar_threads: Vec<SimilarThreadForTemplate>,
 }
 
 mod filters {
@@ -355,6 +365,82 @@ pub async fn get_tags_for_threads(
     Ok(result)
 }
 
+/// Fetches similar threads based on shared tags.
+/// Returns up to 5 threads that share the most tags with the current thread.
+pub async fn get_similar_threads(
+    thread_id: i32,
+    forum_id: i32,
+    current_tag_ids: &[i32],
+    limit: usize,
+) -> Result<Vec<SimilarThreadForTemplate>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    if current_tag_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let db = get_db_pool();
+
+    // Build a query that:
+    // 1. Finds all threads that share at least one tag with the current thread
+    // 2. Counts how many tags they share
+    // 3. Excludes the current thread
+    // 4. Orders by number of matching tags (descending), then by recency
+    // 5. Limits to specified count
+
+    // Build the IN clause for tag_ids
+    let tag_ids_str = current_tag_ids
+        .iter()
+        .map(|id| id.to_string())
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let sql = format!(
+        r#"
+        SELECT
+            t.id,
+            t.title,
+            t.post_count,
+            COUNT(tt.tag_id) as matching_tags
+        FROM threads t
+        INNER JOIN thread_tags tt ON tt.thread_id = t.id
+        WHERE tt.tag_id IN ({})
+          AND t.id != $1
+          AND t.forum_id = $2
+        GROUP BY t.id, t.title, t.post_count
+        ORDER BY matching_tags DESC, t.last_post_at DESC NULLS LAST
+        LIMIT $3
+        "#,
+        tag_ids_str
+    );
+
+    #[derive(Debug, sea_orm::FromQueryResult)]
+    struct SimilarThreadRow {
+        id: i32,
+        title: String,
+        post_count: i32,
+        matching_tags: i64,
+    }
+
+    let rows = SimilarThreadRow::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        &sql,
+        vec![thread_id.into(), forum_id.into(), (limit as i32).into()],
+    ))
+    .all(db)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| SimilarThreadForTemplate {
+            id: r.id,
+            title: r.title,
+            post_count: r.post_count,
+            matching_tags: r.matching_tags as i32,
+        })
+        .collect())
+}
+
 /// Returns a Responder for a thread at a specific page.
 async fn get_thread_and_replies_for_page(
     client: ClientCtx,
@@ -454,6 +540,12 @@ async fn get_thread_and_replies_for_page(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Fetch similar threads based on shared tags
+    let tag_ids: Vec<i32> = tags.iter().map(|t| t.id).collect();
+    let similar_threads = get_similar_threads(thread_id, thread.forum_id, &tag_ids, 5)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
     Ok(ThreadTemplate {
         client,
         forum,
@@ -466,6 +558,7 @@ async fn get_thread_and_replies_for_page(
         breadcrumbs,
         poll,
         tags,
+        similar_threads,
     }
     .to_response())
 }

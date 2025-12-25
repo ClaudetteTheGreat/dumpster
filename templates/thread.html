@@ -193,6 +193,25 @@
 </div>
 {% endif %}
 
+{% if !similar_threads.is_empty() %}
+<div class="similar-threads">
+    <h3>Similar Threads</h3>
+    <ul class="similar-threads-list">
+        {% for similar in similar_threads %}
+        <li class="similar-thread-item">
+            <a href="/threads/{{ similar.id }}/" class="similar-thread-link">
+                {{ similar.title }}
+            </a>
+            <span class="similar-thread-meta">
+                {{ similar.post_count }} posts
+                {% if similar.matching_tags > 1 %}· {{ similar.matching_tags }} tags in common{% endif %}
+            </span>
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <style>
     .thread-header {
         display: flex;
@@ -629,6 +648,88 @@
     .thread-tag:hover {
         opacity: 0.8;
         text-decoration: none;
+    }
+
+    /* Similar threads styles */
+    .similar-threads {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+    }
+
+    .similar-threads h3 {
+        margin: 0 0 15px 0;
+        font-size: 1.1em;
+        color: #495057;
+    }
+
+    .similar-threads-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .similar-thread-item {
+        padding: 10px 0;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .similar-thread-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .similar-thread-item:first-child {
+        padding-top: 0;
+    }
+
+    .similar-thread-link {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .similar-thread-link:hover {
+        text-decoration: underline;
+    }
+
+    .similar-thread-meta {
+        font-size: 0.85em;
+        color: #6c757d;
+    }
+
+    /* Dark mode similar threads */
+    html.dark .similar-threads {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .similar-threads h3 {
+        color: #e0e0e0;
+    }
+
+    html.dark .similar-thread-item {
+        border-bottom-color: #444;
+    }
+
+    html.dark .similar-thread-link {
+        color: #6ea8fe;
+    }
+
+    html.dark .similar-thread-meta {
+        color: #999;
+    }
+
+    @media (max-width: 768px) {
+        .similar-threads {
+            margin-top: 20px;
+            padding: 15px;
+        }
     }
 </style>
 {% endblock %}

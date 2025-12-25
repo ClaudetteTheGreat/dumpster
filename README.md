@@ -155,6 +155,10 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Optional poll closing date
   - Real-time vote count display with percentage bars
   - Full dark mode support
+- **Similar Threads** - Discover related content based on shared tags
+  - Displays up to 5 similar threads at the bottom of thread view
+  - Ranked by number of matching tags, then recency
+  - Shows post count and number of tags in common
 - **Post Reactions** - React to posts with emoji reactions (like, thanks, funny, informative, agree, disagree)
   - Toggle reactions on/off with single click
   - Real-time reaction count updates
