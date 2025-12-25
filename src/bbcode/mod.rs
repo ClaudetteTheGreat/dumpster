@@ -712,4 +712,51 @@ mod tests {
         let invalid_scheme = parse("[video]ftp://example.com/video.mp4[/video]");
         assert!(invalid_scheme.contains("[video]"));
     }
+
+    #[test]
+    fn tables() {
+        use super::parse;
+
+        // Basic table structure
+        let basic_table = parse("[table][tr][td]Cell 1[/td][td]Cell 2[/td][/tr][/table]");
+        assert!(basic_table.contains("<table class=\"bbcode-table\">"));
+        assert!(basic_table.contains("<tr>"));
+        assert!(basic_table.contains("<td>Cell 1</td>"));
+        assert!(basic_table.contains("<td>Cell 2</td>"));
+        assert!(basic_table.contains("</tr>"));
+        assert!(basic_table.contains("</table>"));
+
+        // Table with header cells
+        let table_headers = parse("[table][tr][th]Header 1[/th][th]Header 2[/th][/tr][tr][td]Data 1[/td][td]Data 2[/td][/tr][/table]");
+        assert!(table_headers.contains("<th>Header 1</th>"));
+        assert!(table_headers.contains("<th>Header 2</th>"));
+        assert!(table_headers.contains("<td>Data 1</td>"));
+        assert!(table_headers.contains("<td>Data 2</td>"));
+
+        // Multi-row table
+        let multi_row = parse("[table][tr][td]R1C1[/td][/tr][tr][td]R2C1[/td][/tr][/table]");
+        assert!(multi_row.contains("<td>R1C1</td>"));
+        assert!(multi_row.contains("<td>R2C1</td>"));
+
+        // Table with formatting inside cells
+        let formatted_table = parse("[table][tr][td][b]Bold text[/b][/td][/tr][/table]");
+        assert!(formatted_table.contains("<td><b>Bold text</b></td>"));
+
+        // Invalid: [tr] outside of [table] should be broken
+        let invalid_tr = parse("[tr][td]No table[/td][/tr]");
+        assert!(invalid_tr.contains("[tr]"));
+
+        // Invalid: [td] outside of [tr] should be broken
+        let invalid_td = parse("[table][td]No row[/td][/table]");
+        assert!(invalid_td.contains("[td]"));
+
+        // Invalid: [th] outside of [tr] should be broken
+        let invalid_th = parse("[th]No row[/th]");
+        assert!(invalid_th.contains("[th]"));
+
+        // Auto-close previous cell when opening new cell
+        let auto_close = parse("[table][tr][td]Cell 1[td]Cell 2[/td][/tr][/table]");
+        assert!(auto_close.contains("<td>Cell 1</td>"));
+        assert!(auto_close.contains("<td>Cell 2</td>"));
+    }
 }

@@ -651,5 +651,25 @@ html.dark {
         .audio-embed {
             filter: invert(1) hue-rotate(180deg);
         }
+
+        // BBCode Tables
+        .bbcode-table {
+            tr {
+                border-color: #444;
+            }
+
+            th, td {
+                border-color: #444;
+            }
+
+            th {
+                background-color: #3a3a3a;
+                color: #e0e0e0;
+            }
+
+            tr:hover {
+                background-color: #333;
+            }
+        }
     }
 }

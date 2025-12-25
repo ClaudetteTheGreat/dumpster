@@ -205,6 +205,19 @@ impl<'str> Parser<'str> {
             self.close_open_tag(false);
         }
 
+        // Special case: if we're opening a table cell/header while already inside one,
+        // we need to close the previous one first
+        if (el.is_tag("td") || el.is_tag("th")) &&
+           (self.node.borrow().is_tag("td") || self.node.borrow().is_tag("th")) {
+            self.close_open_tag(false);
+        }
+
+        // Special case: if we're opening a table row while already inside one,
+        // we need to close the previous row first
+        if el.is_tag("tr") && self.node.borrow().is_tag("tr") {
+            self.close_open_tag(false);
+        }
+
         // Special case: ListItems should only be valid inside a List tag
         // If we're opening a ListItem and the parent is not a valid List, mark it as broken
         if el.is_tag("*") {
@@ -232,6 +245,42 @@ impl<'str> Parser<'str> {
             }
 
             if !is_inside_valid_list {
+                el.set_broken();
+            }
+        }
+
+        // Special case: Table rows should only be valid inside a Table
+        if el.is_tag("tr") {
+            let mut is_inside_table = false;
+            let mut cursor = Some(self.node.clone());
+
+            while let Some(node) = cursor {
+                if node.borrow().is_tag("table") {
+                    is_inside_table = true;
+                    break;
+                }
+                cursor = node.parent();
+            }
+
+            if !is_inside_table {
+                el.set_broken();
+            }
+        }
+
+        // Special case: Table cells/headers should only be valid inside a Table Row
+        if el.is_tag("td") || el.is_tag("th") {
+            let mut is_inside_row = false;
+            let mut cursor = Some(self.node.clone());
+
+            while let Some(node) = cursor {
+                if node.borrow().is_tag("tr") {
+                    is_inside_row = true;
+                    break;
+                }
+                cursor = node.parent();
+            }
+
+            if !is_inside_row {
                 el.set_broken();
             }
         }

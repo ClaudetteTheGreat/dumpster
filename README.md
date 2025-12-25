@@ -185,6 +185,10 @@ PROJECT_NAME is a traditional web forum built in Rust.
     - `[youtube]videoId[/youtube]` shorthand for YouTube videos
   - **Audio Embeds**: `[audio]` for audio files (.mp3, .ogg, .wav, .flac, .m4a)
   - **Media Auto-Detect**: `[media]` automatically detects and embeds YouTube, Vimeo, video, or audio based on URL
+  - **Tables**: `[table][tr][td]...[/td][/tr][/table]` with header support `[th]`
+    - Auto-closing cells when opening new ones
+    - Validation ensures proper nesting (cells inside rows, rows inside tables)
+    - Responsive styling with dark mode support
   - **Security**: HTML entity sanitization, XSS prevention at tokenizer level, dimension validation (max 2000px)
   - **BBCode Toolbar**: Visual editor toolbar for post formatting
     - One-click buttons for bold, italic, underline, strikethrough

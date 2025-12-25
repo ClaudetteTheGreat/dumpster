@@ -118,6 +118,11 @@ impl Constructor {
                     Tag::List => Tag::open_list_tag(el),
                     Tag::ListItem => Tag::open_list_item_tag(),
 
+                    Tag::Table => String::from("<table class=\"bbcode-table\">"),
+                    Tag::TableRow => Tag::open_simple_tag("tr"),
+                    Tag::TableHeader => Tag::open_simple_tag("th"),
+                    Tag::TableCell => Tag::open_simple_tag("td"),
+
                     Tag::Image => Tag::open_img_tag(el),
                     Tag::Link => Tag::open_url_tag(el),
 
@@ -181,6 +186,11 @@ impl Constructor {
 
                     Tag::List => Tag::close_list_tag(el),
                     Tag::ListItem => Tag::close_list_item_tag(),
+
+                    Tag::Table => Tag::close_simple_tag("table"),
+                    Tag::TableRow => Tag::close_simple_tag("tr"),
+                    Tag::TableHeader => Tag::close_simple_tag("th"),
+                    Tag::TableCell => Tag::close_simple_tag("td"),
 
                     Tag::Link => Tag::close_simple_tag("a"),
 

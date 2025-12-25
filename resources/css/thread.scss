@@ -288,6 +288,44 @@
         margin: 1em 0;
         border-radius: 4px;
     }
+
+    // BBCode Tables
+    .bbcode-table {
+        border-collapse: collapse;
+        margin: 1em 0;
+        width: auto;
+        max-width: 100%;
+        overflow-x: auto;
+        display: block;
+
+        tr {
+            border-bottom: 1px solid #ddd;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #fafafa;
+        }
+
+        // Responsive table
+        @media (max-width: 600px) {
+            th, td {
+                padding: 6px 8px;
+                font-size: 0.9em;
+            }
+        }
+    }
 }
 
 .message-signature {

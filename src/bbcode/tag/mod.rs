@@ -42,6 +42,12 @@ pub enum Tag {
     List,
     ListItem,
 
+    // Table Tags
+    Table,
+    TableRow,
+    TableHeader,
+    TableCell,
+
     // Embed Tags
     Image,
     Link,
@@ -80,6 +86,10 @@ impl Tag {
             "audio" => Tag::Audio,
             "youtube" => Tag::YouTube,
             "media" => Tag::Media,
+            "table" => Tag::Table,
+            "tr" => Tag::TableRow,
+            "th" => Tag::TableHeader,
+            "td" => Tag::TableCell,
             _ => Tag::Invalid,
         }
     }
