@@ -4,7 +4,9 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::posts::Entity as Post;
 use crate::orm::threads::Entity as Thread;
-use crate::orm::{poll_options, poll_votes, polls, posts, threads, ugc_deletions};
+use crate::orm::{
+    poll_options, poll_votes, polls, posts, tags, thread_tags, threads, ugc_deletions,
+};
 use crate::template::{Paginator, PaginatorToHtml};
 use crate::user::Profile as UserProfile;
 use actix_multipart::Multipart;
@@ -25,6 +27,15 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
 pub struct Breadcrumb {
     pub title: String,
     pub url: Option<String>,
+}
+
+/// Tag for template display
+#[derive(Debug, Clone)]
+pub struct TagForTemplate {
+    pub id: i32,
+    pub name: String,
+    pub slug: String,
+    pub color: String,
 }
 
 #[derive(Debug, FromQueryResult)]
@@ -52,6 +63,9 @@ pub struct NewThreadFormData {
     pub subtitle: Option<String>,
     pub content: String,
     pub csrf_token: String,
+    // Tags (comma-separated or multiple inputs)
+    #[serde(default)]
+    pub tags: Vec<String>,
     // Poll fields (all optional - only create poll if question is provided)
     pub poll_question: Option<String>,
     #[serde(default)]
@@ -118,6 +132,7 @@ pub struct ThreadTemplate<'a> {
     pub email_on_reply: bool,
     pub breadcrumbs: Vec<Breadcrumb>,
     pub poll: Option<PollForTemplate>,
+    pub tags: Vec<TagForTemplate>,
 }
 
 mod filters {
@@ -237,6 +252,109 @@ pub async fn get_poll_for_thread(
     }))
 }
 
+/// Fetches tags for a thread.
+pub async fn get_tags_for_thread(thread_id: i32) -> Result<Vec<TagForTemplate>, sea_orm::DbErr> {
+    use sea_orm::EntityTrait;
+
+    let db = get_db_pool();
+
+    // Find all tag IDs for this thread
+    let thread_tag_records = thread_tags::Entity::find()
+        .filter(thread_tags::Column::ThreadId.eq(thread_id))
+        .all(db)
+        .await?;
+
+    if thread_tag_records.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let tag_ids: Vec<i32> = thread_tag_records.iter().map(|tt| tt.tag_id).collect();
+
+    // Fetch the actual tags
+    let tag_records = tags::Entity::find()
+        .filter(tags::Column::Id.is_in(tag_ids))
+        .all(db)
+        .await?;
+
+    Ok(tag_records
+        .into_iter()
+        .map(|t| TagForTemplate {
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            color: t.color.unwrap_or_else(|| "#6c757d".to_string()),
+        })
+        .collect())
+}
+
+/// Fetches tags for multiple threads at once (for listings).
+pub async fn get_tags_for_threads(
+    thread_ids: &[i32],
+) -> Result<std::collections::HashMap<i32, Vec<TagForTemplate>>, sea_orm::DbErr> {
+    use sea_orm::EntityTrait;
+
+    if thread_ids.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let db = get_db_pool();
+
+    // Find all thread-tag associations for these threads
+    let thread_tag_records = thread_tags::Entity::find()
+        .filter(thread_tags::Column::ThreadId.is_in(thread_ids.to_vec()))
+        .all(db)
+        .await?;
+
+    if thread_tag_records.is_empty() {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    // Get unique tag IDs
+    let tag_ids: Vec<i32> = thread_tag_records
+        .iter()
+        .map(|tt| tt.tag_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    // Fetch all tags
+    let tag_records = tags::Entity::find()
+        .filter(tags::Column::Id.is_in(tag_ids))
+        .all(db)
+        .await?;
+
+    // Create a map of tag_id -> TagForTemplate
+    let tags_by_id: std::collections::HashMap<i32, TagForTemplate> = tag_records
+        .into_iter()
+        .map(|t| {
+            (
+                t.id,
+                TagForTemplate {
+                    id: t.id,
+                    name: t.name,
+                    slug: t.slug,
+                    color: t.color.unwrap_or_else(|| "#6c757d".to_string()),
+                },
+            )
+        })
+        .collect();
+
+    // Build the result map: thread_id -> Vec<TagForTemplate>
+    let mut result: std::collections::HashMap<i32, Vec<TagForTemplate>> =
+        std::collections::HashMap::new();
+
+    for tt in thread_tag_records {
+        if let Some(tag) = tags_by_id.get(&tt.tag_id) {
+            result
+                .entry(tt.thread_id)
+                .or_insert_with(Vec::new)
+                .push(tag.clone());
+        }
+    }
+
+    Ok(result)
+}
+
 /// Returns a Responder for a thread at a specific page.
 async fn get_thread_and_replies_for_page(
     client: ClientCtx,
@@ -331,6 +449,11 @@ async fn get_thread_and_replies_for_page(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Fetch tags for this thread
+    let tags = get_tags_for_thread(thread_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
     Ok(ThreadTemplate {
         client,
         forum,
@@ -342,6 +465,7 @@ async fn get_thread_and_replies_for_page(
         email_on_reply,
         breadcrumbs,
         poll,
+        tags,
     }
     .to_response())
 }
@@ -682,6 +806,18 @@ pub fn validate_thread_form(
         )));
     }
 
+    // Validate and normalize tags
+    let tags: Vec<String> = form
+        .tags
+        .iter()
+        .flat_map(|t| t.split(','))
+        .map(|t| t.trim().to_lowercase())
+        .filter(|t| !t.is_empty() && t.len() <= 50)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .take(10) // Max 10 tags per thread
+        .collect();
+
     // Validate poll if question is provided
     let validated_poll = if let Some(ref question) = form.poll_question {
         let question = question.trim();
@@ -761,6 +897,7 @@ pub fn validate_thread_form(
             subtitle,
             content: form.content.to_owned(),
             csrf_token: form.csrf_token.to_owned(),
+            tags,
             poll_question: form.poll_question.clone(),
             poll_options: form.poll_options.clone(),
             poll_max_choices: form.poll_max_choices,

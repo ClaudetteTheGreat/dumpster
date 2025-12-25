@@ -22,43 +22,50 @@
 
 <h2>Threads</h2>
 <div class="struct-container">
-    {% for thread in threads %}
-    <div class="struct-item struct-item--thread" data-id="{{ thread.id }}">
+    {% for item in threads %}
+    <div class="struct-item struct-item--thread" data-id="{{ item.thread.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart"></div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="thread-title-with-badges">
-                {% if thread.is_pinned %}<span class="thread-badge thread-badge--pinned">📌</span>{% endif %}
-                {% if thread.is_locked %}<span class="thread-badge thread-badge--locked">🔒</span>{% endif %}
-                {% if let Some(prefix) = thread.prefix %}<span class="thread-prefix">{{ prefix }}</span>{% endif %}
-                <a href="/threads/{{ thread.id }}/">{{ thread.title }}</a>
+                {% if item.thread.is_pinned %}<span class="thread-badge thread-badge--pinned">📌</span>{% endif %}
+                {% if item.thread.is_locked %}<span class="thread-badge thread-badge--locked">🔒</span>{% endif %}
+                {% if let Some(prefix) = item.thread.prefix %}<span class="thread-prefix">{{ prefix }}</span>{% endif %}
+                <a href="/threads/{{ item.thread.id }}/">{{ item.thread.title }}</a>
             </div><br />
-            {% if let Some(subtitle) = thread.subtitle %}{{ subtitle }}<br />{% endif %}
+            {% if let Some(subtitle) = item.thread.subtitle %}{{ subtitle }}<br />{% endif %}
             <small>
-                {% match thread.username %}{% when Some with (username) %}{{ username }}{% when None %}Guest{% endmatch
+                {% match item.thread.username %}{% when Some with (username) %}{{ username }}{% when None %}Guest{% endmatch
                 %}
-                · <time datetime="{{ thread.created_at }}">{{ thread.created_at.format("%v %r") }}</time>
+                · <time datetime="{{ item.thread.created_at }}">{{ item.thread.created_at.format("%v %r") }}</time>
             </small>
+            {% if !item.tags.is_empty() %}
+            <div class="thread-listing-tags">
+                {% for tag in item.tags %}
+                <a href="/forums/{{ forum.id }}/?tag={{ tag.slug }}" class="thread-listing-tag" style="background-color: {{ tag.color }}">{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         <div class="struct-item-cell struct-item-cell--meta">
             <dl>
                 <dt>Replies:</dt>
-                <dd>{{ thread.post_count }}</dd>
+                <dd>{{ item.thread.post_count }}</dd>
             </dl>
             <dl>
                 <dt>Views:</dt>
-                <dd>{{ thread.view_count }}</dd>
+                <dd>{{ item.thread.view_count }}</dd>
             </dl>
         </div>
         <div class="struct-item-cell struct-item-cell--latest">
-            {% match thread.last_post_at %}
+            {% match item.thread.last_post_at %}
             {% when Some with (last_post_at) %}
-            {% match thread.last_post_id %}
+            {% match item.thread.last_post_id %}
             {% when Some with (last_post_id) %}
             <div class="latest-info">
                 <div class="latest-time">
                     <time datetime="{{ last_post_at }}">{{ last_post_at.format("%b %d, %Y") }}</time>
                 </div>
-                <a href="/threads/{{ thread.id }}/post-{{ last_post_id }}" class="latest-link" title="Go to latest post">
+                <a href="/threads/{{ item.thread.id }}/post-{{ last_post_id }}" class="latest-link" title="Go to latest post">
                     Latest →
                 </a>
             </div>
@@ -79,6 +86,12 @@
     <div class="bbcode-editor-container">
         {% include "components/bbcode_toolbar.html" %}
         <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
+    </div>
+
+    <div class="tags-input-container">
+        <label for="tags-input">Tags (comma-separated, max 10):</label>
+        <input type="text" id="tags-input" name="tags" placeholder="e.g., discussion, help, news" maxlength="500" />
+        <small class="tags-hint">Tags help categorize and find threads. Max 50 characters per tag.</small>
     </div>
 
     <details class="poll-section">
@@ -358,6 +371,70 @@ function addPollOption() {
 
     html.dark .poll-settings label {
         color: #ccc;
+    }
+
+    /* Tags input styles */
+    .tags-input-container {
+        margin: 15px 0;
+    }
+
+    .tags-input-container label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .tags-input-container input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    .tags-hint {
+        display: block;
+        margin-top: 5px;
+        color: #666;
+        font-size: 0.85em;
+    }
+
+    html.dark .tags-input-container label {
+        color: #ccc;
+    }
+
+    html.dark .tags-input-container input {
+        background: #333;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    html.dark .tags-hint {
+        color: #999;
+    }
+
+    /* Thread listing tags */
+    .thread-listing-tags {
+        margin-top: 5px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .thread-listing-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        font-size: 0.75em;
+        color: white;
+        text-decoration: none;
+        border-radius: 10px;
+        transition: opacity 0.2s;
+    }
+
+    .thread-listing-tag:hover {
+        opacity: 0.8;
+        text-decoration: none;
     }
 </style>
 {% endblock %}

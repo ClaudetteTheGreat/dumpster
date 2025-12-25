@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{poll_options, polls, posts, threads, user_names};
+use crate::orm::{poll_options, polls, posts, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
@@ -12,12 +12,18 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_forum);
 }
 
+/// Thread with tags for template display
+pub struct ThreadWithTags {
+    pub thread: ThreadForTemplate,
+    pub tags: Vec<super::thread::TagForTemplate>,
+}
+
 #[derive(Template)]
 #[template(path = "forum.html")]
 pub struct ForumTemplate<'a> {
     pub client: ClientCtx,
     pub forum: &'a crate::orm::forums::Model,
-    pub threads: &'a Vec<ThreadForTemplate>,
+    pub threads: &'a Vec<ThreadWithTags>,
     pub breadcrumbs: Vec<super::thread::Breadcrumb>,
 }
 
@@ -178,6 +184,61 @@ pub async fn create_thread(
         }
     }
 
+    // Step 6. Create/link tags if provided.
+    if !form.tags.is_empty() {
+        for tag_name in &form.tags {
+            // Create slug from tag name
+            let slug = tag_name
+                .chars()
+                .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
+                .collect::<String>();
+
+            if slug.is_empty() {
+                continue;
+            }
+
+            // Find or create the tag (forum-specific or global)
+            let existing_tag = tags::Entity::find()
+                .filter(tags::Column::Slug.eq(slug.clone()))
+                .filter(
+                    tags::Column::ForumId
+                        .eq(forum_id)
+                        .or(tags::Column::ForumId.is_null()),
+                )
+                .one(&txn)
+                .await
+                .map_err(error::ErrorInternalServerError)?;
+
+            let tag_id = if let Some(tag) = existing_tag {
+                tag.id
+            } else {
+                // Create new forum-specific tag
+                let new_tag = tags::ActiveModel {
+                    name: Set(tag_name.clone()),
+                    slug: Set(slug),
+                    forum_id: Set(Some(forum_id)),
+                    created_at: Set(revision.created_at),
+                    ..Default::default()
+                };
+                let tag_res = tags::Entity::insert(new_tag)
+                    .exec(&txn)
+                    .await
+                    .map_err(error::ErrorInternalServerError)?;
+                tag_res.last_insert_id
+            };
+
+            // Link tag to thread
+            let thread_tag = thread_tags::ActiveModel {
+                thread_id: Set(thread_res.last_insert_id),
+                tag_id: Set(tag_id),
+                created_at: Set(revision.created_at),
+                ..Default::default()
+            };
+            // Ignore duplicate key errors (tag already linked)
+            let _ = thread_tags::Entity::insert(thread_tag).exec(&txn).await;
+        }
+    }
+
     // Close transaction
     txn.commit()
         .await
@@ -231,10 +292,25 @@ pub async fn view_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl 
         },
     ];
 
+    // Fetch tags for all threads
+    let thread_ids: Vec<i32> = threads.iter().map(|t| t.id).collect();
+    let mut thread_tags = super::thread::get_tags_for_threads(&thread_ids)
+        .await
+        .unwrap_or_default();
+
+    // Combine threads with their tags
+    let threads_with_tags: Vec<ThreadWithTags> = threads
+        .into_iter()
+        .map(|t| {
+            let tags = thread_tags.remove(&t.id).unwrap_or_default();
+            ThreadWithTags { thread: t, tags }
+        })
+        .collect();
+
     Ok(ForumTemplate {
         client: client.to_owned(),
         forum: &forum,
-        threads: &threads,
+        threads: &threads_with_tags,
         breadcrumbs,
     }
     .to_response())

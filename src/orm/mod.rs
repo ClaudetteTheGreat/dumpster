@@ -30,6 +30,8 @@ pub mod reaction_types;
 pub mod report_reasons;
 pub mod reports;
 pub mod sessions;
+pub mod tags;
+pub mod thread_tags;
 pub mod threads;
 pub mod ugc;
 pub mod ugc_attachments;

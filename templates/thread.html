@@ -18,6 +18,13 @@
                 <span class="thread-posts-count">{{ thread.post_count }} posts</span>
                 <span class="thread-views-count">{{ thread.view_count }} views</span>
             </div>
+            {% if !tags.is_empty() %}
+            <div class="thread-tags">
+                {% for tag in tags %}
+                <a href="/forums/{{ forum.id }}/?tag={{ tag.slug }}" class="thread-tag" style="background-color: {{ tag.color }}">{{ tag.name }}</a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
         <div class="thread-actions">
             {% if thread.post_count > 1 %}
@@ -599,6 +606,29 @@
     html.dark .poll-hint,
     html.dark .poll-login-hint {
         color: #999;
+    }
+
+    /* Thread tags styles */
+    .thread-tags {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .thread-tag {
+        display: inline-block;
+        padding: 3px 10px;
+        font-size: 0.8em;
+        color: white;
+        text-decoration: none;
+        border-radius: 12px;
+        transition: opacity 0.2s;
+    }
+
+    .thread-tag:hover {
+        opacity: 0.8;
+        text-decoration: none;
     }
 </style>
 {% endblock %}
