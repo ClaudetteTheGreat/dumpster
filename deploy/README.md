@@ -231,3 +231,49 @@ Ensure the database user has sufficient privileges:
 ```sql
 GRANT ALL PRIVILEGES ON DATABASE ruforo TO ruforo;
 ```
+
+## CI/CD with GitHub Actions
+
+The repository includes GitHub Actions workflows for continuous integration and releases.
+
+### Workflows
+
+| Workflow | Trigger | Description |
+|----------|---------|-------------|
+| `ci.yml` | Push/PR to master | Format check, Clippy, Build, Test, Frontend build |
+| `release.yml` | Tag push (v*) | Build release binaries, create GitHub Release |
+
+### CI Pipeline
+
+On every push and pull request:
+1. **Format Check** - `cargo fmt --check`
+2. **Clippy** - Lint with `-D warnings`
+3. **Build** - Compile all targets
+4. **Test** - Run tests with PostgreSQL service container
+5. **Frontend** - Build JS/CSS assets with npm
+
+### Release Process
+
+To create a new release:
+```bash
+# Tag a new version
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The release workflow will:
+1. Build optimized release binaries
+2. Build frontend assets
+3. Create a tarball with binaries, templates, and migrations
+4. Publish a GitHub Release with the artifact
+
+### Downloading Releases
+
+```bash
+# Download latest release
+curl -L -o ruforo.tar.gz \
+  https://github.com/yourorg/ruforo/releases/latest/download/ruforo-linux-x86_64.tar.gz
+
+# Extract to /opt/ruforo
+sudo tar -xzf ruforo.tar.gz -C /opt/ruforo/
+```
