@@ -6,7 +6,6 @@ use std::collections::HashMap;
 /// Converts a Parser's AST into rendered HTML.
 #[derive(Default)]
 pub struct Constructor {
-    // TODO: Build string here, return in build().
     pub smilies: Smilies,
 }
 
@@ -17,16 +16,23 @@ impl Constructor {
         }
     }
 
-    pub fn build(&self, mut node: Node<Element>) -> String {
-        let mut output: String = String::new();
+    pub fn build(&self, node: Node<Element>) -> String {
+        // Pre-allocate with reasonable capacity to reduce reallocations
+        let mut output = String::with_capacity(256);
+        self.build_into(node, &mut output);
+        output
+    }
 
+    /// Internal recursive builder that appends directly to a buffer.
+    /// This avoids creating intermediate String allocations at each recursion level.
+    fn build_into(&self, mut node: Node<Element>, output: &mut String) {
         // If we have children, loop through them.
         if node.has_children() {
-            let mut contents: String = String::new();
+            let mut contents = String::new();
 
             // Are we allowed to have children?
             if node.borrow().can_parent() {
-                // Build each child node and append the string to our output.
+                // Build each child node and append the string to our contents buffer.
                 for child in node.children() {
                     // Sanity check on tag-in-tag logic.
                     let mut render = true;
@@ -50,7 +56,7 @@ impl Constructor {
                     }
 
                     if render {
-                        contents.push_str(&self.build(child))
+                        self.build_into(child, &mut contents);
                     } else {
                         contents.push_str(&Self::sanitize(child.borrow().get_raw()));
                     }
@@ -63,29 +69,29 @@ impl Constructor {
                 }
             }
 
-            let res = &self.element_contents(node.borrow_mut(), contents);
+            // Compute element_contents FIRST (it may set broken flag), then element_open
+            let contents_result = self.element_contents(node.borrow_mut(), contents);
             output.push_str(&self.element_open(node.borrow_mut()));
-            output.push_str(res);
+            output.push_str(&contents_result);
         }
         // If we do not have children, add our text.
         else {
-            let res = {
-                let el = node.borrow_mut();
-                &match el.get_contents() {
-                    Some(contents) => {
-                        self.element_contents(el, self.replace_emojis(Self::sanitize(contents)))
-                    }
-                    None => self.element_contents(el, String::new()),
+            // Get raw contents first
+            let contents = {
+                let el = node.borrow();
+                match el.get_contents() {
+                    Some(c) => self.replace_emojis(Self::sanitize(c)),
+                    None => String::new(),
                 }
             };
 
+            // Compute element_contents FIRST (it may set broken flag), then element_open
+            let contents_result = self.element_contents(node.borrow_mut(), contents);
             output.push_str(&self.element_open(node.borrow_mut()));
-            output.push_str(res);
+            output.push_str(&contents_result);
         }
 
         output.push_str(&self.element_close(node.borrow_mut()));
-
-        output
     }
 
     fn element_open(&self, el: RefMut<Element>) -> String {
