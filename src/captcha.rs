@@ -1,11 +1,18 @@
 //! CAPTCHA verification module
 //!
 //! Supports hCaptcha and Cloudflare Turnstile for bot protection.
-//! Configure via environment variables:
-//! - CAPTCHA_PROVIDER: "hcaptcha" or "turnstile" (default: disabled)
-//! - CAPTCHA_SITE_KEY: Public site key for frontend
-//! - CAPTCHA_SECRET_KEY: Secret key for verification
+//!
+//! Configuration priority (highest to lowest):
+//! 1. Environment variables (RUFORO_CAPTCHA_* or legacy CAPTCHA_*)
+//! 2. Config file (config.toml)
+//! 3. Default (disabled)
+//!
+//! Required settings:
+//! - provider: "hcaptcha" or "turnstile" (empty to disable)
+//! - site_key: Public site key for frontend
+//! - secret_key: Secret key for verification (use env var for security)
 
+use crate::app_config;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
@@ -17,11 +24,12 @@ pub enum CaptchaProvider {
     Disabled,
 }
 
-/// CAPTCHA configuration loaded from environment
+/// CAPTCHA configuration
 pub struct CaptchaConfig {
     pub provider: CaptchaProvider,
     pub site_key: String,
     pub secret_key: String,
+    pub failed_login_threshold: u32,
 }
 
 impl CaptchaConfig {
@@ -33,18 +41,37 @@ impl CaptchaConfig {
 
 /// Global CAPTCHA configuration
 pub static CAPTCHA_CONFIG: Lazy<CaptchaConfig> = Lazy::new(|| {
-    let provider = match std::env::var("CAPTCHA_PROVIDER")
-        .unwrap_or_default()
-        .to_lowercase()
-        .as_str()
-    {
+    // Load from app_config (which already merges file + env vars)
+    let config = app_config::captcha();
+
+    // Also check legacy env vars for backward compatibility
+    let provider_str = if !config.provider.is_empty() {
+        config.provider.clone()
+    } else {
+        std::env::var("CAPTCHA_PROVIDER").unwrap_or_default()
+    };
+
+    let provider = match provider_str.to_lowercase().as_str() {
         "hcaptcha" => CaptchaProvider::HCaptcha,
         "turnstile" => CaptchaProvider::Turnstile,
         _ => CaptchaProvider::Disabled,
     };
 
-    let site_key = std::env::var("CAPTCHA_SITE_KEY").unwrap_or_default();
-    let secret_key = std::env::var("CAPTCHA_SECRET_KEY").unwrap_or_default();
+    // Site key: prefer config, fall back to legacy env var
+    let site_key = if !config.site_key.is_empty() {
+        config.site_key.clone()
+    } else {
+        std::env::var("CAPTCHA_SITE_KEY").unwrap_or_default()
+    };
+
+    // Secret key: prefer config (from env var via config crate), fall back to legacy env var
+    let secret_key = if !config.secret_key.is_empty() {
+        config.secret_key.clone()
+    } else {
+        std::env::var("CAPTCHA_SECRET_KEY").unwrap_or_default()
+    };
+
+    let failed_login_threshold = config.failed_login_threshold;
 
     if provider != CaptchaProvider::Disabled && (site_key.is_empty() || secret_key.is_empty()) {
         log::warn!(
@@ -55,6 +82,7 @@ pub static CAPTCHA_CONFIG: Lazy<CaptchaConfig> = Lazy::new(|| {
             provider: CaptchaProvider::Disabled,
             site_key: String::new(),
             secret_key: String::new(),
+            failed_login_threshold,
         };
     }
 
@@ -66,6 +94,7 @@ pub static CAPTCHA_CONFIG: Lazy<CaptchaConfig> = Lazy::new(|| {
         provider,
         site_key,
         secret_key,
+        failed_login_threshold,
     }
 });
 
@@ -195,8 +224,7 @@ pub async fn verify(response_token: &str, remote_ip: Option<&str>) -> Result<(),
 ///
 /// Returns true if the user has exceeded the threshold for failed login attempts
 pub fn should_require_for_login(failed_attempts: u32) -> bool {
-    // Require CAPTCHA after 3 failed attempts
-    CAPTCHA_CONFIG.is_enabled() && failed_attempts >= 3
+    CAPTCHA_CONFIG.is_enabled() && failed_attempts >= CAPTCHA_CONFIG.failed_login_threshold
 }
 
 #[cfg(test)]

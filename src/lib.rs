@@ -2,6 +2,7 @@ extern crate dotenv;
 extern crate ffmpeg_next;
 extern crate linkify;
 
+pub mod app_config;
 pub mod attachment;
 pub mod auth_2fa;
 pub mod bbcode;

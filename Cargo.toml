@@ -23,6 +23,7 @@ async-trait = "^0.1" # dyn ChatLayer async support
 bitflags = "^1"
 blake3 = "1.3.0"
 chrono = { version = "0.4.31", default-features = false, features = ["serde", "clock"] }
+config = { version = "0.14", default-features = false, features = ["toml"] }
 dashmap = "5.3.3"
 derive_more = "^0"
 dissimilar = "^1"
@@ -75,6 +76,7 @@ actix-rt = "2.10"
 actix-test = "0.1"
 awc = "3.5"
 serial_test = "3.0"  # Force integration tests to run serially (prevents DB conflicts)
+tempfile = "3"  # For config file loading tests
 
 [profile.debugo]
 debug = true

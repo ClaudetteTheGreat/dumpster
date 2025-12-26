@@ -127,6 +127,7 @@ pub fn init_our_mods() {
     // This should be a list of simple function calls.
     // Each module should work mostly independent of others.
     // This way, we can unit test individual modules without loading the entire application.
+    ruforo::app_config::init();
     ruforo::global::init();
     ruforo::session::init();
     ruforo::filesystem::init();
