@@ -66,7 +66,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Extension ready** - Clean architecture for Redis backend
 
 ### Testing
-- **190+ integration tests** covering:
+- **195+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -111,6 +111,17 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Forum Statistics** - Thread and post counts displayed on forum index
 - **Forum Rules Display** - Optional forum-specific rules displayed at the top of each forum in a highlighted box
 - **Forum Moderators** - Display moderators assigned to each forum with profile links
+- **Sub-Forums** - Hierarchical forum structure with parent/child relationships
+  - Forums can be nested under parent forums
+  - Sub-forums displayed with visual indentation in forum index
+  - Breadcrumb navigation includes full parent chain
+  - Sub-forums section displayed within parent forum view
+- **Read Tracking** - Track read/unread status for forums and threads
+  - Unread indicators (📂 icon, blue border) for forums with new posts
+  - "Mark as Read" button to mark individual forums as read
+  - "Mark All Read" button to mark all forums as read at once
+  - Jump to first unread post via `/threads/{id}/unread`
+  - "Unread" link in thread listings for quick navigation
 - **Thread Status Badges** - Visual indicators for pinned (📌) and locked (🔒) threads
 - **Thread Metadata** - Post count and view count displayed in thread headers
 - **Latest Activity** - Timestamp and link to latest post in forum thread listings
@@ -293,6 +304,15 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Excludes the post author from receiving notifications
 - **Manage Subscriptions** - View and manage all watched threads
 
+### Real-Time Chat
+- **WebSocket Chat** - Real-time chat with XenForo compatibility layer
+- **Chat Rooms** - Multi-room support with user activity tracking
+- **Message Operations** - Send, edit, and delete chat messages
+  - Soft deletion via UGC system (preserves audit trail)
+  - Edit creates new revision (full history preserved)
+- **User Presence** - See who's online in each room
+- **Smilie Support** - Configurable emoticon replacement
+
 ### RSS Feeds
 - **Latest Threads Feed** - `/feed.rss` - RSS feed of latest threads across all forums
 - **Per-Forum Feeds** - `/forums/{id}/feed.rss` - RSS feed of threads in a specific forum
@@ -320,6 +340,47 @@ PROJECT_NAME is a traditional web forum built in Rust.
  - AV1
  - OPUS
  - VORBIS
+
+## Deployment
+
+Production deployment is supported on bare metal/VMs with systemd services.
+
+### Quick Start
+
+```bash
+# Run installation script (as root)
+sudo ./deploy/scripts/install.sh
+
+# Configure environment
+sudo nano /opt/ruforo/.env
+
+# Deploy latest release
+sudo /opt/ruforo/scripts/deploy.sh
+```
+
+### Components
+
+| Component | Description |
+|-----------|-------------|
+| `ruforo.service` | Main forum server (port 8080) |
+| `ruforo-xf-chat.service` | XenForo-compatible chat server (port 8081) |
+| `nginx` | Reverse proxy with SSL, rate limiting, WebSocket support |
+
+### Features
+
+- **Systemd Services** - Security-hardened with `NoNewPrivileges`, `ProtectSystem=strict`
+- **Nginx Configuration** - HTTPS, rate limiting zones, WebSocket upgrade for chat
+- **Deployment Scripts** - Automated install, deploy, and backup scripts
+- **GitHub Actions CI/CD** - Automated testing, linting, and release builds
+
+### Documentation
+
+See [`deploy/README.md`](deploy/README.md) for detailed deployment instructions including:
+- Installation prerequisites
+- Environment configuration
+- SSL certificate setup
+- Backup and restore procedures
+- Monitoring and troubleshooting
 
 ## Contributions
 ### Code Guidelines
