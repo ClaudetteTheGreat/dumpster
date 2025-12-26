@@ -1,7 +1,7 @@
 use super::message;
 use crate::user::Profile;
 use actix::prelude::*;
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use sea_orm::FromQueryResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -200,10 +200,10 @@ pub mod default {
     use super::super::message;
     use super::*;
     use crate::middleware::ClientCtx;
-    use crate::orm::{chat_messages, ugc_revisions};
-    use crate::ugc::{create_ugc, NewUgcPartial};
+    use crate::orm::{chat_messages, ugc_deletions, ugc_revisions};
+    use crate::ugc::{create_ugc, create_ugc_revision, NewUgcPartial};
     use crate::user::{find_also_user, Profile as UserProfile};
-    use sea_orm::{entity::*, query::*, DatabaseConnection, EntityTrait, QuerySelect};
+    use sea_orm::{entity::*, query::*, DatabaseConnection, EntityTrait, QuerySelect, Set};
 
     pub struct Layer {
         pub db: DatabaseConnection,
@@ -219,18 +219,94 @@ pub mod default {
             true
         }
 
-        async fn delete_message(&self, _: u32) {
-            // TODO
+        async fn delete_message(&self, id: u32) {
+            // Find the chat message to get its ugc_id
+            let chat_message = match chat_messages::Entity::find_by_id(id as i32)
+                .one(&self.db)
+                .await
+            {
+                Ok(Some(msg)) => msg,
+                Ok(None) => {
+                    log::warn!("Attempted to delete non-existent chat message {}", id);
+                    return;
+                }
+                Err(err) => {
+                    log::error!("Failed to find chat message {} for deletion: {:?}", id, err);
+                    return;
+                }
+            };
+
+            // Soft-delete by inserting into ugc_deletions
+            let deletion = ugc_deletions::ActiveModel {
+                id: Set(chat_message.ugc_id),
+                user_id: Set(chat_message.user_id),
+                deleted_at: Set(Utc::now().naive_utc()),
+                reason: Set(None),
+            };
+
+            if let Err(err) = deletion.insert(&self.db).await {
+                log::error!(
+                    "Failed to soft-delete chat message {} (ugc_id {}): {:?}",
+                    id,
+                    chat_message.ugc_id,
+                    err
+                );
+            }
         }
 
         async fn edit_message(
             &self,
-            _: u32,
-            _: super::Author,
-            _: String,
+            id: u32,
+            author: super::Author,
+            new_content: String,
         ) -> Option<super::Message> {
-            // TODO
-            None
+            // Find the chat message to get its ugc_id
+            let chat_message = match chat_messages::Entity::find_by_id(id as i32)
+                .one(&self.db)
+                .await
+            {
+                Ok(Some(msg)) => msg,
+                Ok(None) => {
+                    log::warn!("Attempted to edit non-existent chat message {}", id);
+                    return None;
+                }
+                Err(err) => {
+                    log::error!("Failed to find chat message {} for editing: {:?}", id, err);
+                    return None;
+                }
+            };
+
+            // Create a new revision with the updated content
+            let revision = match create_ugc_revision(
+                &self.db,
+                chat_message.ugc_id,
+                NewUgcPartial {
+                    ip_id: None,
+                    user_id: Some(author.id as i32),
+                    content: &new_content,
+                },
+            )
+            .await
+            {
+                Ok(rev) => rev,
+                Err(err) => {
+                    log::error!(
+                        "Failed to create revision for chat message {} edit: {:?}",
+                        id,
+                        err
+                    );
+                    return None;
+                }
+            };
+
+            Some(super::Message {
+                user_id: author.id,
+                room_id: chat_message.chat_room_id as u32,
+                message: revision.content,
+                message_date: chat_message.created_at.and_utc().timestamp(),
+                message_edit_date: revision.created_at.and_utc().timestamp(),
+                message_id: id,
+            })
         }
 
         async fn get_message(&self, id: u32) -> Option<super::Message> {
