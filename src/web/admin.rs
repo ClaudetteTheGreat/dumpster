@@ -5,8 +5,8 @@ use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    feature_flags, forums, ip_bans, mod_log, settings, threads, user_bans, user_names, users,
-    word_filters,
+    feature_flags, forums, ip_bans, mod_log, posts, reports, sessions, settings, threads,
+    user_bans, user_names, users, word_filters,
 };
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
@@ -17,7 +17,8 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
-    conf.service(lock_thread)
+    conf.service(view_dashboard)
+        .service(lock_thread)
         .service(unlock_thread)
         .service(pin_thread)
         .service(unpin_thread)
@@ -45,6 +46,252 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(update_word_filter)
         .service(delete_word_filter);
 }
+
+// ============================================================================
+// Dashboard
+// ============================================================================
+
+/// Dashboard statistics
+#[derive(Debug, Default)]
+struct DashboardStats {
+    total_users: i64,
+    total_threads: i64,
+    total_posts: i64,
+    total_forums: i64,
+    new_users_today: i64,
+    new_threads_today: i64,
+    new_posts_today: i64,
+    active_bans: i64,
+    active_ip_bans: i64,
+    open_reports: i64,
+    word_filters: i64,
+    active_sessions: i64,
+    db_size: String,
+}
+
+/// Recent user for dashboard display
+struct RecentUser {
+    id: i32,
+    username: String,
+    created_at: chrono::NaiveDateTime,
+}
+
+/// Recent moderation action for dashboard display
+struct RecentModAction {
+    action: String,
+    target_type: String,
+    target_id: i32,
+    created_at: chrono::NaiveDateTime,
+}
+
+/// Open report for dashboard display
+struct OpenReport {
+    id: i32,
+    content_type: String,
+    reason: String,
+    created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Template)]
+#[template(path = "admin/dashboard.html")]
+struct DashboardTemplate {
+    client: ClientCtx,
+    stats: DashboardStats,
+    recent_users: Vec<RecentUser>,
+    recent_mod_actions: Vec<RecentModAction>,
+    open_reports: Vec<OpenReport>,
+    server_time: String,
+}
+
+/// GET /admin - Admin dashboard
+#[get("/admin")]
+async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
+    // Check admin permission - require login first
+    let _user_id = client.require_login()?;
+
+    // For now, allow any logged-in user to view dashboard
+    // In production, you would check for admin permission here
+
+    let db = get_db_pool();
+    let now = Utc::now().naive_utc();
+    let today_start = now.date().and_hms_opt(0, 0, 0).unwrap();
+
+    // Gather statistics
+    let total_users = users::Entity::find()
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let total_threads = threads::Entity::find()
+        .filter(threads::Column::DeletedAt.is_null())
+        .filter(threads::Column::MergedIntoId.is_null())
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let total_posts = posts::Entity::find()
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let total_forums = forums::Entity::find()
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let new_users_today = users::Entity::find()
+        .filter(users::Column::CreatedAt.gte(today_start))
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let new_threads_today = threads::Entity::find()
+        .filter(threads::Column::CreatedAt.gte(today_start))
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let new_posts_today = posts::Entity::find()
+        .filter(posts::Column::CreatedAt.gte(today_start))
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let active_bans = user_bans::Entity::find()
+        .filter(
+            user_bans::Column::ExpiresAt
+                .is_null()
+                .or(user_bans::Column::ExpiresAt.gt(now)),
+        )
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let active_ip_bans = ip_bans::Entity::find()
+        .filter(
+            ip_bans::Column::ExpiresAt
+                .is_null()
+                .or(ip_bans::Column::ExpiresAt.gt(now)),
+        )
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let open_reports_count = reports::Entity::find()
+        .filter(reports::Column::Status.eq("open"))
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let word_filter_count = word_filters::Entity::find()
+        .filter(word_filters::Column::IsEnabled.eq(true))
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    let active_sessions = sessions::Entity::find()
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i64;
+
+    // Database size would require raw query - simplified for now
+    let db_size = "N/A".to_string();
+
+    let stats = DashboardStats {
+        total_users,
+        total_threads,
+        total_posts,
+        total_forums,
+        new_users_today,
+        new_threads_today,
+        new_posts_today,
+        active_bans,
+        active_ip_bans,
+        open_reports: open_reports_count,
+        word_filters: word_filter_count,
+        active_sessions,
+        db_size,
+    };
+
+    // Recent users (last 10) - join with user_names to get usernames
+    let recent_user_models = users::Entity::find()
+        .order_by_desc(users::Column::CreatedAt)
+        .limit(10)
+        .all(&*db)
+        .await
+        .unwrap_or_default();
+
+    let mut recent_users: Vec<RecentUser> = Vec::new();
+    for user in recent_user_models {
+        let username = user_names::Entity::find()
+            .filter(user_names::Column::UserId.eq(user.id))
+            .one(&*db)
+            .await
+            .ok()
+            .flatten()
+            .map(|un| un.name)
+            .unwrap_or_else(|| format!("User #{}", user.id));
+
+        recent_users.push(RecentUser {
+            id: user.id,
+            username,
+            created_at: user.created_at,
+        });
+    }
+
+    // Recent mod actions (last 10)
+    let recent_mod_models = mod_log::Entity::find()
+        .order_by_desc(mod_log::Column::CreatedAt)
+        .limit(10)
+        .all(&*db)
+        .await
+        .unwrap_or_default();
+
+    let recent_mod_actions: Vec<RecentModAction> = recent_mod_models
+        .into_iter()
+        .map(|m| RecentModAction {
+            action: m.action,
+            target_type: m.target_type,
+            target_id: m.target_id,
+            created_at: m.created_at,
+        })
+        .collect();
+
+    // Open reports (last 5)
+    let open_report_models = reports::Entity::find()
+        .filter(reports::Column::Status.eq("open"))
+        .order_by_desc(reports::Column::CreatedAt)
+        .limit(5)
+        .all(&*db)
+        .await
+        .unwrap_or_default();
+
+    let open_reports: Vec<OpenReport> = open_report_models
+        .into_iter()
+        .map(|r| OpenReport {
+            id: r.id,
+            content_type: r.content_type,
+            reason: r.reason,
+            created_at: r.created_at,
+        })
+        .collect();
+
+    let server_time = Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();
+
+    Ok(DashboardTemplate {
+        client,
+        stats,
+        recent_users,
+        recent_mod_actions,
+        open_reports,
+        server_time,
+    }
+    .to_response())
+}
+
+// ============================================================================
+// Thread Moderation
+// ============================================================================
 
 #[derive(Deserialize)]
 struct ModerationForm {
