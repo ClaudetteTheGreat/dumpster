@@ -62,16 +62,44 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **2FA attempts:** 5 per 5 minutes (IP)
 - **Post creation:** 10 per minute (user ID)
 - **Thread creation:** 5 per 5 minutes (user ID)
+- **Registration:** 3 per hour (IP)
 - **Background cleanup** - Automatic cleanup every 5 minutes
 - **Extension ready** - Clean architecture for Redis backend
 
+### CAPTCHA Protection
+- **Dual Provider Support** - hCaptcha and Cloudflare Turnstile
+- **Registration CAPTCHA** - Required when enabled via environment variables
+- **Login CAPTCHA** - Required after 3+ failed login attempts from same IP
+- **Environment Configuration:**
+  - `CAPTCHA_PROVIDER`: "hcaptcha" or "turnstile" (disabled if not set)
+  - `CAPTCHA_SITE_KEY`: Public key for frontend widgets
+  - `CAPTCHA_SECRET_KEY`: Secret key for backend verification
+- **Failed Login Tracking** - 1-hour window, cleared on successful login
+
+### Spam Detection
+- **Heuristic-based content analysis** with configurable threshold
+- **URL Analysis** - Flags excessive links, especially from new users
+- **Repeated Characters** - Detects "aaaaaaa" style spam
+- **ALL CAPS Detection** - Flags excessive capitalization
+- **Spam Phrases** - Checks for common spam phrases ("click here", "buy now", etc.)
+- **Emoji Spam** - Flags excessive emoji usage
+- **Integrated into** post creation and thread creation
+
+### Security Headers
+- **X-Frame-Options: DENY** - Prevents clickjacking attacks
+- **X-Content-Type-Options: nosniff** - Prevents MIME type sniffing
+- **Referrer-Policy: strict-origin-when-cross-origin** - Controls referrer info
+- **Permissions-Policy** - Restricts geolocation, microphone, camera access
+
 ### Testing
-- **195+ integration tests** covering:
+- **200+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
   - 3 CSRF protection tests
   - 7 rate limiting tests
+  - 4 CAPTCHA tests
+  - 9 spam detection tests
   - 9 notification tests
   - 7 notification preferences tests
   - 9 email verification tests
