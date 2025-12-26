@@ -1,0 +1,392 @@
+{% extends "container/public.html" %}
+
+{% block title %}Approval Queue{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Approval Queue</h1>
+        <p class="panel-subtitle">{{ pending_users.len() }} pending registrations</p>
+    </div>
+
+    <div class="panel-actions">
+        <a href="/admin" class="btn btn-secondary">Back to Dashboard</a>
+    </div>
+
+    <div class="queue-list">
+        {% if pending_users.is_empty() %}
+        <div class="empty-state">
+            <p>No pending registrations.</p>
+            <p class="empty-hint">New users will appear here when registration approval is enabled.</p>
+        </div>
+        {% else %}
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Registered</th>
+                    {% if can_manage %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in pending_users %}
+                <tr>
+                    <td>
+                        <a href="/members/{{ user.id }}" class="user-link">{{ user.username }}</a>
+                    </td>
+                    <td>
+                        {% match user.email %}
+                        {% when Some with (email) %}
+                        {{ email }}
+                        {% when None %}
+                        <span class="no-email">No email</span>
+                        {% endmatch %}
+                    </td>
+                    <td>{{ user.created_at.format("%Y-%m-%d %H:%M") }}</td>
+                    {% if can_manage %}
+                    <td class="actions-cell">
+                        <form action="/admin/users/{{ user.id }}/approve" method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                            <button type="submit" class="btn btn-approve" title="Approve user">Approve</button>
+                        </form>
+                        <button type="button" class="btn btn-reject" onclick="showRejectModal({{ user.id }}, '{{ user.username }}')" title="Reject user">Reject</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div id="reject-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Reject User</h2>
+            <button type="button" class="modal-close" onclick="hideRejectModal()">&times;</button>
+        </div>
+        <form id="reject-form" method="post">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+            <div class="modal-body">
+                <p>Rejecting user: <strong id="reject-username"></strong></p>
+                <div class="form-group">
+                    <label for="reject-reason">Reason (optional)</label>
+                    <textarea id="reject-reason" name="reason" rows="3" placeholder="Reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideRejectModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Reject User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.panel-actions {
+    margin-bottom: 20px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.empty-state p {
+    margin: 0;
+    color: #666;
+}
+
+.empty-hint {
+    margin-top: 10px !important;
+    font-size: 0.9em;
+    color: #999 !important;
+}
+
+.queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.queue-table th,
+.queue-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.queue-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.queue-table tr:last-child td {
+    border-bottom: none;
+}
+
+.queue-table tr:hover {
+    background: #f8f9fa;
+}
+
+.user-link {
+    color: #4a90d9;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.user-link:hover {
+    text-decoration: underline;
+}
+
+.no-email {
+    color: #999;
+    font-style: italic;
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+    margin-right: 5px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-approve {
+    background: #28a745;
+    color: #fff;
+}
+
+.btn-approve:hover {
+    background: #218838;
+}
+
+.btn-reject {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-reject:hover {
+    background: #c82333;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-body .form-group {
+    margin-top: 15px;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.modal-body textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .queue-table th {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+}
+
+html.dark .queue-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .queue-table th {
+    background: #333;
+}
+
+html.dark .queue-table td {
+    border-color: #444;
+}
+
+html.dark .queue-table tr:hover {
+    background: #333;
+}
+
+html.dark .modal-content {
+    background: #2a2a2a;
+}
+
+html.dark .modal-header,
+html.dark .modal-footer {
+    border-color: #444;
+}
+
+html.dark .modal-header h2,
+html.dark .modal-body label {
+    color: #fff;
+}
+
+html.dark .modal-body textarea {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+</style>
+
+<script>
+function showRejectModal(userId, username) {
+    document.getElementById('reject-form').action = '/admin/users/' + userId + '/reject';
+    document.getElementById('reject-username').textContent = username;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-modal').style.display = 'flex';
+}
+
+function hideRejectModal() {
+    document.getElementById('reject-modal').style.display = 'none';
+}
+
+// Close modal on click outside
+document.getElementById('reject-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideRejectModal();
+    }
+});
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideRejectModal();
+    }
+});
+</script>
+{% endblock %}

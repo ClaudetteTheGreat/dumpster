@@ -57,7 +57,11 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_user_warnings)
         .service(view_issue_warning_form)
         .service(issue_warning)
-        .service(delete_warning);
+        .service(delete_warning)
+        // Approval queue
+        .service(view_approval_queue)
+        .service(approve_user)
+        .service(reject_user);
 }
 
 // ============================================================================
@@ -2907,5 +2911,188 @@ async fn delete_warning(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/admin/users/{}/warnings", user_id)))
+        .finish())
+}
+
+// =============================================================================
+// Approval Queue
+// =============================================================================
+
+/// Pending user display for templates
+struct PendingUserDisplay {
+    id: i32,
+    username: String,
+    email: Option<String>,
+    created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Template)]
+#[template(path = "admin/approval_queue.html")]
+struct ApprovalQueueTemplate {
+    client: ClientCtx,
+    pending_users: Vec<PendingUserDisplay>,
+    can_manage: bool,
+}
+
+#[derive(Deserialize)]
+struct RejectForm {
+    csrf_token: String,
+    reason: Option<String>,
+}
+
+/// GET /admin/approval-queue - View pending user registrations
+#[get("/admin/approval-queue")]
+async fn view_approval_queue(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("moderate.approval.view")?;
+
+    let db = get_db_pool();
+    let can_manage = client.can("moderate.approval.manage");
+
+    // Get pending users
+    let pending = users::Entity::find()
+        .filter(users::Column::ApprovalStatus.eq(users::ApprovalStatus::Pending))
+        .order_by_asc(users::Column::CreatedAt)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch pending users: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build display list with usernames
+    let mut pending_users = Vec::new();
+    for user in pending {
+        let username = user_names::Entity::find()
+            .filter(user_names::Column::UserId.eq(user.id))
+            .one(&*db)
+            .await
+            .ok()
+            .flatten()
+            .map(|un| un.name)
+            .unwrap_or_else(|| format!("User #{}", user.id));
+
+        pending_users.push(PendingUserDisplay {
+            id: user.id,
+            username,
+            email: user.email,
+            created_at: user.created_at,
+        });
+    }
+
+    Ok(ApprovalQueueTemplate {
+        client,
+        pending_users,
+        can_manage,
+    }
+    .to_response())
+}
+
+/// POST /admin/users/{id}/approve - Approve a pending user
+#[post("/admin/users/{id}/approve")]
+async fn approve_user(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    user_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.approval.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+    let now = Utc::now().naive_utc();
+
+    // Find the user
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Check if user is pending
+    if user.approval_status != users::ApprovalStatus::Pending {
+        return Err(error::ErrorBadRequest("User is not pending approval"));
+    }
+
+    // Approve the user
+    let mut active_user: users::ActiveModel = user.into();
+    active_user.approval_status = Set(users::ApprovalStatus::Approved);
+    active_user.approved_at = Set(Some(now));
+    active_user.approved_by = Set(Some(moderator_id));
+    active_user.update(&*db).await.map_err(|e| {
+        log::error!("Failed to approve user: {}", e);
+        error::ErrorInternalServerError("Failed to approve user")
+    })?;
+
+    // Log moderation action
+    log_moderation_action(&*db, moderator_id, "approve_user", "user", user_id, None).await?;
+
+    log::info!("User {} approved by moderator {}", user_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/approval-queue"))
+        .finish())
+}
+
+/// POST /admin/users/{id}/reject - Reject a pending user
+#[post("/admin/users/{id}/reject")]
+async fn reject_user(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    user_id: web::Path<i32>,
+    form: web::Form<RejectForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.approval.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Find the user
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Check if user is pending
+    if user.approval_status != users::ApprovalStatus::Pending {
+        return Err(error::ErrorBadRequest("User is not pending approval"));
+    }
+
+    // Reject the user
+    let mut active_user: users::ActiveModel = user.into();
+    active_user.approval_status = Set(users::ApprovalStatus::Rejected);
+    active_user.rejection_reason = Set(form.reason.clone());
+    active_user.update(&*db).await.map_err(|e| {
+        log::error!("Failed to reject user: {}", e);
+        error::ErrorInternalServerError("Failed to reject user")
+    })?;
+
+    // Log moderation action
+    log_moderation_action(
+        &*db,
+        moderator_id,
+        "reject_user",
+        "user",
+        user_id,
+        form.reason.as_deref(),
+    )
+    .await?;
+
+    log::info!("User {} rejected by moderator {}", user_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/approval-queue"))
         .finish())
 }

@@ -24,6 +24,21 @@ pub struct Model {
     pub custom_title: Option<String>,
     pub warning_points: i32,
     pub last_warning_at: Option<DateTime>,
+    pub approval_status: ApprovalStatus,
+    pub approved_at: Option<DateTime>,
+    pub approved_by: Option<i32>,
+    pub rejection_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "approval_status")]
+pub enum ApprovalStatus {
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "approved")]
+    Approved,
+    #[sea_orm(string_value = "rejected")]
+    Rejected,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
