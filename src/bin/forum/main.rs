@@ -1,8 +1,9 @@
 use actix::Actor;
 use actix_session::{config::PersistentSession, storage::CookieSessionStore, SessionMiddleware};
 use actix_web::cookie::{Key, SameSite};
+use actix_web::http::header;
 use actix_web::http::StatusCode;
-use actix_web::middleware::{ErrorHandlers, Logger};
+use actix_web::middleware::{DefaultHeaders, ErrorHandlers, Logger};
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use env_logger::Env;
@@ -73,6 +74,15 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(config.clone()))
             .app_data(layer_data)
             .app_data(chat.clone())
+            // Security headers - applied to all responses
+            .wrap(
+                DefaultHeaders::new()
+                    .add((header::X_FRAME_OPTIONS, "DENY"))
+                    .add((header::X_CONTENT_TYPE_OPTIONS, "nosniff"))
+                    .add(("X-XSS-Protection", "0")) // Disable legacy XSS filter
+                    .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
+                    .add(("Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
+            )
             .wrap(
                 ErrorHandlers::new()
                     .handler(StatusCode::BAD_REQUEST, ruforo::web::error::render_400)

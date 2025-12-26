@@ -23,6 +23,7 @@ pub mod permission;
 pub mod rate_limit;
 pub mod s3;
 pub mod session;
+pub mod spam;
 pub mod template;
 pub mod ugc;
 pub mod url;

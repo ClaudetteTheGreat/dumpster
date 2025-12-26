@@ -231,6 +231,29 @@ pub async fn create_thread(
     // Run form data through validator.
     let (form, validated_poll) = validate_thread_form(form)?;
 
+    // Spam detection for thread content
+    let user_post_count = posts::Entity::find()
+        .filter(posts::Column::UserId.eq(user_id))
+        .count(get_db_pool())
+        .await
+        .unwrap_or(0) as i32;
+
+    // Check both title and content for spam
+    let title_spam = crate::spam::analyze_content(&form.title, user_post_count);
+    let content_spam = crate::spam::analyze_content(&form.content, user_post_count);
+
+    if title_spam.is_spam || content_spam.is_spam {
+        log::warn!(
+            "Spam detected in thread: user_id={}, title_score={:.2}, content_score={:.2}",
+            user_id,
+            title_spam.score,
+            content_spam.score
+        );
+        return Err(error::ErrorBadRequest(
+            "Your thread has been flagged as potential spam. Please revise your content.",
+        ));
+    }
+
     // Begin Transaction
     let txn = get_db_pool()
         .begin()

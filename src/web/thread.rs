@@ -741,6 +741,26 @@ pub async fn create_reply(
         )));
     }
 
+    // Spam detection
+    let user_post_count = posts::Entity::find()
+        .filter(posts::Column::UserId.eq(authenticated_user_id))
+        .count(get_db_pool())
+        .await
+        .unwrap_or(0) as i32;
+
+    let spam_result = crate::spam::analyze_content(&content, user_post_count);
+    if spam_result.is_spam {
+        log::warn!(
+            "Spam detected: user_id={}, score={:.2}, reasons={:?}",
+            authenticated_user_id,
+            spam_result.score,
+            spam_result.reasons
+        );
+        return Err(error::ErrorBadRequest(
+            "Your post has been flagged as potential spam. Please revise your content.",
+        ));
+    }
+
     // Begin Transaction
     let db = get_db_pool();
     let txn = db.begin().await.map_err(error::ErrorInternalServerError)?;
