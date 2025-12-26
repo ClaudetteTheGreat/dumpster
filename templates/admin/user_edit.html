@@ -1,0 +1,440 @@
+{% extends "container/public.html" %}
+
+{% block title %}Edit User - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Edit User</h1>
+        <p class="panel-subtitle">Editing <strong>{{ username }}</strong> (ID: {{ user.id }})</p>
+    </div>
+
+    {% match error %}
+    {% when Some with (msg) %}
+    <div class="alert alert-danger">{{ msg }}</div>
+    {% when None %}
+    {% endmatch %}
+
+    {% match success %}
+    {% when Some with (msg) %}
+    <div class="alert alert-success">{{ msg }}</div>
+    {% when None %}
+    {% endmatch %}
+
+    <form action="/admin/users/{{ user.id }}/edit" method="post" class="edit-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <!-- Account Info Section -->
+        <fieldset>
+            <legend>Account Information</legend>
+
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    value="{{ username }}"
+                    required
+                    maxlength="255"
+                />
+                <p class="form-help">Changing the username will create a new entry in the username history.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value="{% match user.email %}{% when Some with (email) %}{{ email }}{% when None %}{% endmatch %}"
+                    maxlength="255"
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="email_verified" {% if user.email_verified %}checked{% endif %} />
+                    Email Verified
+                </label>
+            </div>
+        </fieldset>
+
+        <!-- Profile Section -->
+        <fieldset>
+            <legend>Profile</legend>
+
+            <div class="form-group">
+                <label for="custom_title">Custom Title</label>
+                <input
+                    type="text"
+                    id="custom_title"
+                    name="custom_title"
+                    value="{% match user.custom_title %}{% when Some with (title) %}{{ title }}{% when None %}{% endmatch %}"
+                    maxlength="100"
+                    placeholder="Custom title displayed under username"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="bio">Biography</label>
+                <textarea
+                    id="bio"
+                    name="bio"
+                    rows="4"
+                    maxlength="2000"
+                    placeholder="User biography"
+                >{% match user.bio %}{% when Some with (bio) %}{{ bio }}{% when None %}{% endmatch %}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="location">Location</label>
+                <input
+                    type="text"
+                    id="location"
+                    name="location"
+                    value="{% match user.location %}{% when Some with (loc) %}{{ loc }}{% when None %}{% endmatch %}"
+                    maxlength="255"
+                    placeholder="Geographic location"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="website_url">Website URL</label>
+                <input
+                    type="url"
+                    id="website_url"
+                    name="website_url"
+                    value="{% match user.website_url %}{% when Some with (url) %}{{ url }}{% when None %}{% endmatch %}"
+                    maxlength="2048"
+                    placeholder="https://example.com"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="signature">Signature</label>
+                <textarea
+                    id="signature"
+                    name="signature"
+                    rows="3"
+                    maxlength="500"
+                    placeholder="Signature displayed below posts"
+                >{% match user.signature %}{% when Some with (sig) %}{{ sig }}{% when None %}{% endmatch %}</textarea>
+            </div>
+        </fieldset>
+
+        <!-- Groups Section -->
+        <fieldset>
+            <legend>User Groups</legend>
+
+            <div class="form-group">
+                <p class="form-help">Select the groups this user belongs to:</p>
+                <div class="checkbox-group">
+                    {% for group in groups %}
+                    <label class="checkbox-label">
+                        <input
+                            type="checkbox"
+                            name="groups"
+                            value="{{ group.id }}"
+                            {% if group.is_member %}checked{% endif %}
+                        />
+                        {{ group.label }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Password Section -->
+        <fieldset>
+            <legend>Password Reset</legend>
+
+            <div class="form-group">
+                <label for="new_password">New Password</label>
+                <input
+                    type="password"
+                    id="new_password"
+                    name="new_password"
+                    placeholder="Leave blank to keep current password"
+                    minlength="8"
+                />
+                <p class="form-help">Only fill this if you want to reset the user's password.</p>
+            </div>
+        </fieldset>
+
+        <!-- Account Status -->
+        <fieldset>
+            <legend>Account Status</legend>
+
+            <div class="status-info">
+                <dl>
+                    <dt>Account Created</dt>
+                    <dd>{{ user.created_at.format("%Y-%m-%d %H:%M:%S") }}</dd>
+
+                    <dt>Failed Login Attempts</dt>
+                    <dd>{{ user.failed_login_attempts }}</dd>
+
+                    {% match user.locked_until %}
+                    {% when Some with (locked) %}
+                    <dt>Locked Until</dt>
+                    <dd>{{ locked.format("%Y-%m-%d %H:%M:%S") }}</dd>
+                    {% when None %}
+                    {% endmatch %}
+                </dl>
+
+                {% if user.failed_login_attempts > 0 %}
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="reset_lockout" />
+                        Reset failed login attempts and unlock account
+                    </label>
+                </div>
+                {% endif %}
+            </div>
+        </fieldset>
+
+        <div class="form-actions">
+            <a href="/admin/users" class="btn btn-secondary">Cancel</a>
+            <a href="/admin/users/{{ user.id }}/notes" class="btn btn-info">Moderator Notes</a>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.edit-form {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+fieldset {
+    border: none;
+    padding: 25px;
+    margin: 0;
+    border-bottom: 1px solid #eee;
+}
+
+fieldset:last-of-type {
+    border-bottom: none;
+}
+
+legend {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="url"],
+.form-group input[type="password"],
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-help {
+    margin: 8px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.status-info dl {
+    margin: 0 0 15px 0;
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 10px;
+}
+
+.status-info dt {
+    font-weight: 500;
+    color: #666;
+}
+
+.status-info dd {
+    margin: 0;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding: 20px 25px;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.btn-info:hover {
+    background: #138496;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark legend {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .edit-form {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark fieldset {
+    border-color: #444;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-group input,
+html.dark .form-group textarea {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .form-help,
+html.dark .status-info dt {
+    color: #aaa;
+}
+
+html.dark .form-actions {
+    background: #333;
+}
+
+html.dark .alert-danger {
+    background: #5a2a2a;
+    color: #f8d7da;
+    border-color: #722c2c;
+}
+
+html.dark .alert-success {
+    background: #2a5a2a;
+    color: #d4edda;
+    border-color: #2c722c;
+}
+</style>
+{% endblock %}

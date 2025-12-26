@@ -6,7 +6,7 @@
 -- 'block' - Reject the content entirely
 -- 'flag' - Allow but flag for moderator review
 
-CREATE TABLE word_filters (
+CREATE TABLE IF NOT EXISTS word_filters (
     id SERIAL PRIMARY KEY,
     pattern VARCHAR(255) NOT NULL,
     replacement VARCHAR(255),  -- Used when action = 'replace'
@@ -21,8 +21,8 @@ CREATE TABLE word_filters (
 );
 
 -- Index for efficient lookups
-CREATE INDEX idx_word_filters_enabled ON word_filters(is_enabled) WHERE is_enabled = TRUE;
-CREATE INDEX idx_word_filters_action ON word_filters(action);
+CREATE INDEX IF NOT EXISTS idx_word_filters_enabled ON word_filters(is_enabled) WHERE is_enabled = TRUE;
+CREATE INDEX IF NOT EXISTS idx_word_filters_action ON word_filters(action);
 
 -- Add word filter permissions
 INSERT INTO permissions (id, category_id, label, sort) VALUES
@@ -34,4 +34,4 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (36, 4, 'yes'),  -- admin.word_filters.view
     (37, 4, 'yes')   -- admin.word_filters.manage
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;

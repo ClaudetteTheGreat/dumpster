@@ -5,8 +5,8 @@ use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    feature_flags, forums, ip_bans, mod_log, posts, reports, sessions, settings, threads,
-    user_bans, user_names, users, word_filters,
+    feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, posts, reports, sessions,
+    settings, threads, user_bans, user_groups, user_names, users, word_filters,
 };
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
@@ -44,7 +44,15 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(create_word_filter)
         .service(view_edit_word_filter)
         .service(update_word_filter)
-        .service(delete_word_filter);
+        .service(delete_word_filter)
+        // User management
+        .service(view_users)
+        .service(view_edit_user)
+        .service(update_user)
+        // Moderator notes
+        .service(view_user_notes)
+        .service(create_user_note)
+        .service(delete_user_note);
 }
 
 // ============================================================================
@@ -1834,5 +1842,667 @@ async fn delete_word_filter(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/word-filters"))
+        .finish())
+}
+
+// =============================================================================
+// User Management
+// =============================================================================
+
+/// User display for admin list
+#[derive(Debug)]
+struct UserDisplay {
+    id: i32,
+    username: String,
+    email: Option<String>,
+    created_at: chrono::NaiveDateTime,
+    email_verified: bool,
+    is_banned: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/users.html")]
+struct UsersTemplate {
+    client: ClientCtx,
+    users: Vec<UserDisplay>,
+    page: i32,
+    total_pages: i32,
+    search_query: String,
+}
+
+/// Group with membership status for template
+struct GroupWithMembership {
+    id: i32,
+    label: String,
+    is_member: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/user_edit.html")]
+struct UserEditTemplate {
+    client: ClientCtx,
+    user: users::Model,
+    username: String,
+    groups: Vec<GroupWithMembership>,
+    error: Option<String>,
+    success: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UserListQuery {
+    page: Option<i32>,
+    q: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct UserEditForm {
+    csrf_token: String,
+    username: String,
+    email: Option<String>,
+    email_verified: Option<String>,
+    custom_title: Option<String>,
+    bio: Option<String>,
+    location: Option<String>,
+    website_url: Option<String>,
+    signature: Option<String>,
+    #[serde(default)]
+    groups: Vec<i32>,
+    new_password: Option<String>,
+    reset_lockout: Option<String>,
+}
+
+/// GET /admin/users - List all users
+#[get("/admin/users")]
+async fn view_users(
+    client: ClientCtx,
+    query: web::Query<UserListQuery>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.user.manage")?;
+
+    let db = get_db_pool();
+    let page = query.page.unwrap_or(1).max(1);
+    let per_page = 50;
+    let offset = ((page - 1) * per_page) as u64;
+    let search_query = query.q.clone().unwrap_or_default();
+
+    // Build query
+    let mut user_query = users::Entity::find();
+
+    // If there's a search query, filter by username or email
+    if !search_query.is_empty() {
+        // We need to join with user_names for username search
+        // For simplicity, we'll search by email only in the users table
+        // and then filter by username after fetching
+        user_query = user_query.filter(
+            users::Column::Email
+                .contains(&search_query)
+        );
+    }
+
+    // Get total count for pagination
+    let total_count = user_query
+        .clone()
+        .count(&*db)
+        .await
+        .unwrap_or(0) as i32;
+
+    let total_pages = (total_count + per_page - 1) / per_page;
+
+    // Fetch users
+    let user_models = user_query
+        .order_by_desc(users::Column::CreatedAt)
+        .offset(offset)
+        .limit(per_page as u64)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch users: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get current time for ban check
+    let now = Utc::now().naive_utc();
+
+    // Build user displays with additional info
+    let mut user_displays = Vec::new();
+    for user in user_models {
+        // Get username
+        let username = user_names::Entity::find()
+            .filter(user_names::Column::UserId.eq(user.id))
+            .one(&*db)
+            .await
+            .ok()
+            .flatten()
+            .map(|un| un.name)
+            .unwrap_or_else(|| format!("User #{}", user.id));
+
+        // If searching and username doesn't match, skip
+        if !search_query.is_empty()
+            && !username.to_lowercase().contains(&search_query.to_lowercase())
+            && !user.email.as_ref().map(|e| e.to_lowercase().contains(&search_query.to_lowercase())).unwrap_or(false)
+        {
+            continue;
+        }
+
+        // Check if user is banned
+        let is_banned = user_bans::Entity::find()
+            .filter(user_bans::Column::UserId.eq(user.id))
+            .filter(
+                user_bans::Column::IsPermanent.eq(true)
+                    .or(user_bans::Column::ExpiresAt.gt(now))
+            )
+            .one(&*db)
+            .await
+            .ok()
+            .flatten()
+            .is_some();
+
+        user_displays.push(UserDisplay {
+            id: user.id,
+            username,
+            email: user.email.clone(),
+            created_at: user.created_at,
+            email_verified: user.email_verified,
+            is_banned,
+        });
+    }
+
+    Ok(UsersTemplate {
+        client,
+        users: user_displays,
+        page,
+        total_pages,
+        search_query,
+    }
+    .to_response())
+}
+
+/// GET /admin/users/{id}/edit - View user edit form
+#[get("/admin/users/{id}/edit")]
+async fn view_edit_user(
+    client: ClientCtx,
+    user_id: web::Path<i32>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.user.manage")?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Find user
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Get username
+    let username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(&*db)
+        .await
+        .ok()
+        .flatten()
+        .map(|un| un.name)
+        .unwrap_or_else(|| format!("User #{}", user_id));
+
+    // Get all groups
+    let all_groups = groups::Entity::find()
+        .order_by_asc(groups::Column::Label)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get user's current groups
+    let user_group_ids: Vec<i32> = user_groups::Entity::find()
+        .filter(user_groups::Column::UserId.eq(user_id))
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .into_iter()
+        .map(|ug| ug.group_id)
+        .collect();
+
+    // Build groups with membership status
+    let groups: Vec<GroupWithMembership> = all_groups
+        .into_iter()
+        .map(|g| GroupWithMembership {
+            id: g.id,
+            label: g.label,
+            is_member: user_group_ids.contains(&g.id),
+        })
+        .collect();
+
+    // Check for success message
+    let success = if query.contains_key("success") {
+        Some("User updated successfully".to_string())
+    } else {
+        None
+    };
+
+    Ok(UserEditTemplate {
+        client,
+        user,
+        username,
+        groups,
+        error: None,
+        success,
+    }
+    .to_response())
+}
+
+/// POST /admin/users/{id}/edit - Update user details
+#[post("/admin/users/{id}/edit")]
+async fn update_user(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    user_id: web::Path<i32>,
+    form: web::Form<UserEditForm>,
+) -> Result<impl Responder, Error> {
+    let admin_id = client.require_login()?;
+    client.require_permission("admin.user.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Find user
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Validate username
+    let new_username = form.username.trim();
+    if new_username.is_empty() {
+        return Err(error::ErrorBadRequest("Username is required"));
+    }
+    if new_username.len() > 255 {
+        return Err(error::ErrorBadRequest("Username is too long"));
+    }
+
+    // Get current username
+    let current_username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(&*db)
+        .await
+        .ok()
+        .flatten()
+        .map(|un| un.name)
+        .unwrap_or_default();
+
+    // If username changed, update the username record
+    if new_username != current_username {
+        // Check if username is already taken by another user
+        let existing = user_names::Entity::find()
+            .filter(user_names::Column::Name.eq(new_username))
+            .filter(user_names::Column::UserId.ne(user_id))
+            .one(&*db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to check username: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?;
+
+        if existing.is_some() {
+            return Err(error::ErrorBadRequest("Username is already taken"));
+        }
+
+        // Update existing username record
+        let active_username = user_names::ActiveModel {
+            user_id: Set(user_id),
+            name: Set(new_username.to_string()),
+        };
+        active_username.update(&*db).await.map_err(|e| {
+            log::error!("Failed to update username: {}", e);
+            error::ErrorInternalServerError("Failed to update username")
+        })?;
+
+        log::info!("Username changed for user {} from '{}' to '{}' by admin {}",
+            user_id, current_username, new_username, admin_id);
+    }
+
+    // Update user record
+    let mut active_user: users::ActiveModel = user.into();
+
+    // Update email
+    let email = form.email.as_ref()
+        .map(|e| e.trim())
+        .filter(|e| !e.is_empty())
+        .map(|e| e.to_string());
+    active_user.email = Set(email);
+
+    // Update email verified status
+    active_user.email_verified = Set(form.email_verified.is_some());
+
+    // Update profile fields
+    active_user.custom_title = Set(form.custom_title.as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()));
+
+    active_user.bio = Set(form.bio.as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()));
+
+    active_user.location = Set(form.location.as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()));
+
+    active_user.website_url = Set(form.website_url.as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()));
+
+    active_user.signature = Set(form.signature.as_ref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string()));
+
+    // Reset lockout if requested
+    if form.reset_lockout.is_some() {
+        active_user.failed_login_attempts = Set(0);
+        active_user.locked_until = Set(None);
+        log::info!("Account lockout reset for user {} by admin {}", user_id, admin_id);
+    }
+
+    // Update password if provided
+    if let Some(new_password) = form.new_password.as_ref() {
+        let new_password = new_password.trim();
+        if !new_password.is_empty() {
+            if new_password.len() < 8 {
+                return Err(error::ErrorBadRequest("Password must be at least 8 characters"));
+            }
+
+            // Hash the new password
+            use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+            use rand::rngs::OsRng;
+
+            let salt = SaltString::generate(&mut OsRng);
+            let argon2 = Argon2::default();
+            let password_hash = argon2
+                .hash_password(new_password.as_bytes(), &salt)
+                .map_err(|e| {
+                    log::error!("Failed to hash password: {}", e);
+                    error::ErrorInternalServerError("Failed to hash password")
+                })?
+                .to_string();
+
+            active_user.password = Set(password_hash);
+            active_user.password_cipher = Set(users::Cipher::Argon2id);
+
+            log::info!("Password reset for user {} by admin {}", user_id, admin_id);
+        }
+    }
+
+    // Save user changes
+    active_user.update(&*db).await.map_err(|e| {
+        log::error!("Failed to update user: {}", e);
+        error::ErrorInternalServerError("Failed to update user")
+    })?;
+
+    // Update user groups
+    // First, delete all existing group memberships
+    user_groups::Entity::delete_many()
+        .filter(user_groups::Column::UserId.eq(user_id))
+        .exec(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete user groups: {}", e);
+            error::ErrorInternalServerError("Failed to update groups")
+        })?;
+
+    // Then, insert new group memberships
+    for group_id in &form.groups {
+        let membership = user_groups::ActiveModel {
+            user_id: Set(user_id),
+            group_id: Set(*group_id),
+        };
+        membership.insert(&*db).await.map_err(|e| {
+            log::error!("Failed to add user to group: {}", e);
+            error::ErrorInternalServerError("Failed to update groups")
+        })?;
+    }
+
+    // Log the moderation action
+    log_moderation_action(
+        &*db,
+        admin_id,
+        "edit_user",
+        "user",
+        user_id,
+        None,
+    )
+    .await?;
+
+    log::info!("User {} updated by admin {}", user_id, admin_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/users/{}/edit?success=1", user_id)))
+        .finish())
+}
+
+// =============================================================================
+// Moderator Notes
+// =============================================================================
+
+/// Note display for templates
+struct NoteDisplay {
+    id: i32,
+    author_id: Option<i32>,
+    author_name: String,
+    content: String,
+    created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Template)]
+#[template(path = "admin/user_notes.html")]
+struct UserNotesTemplate {
+    client: ClientCtx,
+    user_id: i32,
+    username: String,
+    notes: Vec<NoteDisplay>,
+    can_manage: bool,
+}
+
+#[derive(Deserialize)]
+struct NoteForm {
+    csrf_token: String,
+    content: String,
+}
+
+/// GET /admin/users/{id}/notes - View moderator notes for a user
+#[get("/admin/users/{id}/notes")]
+async fn view_user_notes(
+    client: ClientCtx,
+    user_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("moderate.notes.view")?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Get username
+    let username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(&*db)
+        .await
+        .ok()
+        .flatten()
+        .map(|un| un.name)
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Check if user can manage notes
+    let can_manage = client.can("moderate.notes.manage");
+
+    // Get notes
+    let note_models = moderator_notes::Entity::find()
+        .filter(moderator_notes::Column::UserId.eq(user_id))
+        .order_by_desc(moderator_notes::Column::CreatedAt)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch notes: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build note displays with author names
+    let mut notes = Vec::new();
+    for note in note_models {
+        let author_name = if let Some(author_id) = note.author_id {
+            user_names::Entity::find()
+                .filter(user_names::Column::UserId.eq(author_id))
+                .one(&*db)
+                .await
+                .ok()
+                .flatten()
+                .map(|un| un.name)
+                .unwrap_or_else(|| format!("User #{}", author_id))
+        } else {
+            "Deleted User".to_string()
+        };
+
+        notes.push(NoteDisplay {
+            id: note.id,
+            author_id: note.author_id,
+            author_name,
+            content: note.content,
+            created_at: note.created_at,
+        });
+    }
+
+    Ok(UserNotesTemplate {
+        client,
+        user_id,
+        username,
+        notes,
+        can_manage,
+    }
+    .to_response())
+}
+
+/// POST /admin/users/{id}/notes - Create a new moderator note
+#[post("/admin/users/{id}/notes")]
+async fn create_user_note(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    user_id: web::Path<i32>,
+    form: web::Form<NoteForm>,
+) -> Result<impl Responder, Error> {
+    let author_id = client.require_login()?;
+    client.require_permission("moderate.notes.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Validate content
+    let content = form.content.trim();
+    if content.is_empty() {
+        return Err(error::ErrorBadRequest("Note content is required"));
+    }
+    if content.len() > 10000 {
+        return Err(error::ErrorBadRequest("Note content is too long"));
+    }
+
+    // Verify user exists
+    users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Create note
+    let now = Utc::now().naive_utc();
+    let note = moderator_notes::ActiveModel {
+        user_id: Set(user_id),
+        author_id: Set(Some(author_id)),
+        content: Set(content.to_string()),
+        created_at: Set(now),
+        updated_at: Set(now),
+        ..Default::default()
+    };
+
+    note.insert(&*db).await.map_err(|e| {
+        log::error!("Failed to create note: {}", e);
+        error::ErrorInternalServerError("Failed to create note")
+    })?;
+
+    log::info!(
+        "Moderator note added for user {} by moderator {}",
+        user_id,
+        author_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/users/{}/notes", user_id)))
+        .finish())
+}
+
+/// POST /admin/notes/{id}/delete - Delete a moderator note
+#[post("/admin/notes/{id}/delete")]
+async fn delete_user_note(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    note_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.notes.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let note_id = note_id.into_inner();
+
+    // Find the note to get user_id for redirect
+    let note = moderator_notes::Entity::find_by_id(note_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch note: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Note not found"))?;
+
+    let user_id = note.user_id;
+
+    // Delete the note
+    moderator_notes::Entity::delete_by_id(note_id)
+        .exec(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete note: {}", e);
+            error::ErrorInternalServerError("Failed to delete note")
+        })?;
+
+    log::info!(
+        "Moderator note {} deleted by moderator {}",
+        note_id,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/users/{}/notes", user_id)))
         .finish())
 }

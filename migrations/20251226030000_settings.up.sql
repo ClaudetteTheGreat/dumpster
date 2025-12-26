@@ -1,5 +1,5 @@
 -- Site settings table
-CREATE TABLE settings (
+CREATE TABLE IF NOT EXISTS settings (
     key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
     value_type VARCHAR(20) NOT NULL, -- 'string', 'int', 'bool', 'json'
@@ -10,10 +10,10 @@ CREATE TABLE settings (
     updated_by INT REFERENCES users(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_settings_category ON settings(category);
+CREATE INDEX IF NOT EXISTS idx_settings_category ON settings(category);
 
 -- Setting history (audit trail)
-CREATE TABLE setting_history (
+CREATE TABLE IF NOT EXISTS setting_history (
     id SERIAL PRIMARY KEY,
     setting_key VARCHAR(100) NOT NULL,
     old_value TEXT,
@@ -22,11 +22,11 @@ CREATE TABLE setting_history (
     changed_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_setting_history_key ON setting_history(setting_key);
-CREATE INDEX idx_setting_history_changed ON setting_history(changed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_setting_history_key ON setting_history(setting_key);
+CREATE INDEX IF NOT EXISTS idx_setting_history_changed ON setting_history(changed_at DESC);
 
 -- Feature flags
-CREATE TABLE feature_flags (
+CREATE TABLE IF NOT EXISTS feature_flags (
     key VARCHAR(100) PRIMARY KEY,
     enabled BOOLEAN NOT NULL DEFAULT FALSE,
     description TEXT,
@@ -62,11 +62,13 @@ INSERT INTO settings (key, value, value_type, description, category, is_public) 
 ('chat_enabled', 'true', 'bool', 'Enable real-time chat feature', 'features', TRUE),
 ('reactions_enabled', 'true', 'bool', 'Enable post reactions', 'features', TRUE),
 ('polls_enabled', 'true', 'bool', 'Enable thread polls', 'features', TRUE),
-('signatures_enabled', 'true', 'bool', 'Show user signatures in posts', 'features', TRUE);
+('signatures_enabled', 'true', 'bool', 'Show user signatures in posts', 'features', TRUE)
+ON CONFLICT (key) DO NOTHING;
 
 -- Default feature flags
 INSERT INTO feature_flags (key, enabled, description) VALUES
 ('dark_mode', TRUE, 'Enable dark mode theme option'),
 ('keyboard_shortcuts', TRUE, 'Enable keyboard navigation shortcuts'),
 ('post_preview', TRUE, 'Enable post preview before submission'),
-('draft_autosave', TRUE, 'Auto-save post drafts');
+('draft_autosave', TRUE, 'Auto-save post drafts')
+ON CONFLICT (key) DO NOTHING;

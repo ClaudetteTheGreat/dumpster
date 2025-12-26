@@ -18,6 +18,7 @@ pub mod groups;
 pub mod ip;
 pub mod ip_bans;
 pub mod mod_log;
+pub mod moderator_notes;
 pub mod notification_preferences;
 pub mod notifications;
 pub mod password_reset_tokens;

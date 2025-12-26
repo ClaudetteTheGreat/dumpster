@@ -21,7 +21,7 @@ INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (27, 3, 'yes'),  -- moderate.thread.delete_any
     (28, 3, 'yes'),  -- moderate.thread.restore
     (29, 3, 'yes')   -- moderate.thread.delete_permanent
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;
 
 -- Grant all permissions to Administrators group
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
@@ -32,4 +32,4 @@ INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (29, 4, 'yes'),  -- moderate.thread.delete_permanent
     (30, 4, 'yes'),  -- admin.content.legal_hold
     (31, 4, 'yes')   -- admin.content.remove_legal_hold
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;

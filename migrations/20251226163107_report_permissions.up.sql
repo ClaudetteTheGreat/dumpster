@@ -10,10 +10,10 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (32, 3, 'yes'),  -- moderate.reports.view
     (33, 3, 'yes')   -- moderate.reports.manage
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;
 
 -- Grant report permissions to Administrators group (collection_id 4)
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (32, 4, 'yes'),  -- moderate.reports.view
     (33, 4, 'yes')   -- moderate.reports.manage
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;

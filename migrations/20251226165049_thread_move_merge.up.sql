@@ -10,13 +10,13 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (34, 3, 'yes'),  -- moderate.thread.move
     (35, 3, 'yes')   -- moderate.thread.merge
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;
 
 -- Grant move/merge permissions to Administrators group (collection_id 4)
 INSERT INTO permission_values (permission_id, collection_id, value) VALUES
     (34, 4, 'yes'),  -- moderate.thread.move
     (35, 4, 'yes')   -- moderate.thread.merge
-ON CONFLICT DO NOTHING;
+ON CONFLICT (permission_id, collection_id) DO NOTHING;
 
 -- Add merged_into_id column to track merged threads
 ALTER TABLE threads ADD COLUMN IF NOT EXISTS merged_into_id INT REFERENCES threads(id) ON DELETE SET NULL;

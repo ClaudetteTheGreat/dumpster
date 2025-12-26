@@ -8,6 +8,7 @@ pub use super::forum_permissions::Entity as ForumPermissions;
 pub use super::forums::Entity as Forums;
 pub use super::groups::Entity as Groups;
 pub use super::ip::Entity as Ip;
+pub use super::moderator_notes::Entity as ModeratorNotes;
 pub use super::permission_categories::Entity as PermissionCategories;
 pub use super::permission_collections::Entity as PermissionCollections;
 pub use super::permission_values::Entity as PermissionValues;

@@ -1,5 +1,5 @@
 -- IP bans for blocking specific IP addresses or ranges
-CREATE TABLE ip_bans (
+CREATE TABLE IF NOT EXISTS ip_bans (
     id SERIAL PRIMARY KEY,
     ip_address INET NOT NULL,
     banned_by INT REFERENCES users(id) ON DELETE SET NULL,
@@ -13,8 +13,8 @@ CREATE TABLE ip_bans (
 );
 
 -- Index for fast IP lookups
-CREATE INDEX idx_ip_bans_ip ON ip_bans USING GIST (ip_address inet_ops);
+CREATE INDEX IF NOT EXISTS idx_ip_bans_ip ON ip_bans USING GIST (ip_address inet_ops);
 -- Index for expiration checks
-CREATE INDEX idx_ip_bans_expires ON ip_bans(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_ip_bans_expires ON ip_bans(expires_at) WHERE expires_at IS NOT NULL;
 -- Index for active bans (permanent or not yet expired)
-CREATE INDEX idx_ip_bans_active ON ip_bans(is_permanent) WHERE is_permanent = TRUE;
+CREATE INDEX IF NOT EXISTS idx_ip_bans_active ON ip_bans(is_permanent) WHERE is_permanent = TRUE;
