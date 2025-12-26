@@ -108,7 +108,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Permissions-Policy** - Restricts geolocation, microphone, camera access
 
 ### Testing
-- **230+ tests** covering:
+- **255+ tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -183,9 +183,43 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Recalculates post counts and first/last post references
   - Source thread marked as merged with link to target
   - Merged threads hidden from forum listings
+- **Mass Moderation Actions** - Bulk operations on users
+  - Checkbox selection with "Select All" in user management
+  - Actions: Ban, Unban, Verify Email, Approve, Delete
+  - Configurable ban duration for mass bans
+  - Confirmation dialogs before executing
+- **User Warning System** - Progressive discipline with point-based warnings
+  - Configurable warning points (1-10 per warning)
+  - Warning expiration options (30-365 days or permanent)
+  - Auto-ban when warning threshold reached (configurable)
+  - View complete warning history per user
+- **User Approval Queue** - Manual approval for new registrations
+  - View pending users at `/admin/approval-queue`
+  - Approve or reject with optional reason
+  - Configurable via `require_user_approval` setting
+- **Moderator Notes** - Private notes visible only to staff
+  - Notes attached to user profiles
+  - Add, view, and delete notes
 - **Permission-Based Display** - Moderation tools only visible to users with appropriate permissions
 - **Moderation Logging** - All moderation actions logged with reason in `mod_log` table
 - **CSRF-Protected Actions** - All moderation operations protected against CSRF attacks
+
+### Permission Groups
+- **Custom Permission Groups** - Create and manage user groups at `/admin/groups`
+  - Create custom groups with specific permissions
+  - Edit group names and permissions
+  - Delete custom groups (system groups protected)
+  - View member count for each group
+- **System Groups** - Built-in groups that cannot be deleted
+  - Guests - Read-only access for unauthenticated users
+  - Registered Users - Basic permissions for logged-in users
+  - Moderators - Content moderation permissions
+  - Administrators - Full system access
+- **Permission Values** - Granular permission control
+  - Yes - Grant the permission
+  - No - Deny the permission
+  - Never - Permanent deny (cannot be overridden by other groups)
+  - Default - Inherit from other groups
 
 ### User Information Display
 - **Thread Starter Badge** - "OP" badge displayed next to original poster's name
