@@ -1,0 +1,247 @@
+{% extends "container/public.html" %}
+
+{% block title %}Feature Flags - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Feature Flags</h1>
+        <p class="panel-subtitle">Enable or disable features</p>
+        <div class="admin-nav">
+            <a href="/admin/settings" class="btn btn-secondary">Settings</a>
+            <a href="/admin/feature-flags" class="btn btn-primary active">Feature Flags</a>
+        </div>
+    </div>
+
+    {% if flags.is_empty() %}
+    <div class="empty-state">
+        <p>No feature flags configured.</p>
+    </div>
+    {% else %}
+    <div class="flags-list">
+        {% for flag in flags %}
+        <div class="flag-item">
+            <div class="flag-info">
+                <h3 class="flag-key">{{ flag.key }}</h3>
+                {% match flag.description %}
+                {% when Some with (desc) %}
+                <p class="flag-description">{{ desc }}</p>
+                {% when None %}
+                {% endmatch %}
+                {% if flag.rollout_percentage < 100 %}
+                <span class="badge badge-warning">{{ flag.rollout_percentage }}% rollout</span>
+                {% endif %}
+            </div>
+
+            <form action="/admin/feature-flags" method="post" class="flag-toggle">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                <input type="hidden" name="key" value="{{ flag.key }}" />
+
+                <label class="toggle-switch">
+                    <input type="checkbox" name="enabled" value="1"
+                           {% if flag.enabled %}checked{% endif %}
+                           onchange="this.form.submit()" />
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">{% if flag.enabled %}Enabled{% else %}Disabled{% endif %}</span>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.admin-panel {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0 0 15px 0;
+    color: #666;
+}
+
+.admin-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.flags-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.flag-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.flag-info {
+    flex: 1;
+}
+
+.flag-key {
+    margin: 0;
+    font-size: 1.1em;
+    color: #333;
+    font-family: monospace;
+}
+
+.flag-description {
+    margin: 5px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.flag-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toggle-label {
+    font-size: 0.9em;
+    color: #666;
+    min-width: 70px;
+}
+
+/* Toggle switch styling */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.3s;
+    border-radius: 26px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #28a745;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 500;
+    margin-top: 8px;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #4a90d9;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #3a7bc8;
+}
+
+.btn-primary.active {
+    background: #2d6cb5;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .flag-key {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .flag-description,
+html.dark .toggle-label {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .flag-item {
+    background: #2a2a2a;
+    border-color: #444;
+}
+</style>
+{% endblock %}

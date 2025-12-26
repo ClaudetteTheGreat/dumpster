@@ -7,6 +7,7 @@ use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use env_logger::Env;
 use rand::{distributions::Alphanumeric, Rng};
+use ruforo::config::create_config;
 use ruforo::db::{get_db_pool, init_db};
 use ruforo::middleware::ClientCtx;
 use std::sync::Arc;
@@ -17,6 +18,13 @@ async fn main() -> std::io::Result<()> {
     init_lib_mods();
     init_our_mods();
     init_db(std::env::var("DATABASE_URL").expect("DATABASE_URL must be set.")).await;
+
+    // Load configuration from database
+    let config = create_config();
+    config
+        .load_from_database(&get_db_pool())
+        .await
+        .expect("Failed to load configuration from database");
 
     let permissions = ruforo::permission::new()
         .await
@@ -62,6 +70,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(Data::new(get_db_pool()))
             .app_data(Data::new(permissions.clone()))
+            .app_data(Data::new(config.clone()))
             .app_data(layer_data)
             .app_data(chat.clone())
             .wrap(

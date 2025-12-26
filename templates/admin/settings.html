@@ -1,0 +1,279 @@
+{% extends "container/public.html" %}
+
+{% block title %}Site Settings - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Site Settings</h1>
+        <p class="panel-subtitle">Manage site configuration</p>
+        <div class="admin-nav">
+            <a href="/admin/settings" class="btn btn-primary active">Settings</a>
+            <a href="/admin/feature-flags" class="btn btn-secondary">Feature Flags</a>
+        </div>
+    </div>
+
+    {% if categories.is_empty() %}
+    <div class="empty-state">
+        <p>No settings configured.</p>
+    </div>
+    {% else %}
+    {% for (category, settings) in categories %}
+    <div class="settings-category">
+        <h2 class="category-title">{{ category }}</h2>
+        <div class="settings-list">
+            {% for setting in settings %}
+            <form action="/admin/settings" method="post" class="setting-item">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                <input type="hidden" name="key" value="{{ setting.key }}" />
+
+                <div class="setting-info">
+                    <label class="setting-key" for="setting-{{ setting.key }}">{{ setting.key }}</label>
+                    {% match setting.description %}
+                    {% when Some with (desc) %}
+                    <p class="setting-description">{{ desc }}</p>
+                    {% when None %}
+                    {% endmatch %}
+                </div>
+
+                <div class="setting-control">
+                    {% if setting.value_type == "bool" %}
+                    <select name="value" id="setting-{{ setting.key }}" class="form-select">
+                        <option value="true" {% if setting.value == "true" %}selected{% endif %}>Enabled</option>
+                        <option value="false" {% if setting.value == "false" %}selected{% endif %}>Disabled</option>
+                    </select>
+                    {% else if setting.value_type == "int" %}
+                    <input type="number" name="value" id="setting-{{ setting.key }}"
+                           value="{{ setting.value }}" class="form-input" />
+                    {% else %}
+                    <input type="text" name="value" id="setting-{{ setting.key }}"
+                           value="{{ setting.value }}" class="form-input" />
+                    {% endif %}
+                    <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                </div>
+
+                <div class="setting-meta">
+                    <span class="setting-type badge badge-info">{{ setting.value_type }}</span>
+                    {% if setting.is_public %}
+                    <span class="badge badge-success">Public</span>
+                    {% endif %}
+                </div>
+            </form>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+
+<style>
+.admin-panel {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0 0 15px 0;
+    color: #666;
+}
+
+.admin-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.settings-category {
+    margin-bottom: 30px;
+}
+
+.category-title {
+    font-size: 1.25em;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 15px;
+    text-transform: capitalize;
+}
+
+.settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.setting-item {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 15px;
+    align-items: center;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.setting-info {
+    min-width: 0;
+}
+
+.setting-key {
+    font-weight: 600;
+    color: #333;
+    font-family: monospace;
+    font-size: 0.95em;
+}
+
+.setting-description {
+    margin: 5px 0 0 0;
+    font-size: 0.85em;
+    color: #666;
+}
+
+.setting-control {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.form-input, .form-select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    min-width: 150px;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: #4a90d9;
+    box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+}
+
+.setting-meta {
+    display: flex;
+    gap: 5px;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.badge-success {
+    background: #28a745;
+    color: #fff;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85em;
+}
+
+.btn-primary {
+    background: #4a90d9;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #3a7bc8;
+}
+
+.btn-primary.active {
+    background: #2d6cb5;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .admin-panel h2,
+html.dark .setting-key {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .setting-description {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .category-title {
+    color: #fff;
+    border-color: #444;
+}
+
+html.dark .setting-item {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-input,
+html.dark .form-select {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+@media (max-width: 768px) {
+    .setting-item {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .setting-control {
+        flex-wrap: wrap;
+    }
+
+    .form-input, .form-select {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

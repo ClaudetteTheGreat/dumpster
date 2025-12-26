@@ -1,15 +1,17 @@
 /// Administration and moderation tools
 ///
 /// This module provides endpoints for moderators and administrators.
+use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forums, mod_log, threads, user_bans, user_names, users};
+use crate::orm::{feature_flags, forums, mod_log, settings, threads, user_bans, user_names, users};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
 use askama_actix::TemplateToResponse;
 use chrono::{Duration, Utc};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection};
 use serde::Deserialize;
+use std::sync::Arc;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(lock_thread)
@@ -21,7 +23,12 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_bans)
         .service(view_ban_form)
         .service(create_ban)
-        .service(lift_ban);
+        .service(lift_ban)
+        // Settings management
+        .service(view_settings)
+        .service(update_setting)
+        .service(view_feature_flags)
+        .service(toggle_feature_flag);
 }
 
 #[derive(Deserialize)]
@@ -756,5 +763,163 @@ async fn lift_ban(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/bans"))
+        .finish())
+}
+
+// =============================================================================
+// Settings Management
+// =============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/settings.html")]
+struct SettingsTemplate {
+    client: ClientCtx,
+    categories: Vec<(String, Vec<settings::Model>)>,
+    success_message: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/feature_flags.html")]
+struct FeatureFlagsTemplate {
+    client: ClientCtx,
+    flags: Vec<feature_flags::Model>,
+}
+
+#[derive(Deserialize)]
+struct UpdateSettingForm {
+    csrf_token: String,
+    key: String,
+    value: String,
+}
+
+#[derive(Deserialize)]
+struct ToggleFlagForm {
+    csrf_token: String,
+    key: String,
+    enabled: Option<String>, // checkbox
+}
+
+/// GET /admin/settings - View and manage site settings
+#[get("/admin/settings")]
+async fn view_settings(
+    client: ClientCtx,
+    config: web::Data<Arc<Config>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let categories = config.get_all_by_category(db).await.map_err(|e| {
+        log::error!("Failed to fetch settings: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    Ok(SettingsTemplate {
+        client,
+        categories,
+        success_message: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/settings - Update a setting
+#[post("/admin/settings")]
+async fn update_setting(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    config: web::Data<Arc<Config>>,
+    form: web::Form<UpdateSettingForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Find the setting to get its type
+    let setting = settings::Entity::find_by_id(form.key.clone())
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to find setting: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Setting not found"))?;
+
+    // Parse value according to type
+    let value = SettingValue::parse(&form.value, &setting.value_type)
+        .ok_or_else(|| error::ErrorBadRequest("Invalid value for setting type"))?;
+
+    // Update the setting
+    config
+        .set_value(db, &form.key, value, Some(user_id))
+        .await
+        .map_err(|e| {
+            log::error!("Failed to update setting: {}", e);
+            error::ErrorInternalServerError("Failed to update setting")
+        })?;
+
+    log::info!("Setting '{}' updated by user {}", form.key, user_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/settings?updated=1"))
+        .finish())
+}
+
+/// GET /admin/feature-flags - View feature flags
+#[get("/admin/feature-flags")]
+async fn view_feature_flags(
+    client: ClientCtx,
+    config: web::Data<Arc<Config>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let flags = config.get_all_feature_flags(db).await.map_err(|e| {
+        log::error!("Failed to fetch feature flags: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    Ok(FeatureFlagsTemplate { client, flags }.to_response())
+}
+
+/// POST /admin/feature-flags - Toggle a feature flag
+#[post("/admin/feature-flags")]
+async fn toggle_feature_flag(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    config: web::Data<Arc<Config>>,
+    form: web::Form<ToggleFlagForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let enabled = form.enabled.is_some();
+
+    // Update the feature flag
+    config
+        .set_feature_flag(db, &form.key, enabled)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to toggle feature flag: {}", e);
+            error::ErrorInternalServerError("Failed to toggle feature flag")
+        })?;
+
+    log::info!(
+        "Feature flag '{}' set to {} by user {}",
+        form.key,
+        enabled,
+        user_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/feature-flags"))
         .finish())
 }
