@@ -98,6 +98,7 @@ pub enum LoginResultStatus {
     AccountLocked,
     EmailNotVerified,
     Banned(BanInfo),
+    IpBanned(BanInfo),
 }
 
 /// Information about an active ban
@@ -271,6 +272,54 @@ pub async fn login<S: AsRef<str>>(
     Ok(LoginResult::success(user_id))
 }
 
+/// Check if an IP address is banned
+///
+/// Returns Some(BanInfo) if the IP is banned, None otherwise.
+/// Supports both exact IP matches and range bans (CIDR notation).
+/// Uses raw SQL for proper PostgreSQL INET type handling and containment checking.
+pub async fn check_ip_ban(ip_address: &str) -> Result<Option<BanInfo>, sea_orm::DbErr> {
+    use chrono::Utc;
+    use sea_orm::{ConnectionTrait, Statement};
+
+    let db = get_db_pool();
+    let now = Utc::now().naive_utc();
+    let now_str = format!("{}", now.format("%Y-%m-%d %H:%M:%S"));
+
+    // Use PostgreSQL's INET type containment operator (>>=) for range matching
+    // ip_address >>= banned_ip checks if banned_ip contains ip_address
+    // This handles both exact matches and CIDR range bans
+    let sql = r#"
+        SELECT reason, expires_at, is_permanent
+        FROM ip_bans
+        WHERE ip_address >>= $1::INET
+        AND (is_permanent = true OR expires_at > $2::TIMESTAMP)
+        ORDER BY created_at DESC
+        LIMIT 1
+    "#;
+
+    let result = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            sql,
+            vec![ip_address.into(), now_str.into()],
+        ))
+        .await?;
+
+    if let Some(row) = result {
+        let reason: String = row.try_get("", "reason")?;
+        let expires_at: Option<chrono::NaiveDateTime> = row.try_get("", "expires_at")?;
+        let is_permanent: bool = row.try_get("", "is_permanent")?;
+
+        Ok(Some(BanInfo {
+            reason,
+            expires_at,
+            is_permanent,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
 #[post("/login")]
 pub async fn post_login(
     client: ClientCtx,
@@ -306,6 +355,32 @@ pub async fn post_login(
             "Too many login attempts. Please try again in {} seconds.",
             e.retry_after_seconds
         )));
+    }
+
+    // Check IP ban before proceeding with login
+    if let Some(ban_info) = check_ip_ban(&ip).await.map_err(|e| {
+        log::error!("Failed to check IP ban: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })? {
+        log::warn!("Login attempt from banned IP: {}", ip);
+        let message = if ban_info.is_permanent {
+            format!(
+                "Access denied. Your IP address has been banned. Reason: {}",
+                ban_info.reason
+            )
+        } else if let Some(expires) = ban_info.expires_at {
+            format!(
+                "Access denied. Your IP address is banned until {}. Reason: {}",
+                expires.format("%Y-%m-%d %H:%M UTC"),
+                ban_info.reason
+            )
+        } else {
+            format!(
+                "Access denied. Your IP address has been banned. Reason: {}",
+                ban_info.reason
+            )
+        };
+        return Err(error::ErrorForbidden(message));
     }
 
     // Check if CAPTCHA is required based on failed attempts
@@ -372,8 +447,8 @@ pub async fn post_login(
             log::warn!("Login attempt on locked account: {}", form.username);
             return Err(error::ErrorForbidden("Account locked due to too many failed login attempts. Please try again in 15 minutes."));
         }
-        LoginResultStatus::Banned(ban_info) => {
-            log::warn!("Login attempt on banned account: {}", form.username);
+        LoginResultStatus::Banned(ban_info) | LoginResultStatus::IpBanned(ban_info) => {
+            log::warn!("Login attempt on banned account/IP: {}", form.username);
             let message = if ban_info.is_permanent {
                 format!(
                     "Your account has been permanently banned. Reason: {}",

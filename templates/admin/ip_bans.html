@@ -1,0 +1,297 @@
+{% extends "container/public.html" %}
+
+{% block title %}IP Bans - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>IP Bans</h1>
+        <p class="panel-subtitle">Manage IP address bans</p>
+        <a href="/admin/ip-bans/new" class="btn btn-primary">Ban IP Address</a>
+    </div>
+
+    {% if bans.is_empty() %}
+    <div class="empty-state">
+        <p>No IP bans have been issued yet.</p>
+    </div>
+    {% else %}
+    <div class="bans-table-container">
+        <table class="bans-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Reason</th>
+                    <th>Banned By</th>
+                    <th>Created</th>
+                    <th>Expires</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ban in bans %}
+                <tr class="{% if ban.is_active %}ban-active{% else %}ban-expired{% endif %}">
+                    <td>
+                        <code>{{ ban.ip_address }}</code>
+                        {% if ban.is_range_ban %}
+                        <span class="badge badge-info" title="Range ban">Range</span>
+                        {% endif %}
+                    </td>
+                    <td class="reason-cell">{{ ban.reason }}</td>
+                    <td>
+                        {% match ban.banned_by_name %}
+                        {% when Some with (name) %}
+                        <a href="/members/{{ ban.banned_by_id.unwrap() }}/">{{ name }}</a>
+                        {% when None %}
+                        <span class="text-muted">System</span>
+                        {% endmatch %}
+                    </td>
+                    <td>{{ ban.created_at.format("%Y-%m-%d %H:%M") }}</td>
+                    <td>
+                        {% if ban.is_permanent %}
+                        <span class="badge badge-danger">Permanent</span>
+                        {% else %}
+                        {% match ban.expires_at %}
+                        {% when Some with (expires) %}
+                        {{ expires.format("%Y-%m-%d %H:%M") }}
+                        {% when None %}
+                        <span class="text-muted">-</span>
+                        {% endmatch %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ban.is_range_ban %}
+                        <span class="badge badge-warning">Subnet</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Single</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ban.is_active %}
+                        <span class="badge badge-danger">Active</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Expired</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if ban.is_active %}
+                        <form action="/admin/ip-bans/{{ ban.id }}/lift" method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                            <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Are you sure you want to lift this IP ban?')">
+                                Lift Ban
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+.panel-header h1 {
+    margin: 0;
+    color: #333;
+    flex-grow: 1;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+    width: 100%;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.bans-table-container {
+    overflow-x: auto;
+}
+
+.bans-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.bans-table th,
+.bans-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.bans-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.bans-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.ban-active {
+    background: #fff5f5;
+}
+
+.ban-expired {
+    opacity: 0.7;
+}
+
+.reason-cell {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+code {
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    margin-left: 5px;
+}
+
+.badge-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.badge-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .admin-panel h2 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .text-muted {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .bans-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .bans-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .bans-table td {
+    border-color: #444;
+}
+
+html.dark .bans-table tbody tr:hover {
+    background: #333;
+}
+
+html.dark .ban-active {
+    background: #3a2a2a;
+}
+
+html.dark code {
+    background: #444;
+    color: #fff;
+}
+</style>
+{% endblock %}

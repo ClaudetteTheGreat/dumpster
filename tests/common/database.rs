@@ -100,6 +100,8 @@ pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
             attachment_thumbnails,
             password_reset_tokens,
             email_verification_tokens,
+            user_bans,
+            ip_bans,
             users,
             forums,
             groups,

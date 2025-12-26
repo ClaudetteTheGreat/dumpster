@@ -4,7 +4,7 @@
 
 use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
 use chrono::Utc;
-use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};
+use sea_orm::{entity::*, ActiveValue::Set, ConnectionTrait, DatabaseConnection, DbErr};
 
 /// Test user fixture
 pub struct TestUser {
@@ -263,6 +263,115 @@ pub async fn is_user_banned(db: &DatabaseConnection, user_id: i32) -> Result<boo
         .await?;
 
     Ok(active_ban.is_some())
+}
+
+/// Create an IP ban
+/// Note: Uses raw SQL due to PostgreSQL INET type requirements
+pub async fn create_ip_ban(
+    db: &DatabaseConnection,
+    ip_address: &str,
+    ban_reason: &str,
+    is_permanent: bool,
+    minutes_until_unban: Option<i64>,
+    is_range_ban: bool,
+) -> Result<ruforo::orm::ip_bans::Model, DbErr> {
+    use ruforo::orm::ip_bans;
+    use sea_orm::Statement;
+
+    // Calculate expiration
+    let expires_at = if is_permanent {
+        None
+    } else {
+        Some(Utc::now().naive_utc() + chrono::Duration::minutes(minutes_until_unban.unwrap_or(60)))
+    };
+
+    let now = Utc::now().naive_utc();
+
+    // Build the SQL with proper casting for INET type
+    let (expires_sql, expires_param) = if let Some(exp) = expires_at {
+        (
+            "$4::TIMESTAMP",
+            format!("{}", exp.format("%Y-%m-%d %H:%M:%S")),
+        )
+    } else {
+        ("NULL", String::new())
+    };
+
+    let insert_sql = format!(
+        r#"
+        INSERT INTO ip_bans (ip_address, banned_by, reason, expires_at, is_permanent, is_range_ban, created_at)
+        VALUES ($1::INET, NULL, $2, {}, $3, $5, $6::TIMESTAMP)
+        RETURNING id, ip_address::TEXT, banned_by, reason, expires_at, created_at, is_permanent, is_range_ban
+        "#,
+        expires_sql
+    );
+
+    // Use raw query to handle INET type properly
+    let result = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            &insert_sql,
+            vec![
+                ip_address.into(),
+                ban_reason.into(),
+                is_permanent.into(),
+                expires_param.into(),
+                is_range_ban.into(),
+                format!("{}", now.format("%Y-%m-%d %H:%M:%S")).into(),
+            ],
+        ))
+        .await?
+        .ok_or_else(|| DbErr::Custom("Failed to insert IP ban".to_string()))?;
+
+    // Parse the returned row into our model
+    let id: i32 = result.try_get("", "id")?;
+    let ip_addr: String = result.try_get("", "ip_address")?;
+    let reason: String = result.try_get("", "reason")?;
+    let expires: Option<chrono::NaiveDateTime> = result.try_get("", "expires_at")?;
+    let created: chrono::NaiveDateTime = result.try_get("", "created_at")?;
+    let permanent: bool = result.try_get("", "is_permanent")?;
+    let range: bool = result.try_get("", "is_range_ban")?;
+
+    Ok(ip_bans::Model {
+        id,
+        ip_address: ip_addr,
+        banned_by: None,
+        reason,
+        expires_at: expires,
+        created_at: created,
+        is_permanent: permanent,
+        is_range_ban: range,
+    })
+}
+
+/// Check if an IP address is currently banned
+/// Uses raw SQL due to PostgreSQL INET type requirements
+pub async fn is_ip_banned(db: &DatabaseConnection, ip_address: &str) -> Result<bool, DbErr> {
+    use sea_orm::Statement;
+
+    let now = Utc::now().naive_utc();
+    let now_str = format!("{}", now.format("%Y-%m-%d %H:%M:%S"));
+
+    let sql = r#"
+        SELECT COUNT(*) as count FROM ip_bans
+        WHERE ip_address = $1::INET
+        AND (is_permanent = true OR expires_at > $2::TIMESTAMP)
+    "#;
+
+    let result = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            sql,
+            vec![ip_address.into(), now_str.into()],
+        ))
+        .await?;
+
+    if let Some(row) = result {
+        let count: i64 = row.try_get("", "count")?;
+        Ok(count > 0)
+    } else {
+        Ok(false)
+    }
 }
 
 /// Create a test forum and thread for testing

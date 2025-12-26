@@ -110,6 +110,32 @@ pub async fn create_user_post(
         )));
     }
 
+    // Check IP ban before proceeding with registration
+    if let Some(ban_info) = crate::web::login::check_ip_ban(&ip).await.map_err(|e| {
+        log::error!("Failed to check IP ban: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })? {
+        log::warn!("Registration attempt from banned IP: {}", ip);
+        let message = if ban_info.is_permanent {
+            format!(
+                "Registration denied. Your IP address has been banned. Reason: {}",
+                ban_info.reason
+            )
+        } else if let Some(expires) = ban_info.expires_at {
+            format!(
+                "Registration denied. Your IP address is banned until {}. Reason: {}",
+                expires.format("%Y-%m-%d %H:%M UTC"),
+                ban_info.reason
+            )
+        } else {
+            format!(
+                "Registration denied. Your IP address has been banned. Reason: {}",
+                ban_info.reason
+            )
+        };
+        return Err(error::ErrorForbidden(message));
+    }
+
     // Verify CAPTCHA if enabled
     if crate::captcha::is_enabled() {
         let captcha_response = form

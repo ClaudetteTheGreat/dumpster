@@ -4,7 +4,9 @@
 use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{feature_flags, forums, mod_log, settings, threads, user_bans, user_names, users};
+use crate::orm::{
+    feature_flags, forums, ip_bans, mod_log, settings, threads, user_bans, user_names, users,
+};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
 use askama_actix::TemplateToResponse;
@@ -28,7 +30,12 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_settings)
         .service(update_setting)
         .service(view_feature_flags)
-        .service(toggle_feature_flag);
+        .service(toggle_feature_flag)
+        // IP ban management
+        .service(view_ip_bans)
+        .service(view_ip_ban_form)
+        .service(create_ip_ban)
+        .service(lift_ip_ban);
 }
 
 #[derive(Deserialize)]
@@ -921,5 +928,376 @@ async fn toggle_feature_flag(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/feature-flags"))
+        .finish())
+}
+
+// =============================================================================
+// IP Ban Management
+// =============================================================================
+
+/// Information about an IP ban for display
+#[derive(Debug, Clone)]
+pub struct IpBanDisplay {
+    pub id: i32,
+    pub ip_address: String,
+    pub banned_by_id: Option<i32>,
+    pub banned_by_name: Option<String>,
+    pub reason: String,
+    pub expires_at: Option<chrono::NaiveDateTime>,
+    pub created_at: chrono::NaiveDateTime,
+    pub is_permanent: bool,
+    pub is_range_ban: bool,
+    pub is_active: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/ip_bans.html")]
+struct IpBansTemplate {
+    client: ClientCtx,
+    bans: Vec<IpBanDisplay>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/ip_ban_form.html")]
+struct IpBanFormTemplate {
+    client: ClientCtx,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct IpBanForm {
+    csrf_token: String,
+    ip_address: String,
+    reason: String,
+    duration: String, // "1h", "1d", "7d", "30d", "90d", "permanent", or "custom"
+    custom_days: Option<i32>,
+    is_range_ban: Option<String>, // checkbox
+}
+
+/// GET /admin/ip-bans - List all IP bans
+#[get("/admin/ip-bans")]
+async fn view_ip_bans(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.ip.ban")?;
+
+    let db = get_db_pool();
+
+    // Fetch all IP bans using raw SQL for proper INET type handling
+    use sea_orm::{ConnectionTrait, Statement};
+
+    let sql = r#"
+        SELECT
+            ib.id,
+            ib.ip_address::TEXT as ip_address,
+            ib.banned_by,
+            ib.reason,
+            ib.expires_at,
+            ib.created_at,
+            ib.is_permanent,
+            ib.is_range_ban,
+            un.name as banned_by_name
+        FROM ip_bans ib
+        LEFT JOIN user_names un ON un.user_id = ib.banned_by
+        ORDER BY ib.created_at DESC
+    "#;
+
+    let rows = db
+        .query_all(Statement::from_string(
+            db.get_database_backend(),
+            sql.to_string(),
+        ))
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch IP bans: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let now = Utc::now().naive_utc();
+    let mut ban_displays = Vec::new();
+
+    for row in rows {
+        let id: i32 = row.try_get("", "id").map_err(|e| {
+            log::error!("Failed to parse IP ban row: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+        let ip_address: String = row.try_get("", "ip_address").unwrap_or_default();
+        let banned_by: Option<i32> = row.try_get("", "banned_by").ok();
+        let reason: String = row.try_get("", "reason").unwrap_or_default();
+        let expires_at: Option<chrono::NaiveDateTime> = row.try_get("", "expires_at").ok();
+        let created_at: chrono::NaiveDateTime = row
+            .try_get("", "created_at")
+            .unwrap_or_else(|_| Utc::now().naive_utc());
+        let is_permanent: bool = row.try_get("", "is_permanent").unwrap_or(false);
+        let is_range_ban: bool = row.try_get("", "is_range_ban").unwrap_or(false);
+        let banned_by_name: Option<String> = row.try_get("", "banned_by_name").ok();
+
+        // Check if ban is currently active
+        let is_active = is_permanent || expires_at.map(|e| e > now).unwrap_or(false);
+
+        ban_displays.push(IpBanDisplay {
+            id,
+            ip_address,
+            banned_by_id: banned_by,
+            banned_by_name,
+            reason,
+            expires_at,
+            created_at,
+            is_permanent,
+            is_range_ban,
+            is_active,
+        });
+    }
+
+    Ok(IpBansTemplate {
+        client,
+        bans: ban_displays,
+    }
+    .to_response())
+}
+
+/// GET /admin/ip-bans/new - Show IP ban form
+#[get("/admin/ip-bans/new")]
+async fn view_ip_ban_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.ip.ban")?;
+
+    Ok(IpBanFormTemplate {
+        client,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/ip-bans - Create a new IP ban
+#[post("/admin/ip-bans")]
+async fn create_ip_ban(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<IpBanForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.ip.ban")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate IP address format
+    let ip_address = form.ip_address.trim();
+    if ip_address.is_empty() {
+        return Err(error::ErrorBadRequest("IP address is required"));
+    }
+
+    // Basic IP validation - PostgreSQL INET type will do final validation
+    // Check for valid IPv4, IPv6, or CIDR notation
+    let is_valid_ip = ip_address.parse::<std::net::IpAddr>().is_ok()
+        || ip_address
+            .split('/')
+            .next()
+            .map(|ip| ip.parse::<std::net::IpAddr>().is_ok())
+            .unwrap_or(false);
+
+    if !is_valid_ip {
+        return Err(error::ErrorBadRequest(
+            "Invalid IP address format. Use IPv4, IPv6, or CIDR notation (e.g., 192.168.1.1 or 192.168.1.0/24)",
+        ));
+    }
+
+    // Validate reason is not empty
+    if form.reason.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Ban reason is required"));
+    }
+
+    // Note: Duplicate IP check is handled by the unique constraint in the database.
+    // The error handling in the insert will return an appropriate message if duplicate.
+
+    // Calculate expiration
+    let (expires_at, is_permanent) = match form.duration.as_str() {
+        "permanent" => (None, true),
+        "1h" => (Some(Utc::now().naive_utc() + Duration::hours(1)), false),
+        "1d" => (Some(Utc::now().naive_utc() + Duration::days(1)), false),
+        "7d" => (Some(Utc::now().naive_utc() + Duration::days(7)), false),
+        "30d" => (Some(Utc::now().naive_utc() + Duration::days(30)), false),
+        "90d" => (Some(Utc::now().naive_utc() + Duration::days(90)), false),
+        "custom" => {
+            let days = form.custom_days.unwrap_or(7).clamp(1, 365);
+            (
+                Some(Utc::now().naive_utc() + Duration::days(days as i64)),
+                false,
+            )
+        }
+        _ => return Err(error::ErrorBadRequest("Invalid ban duration")),
+    };
+
+    let is_range_ban = form.is_range_ban.is_some() || ip_address.contains('/');
+    let now = Utc::now().naive_utc();
+    let now_str = format!("{}", now.format("%Y-%m-%d %H:%M:%S"));
+
+    // Create the IP ban using raw SQL for proper INET type handling
+    let (expires_sql, expires_param) = if let Some(exp) = expires_at {
+        (
+            "$5::TIMESTAMP",
+            format!("{}", exp.format("%Y-%m-%d %H:%M:%S")),
+        )
+    } else {
+        ("NULL", String::new())
+    };
+
+    let insert_sql = format!(
+        r#"
+        INSERT INTO ip_bans (ip_address, banned_by, reason, expires_at, is_permanent, is_range_ban, created_at)
+        VALUES ($1::INET, $2, $3, {}, $4, $6, $7::TIMESTAMP)
+        "#,
+        expires_sql
+    );
+
+    use sea_orm::{ConnectionTrait, Statement};
+    db.execute(Statement::from_sql_and_values(
+        db.get_database_backend(),
+        &insert_sql,
+        vec![
+            ip_address.into(),
+            moderator_id.into(),
+            form.reason.trim().into(),
+            is_permanent.into(),
+            expires_param.into(),
+            is_range_ban.into(),
+            now_str.into(),
+        ],
+    ))
+    .await
+    .map_err(|e| {
+        log::error!("Failed to create IP ban: {}", e);
+        // Check if it's a PostgreSQL INET type error
+        if e.to_string().contains("inet") || e.to_string().contains("invalid input syntax") {
+            error::ErrorBadRequest("Invalid IP address format")
+        } else if e.to_string().contains("unique") || e.to_string().contains("duplicate") {
+            error::ErrorBadRequest("This IP address is already banned")
+        } else {
+            error::ErrorInternalServerError("Failed to create IP ban")
+        }
+    })?;
+
+    // Log moderation action
+    let metadata = serde_json::json!({
+        "ip_address": ip_address,
+        "is_range_ban": is_range_ban,
+        "is_permanent": is_permanent,
+        "expires_at": expires_at,
+    });
+
+    let log_entry = mod_log::ActiveModel {
+        moderator_id: Set(Some(moderator_id)),
+        action: Set("ban_ip".to_string()),
+        target_type: Set("ip".to_string()),
+        target_id: Set(0), // No target ID for IP bans
+        reason: Set(Some(form.reason.trim().to_string())),
+        metadata: Set(Some(metadata)),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    mod_log::Entity::insert(log_entry)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to log IP ban action: {}", e);
+            error::ErrorInternalServerError("Failed to log action")
+        })?;
+
+    log::info!(
+        "IP {} banned by moderator {} (permanent: {}, range: {}, expires: {:?})",
+        ip_address,
+        moderator_id,
+        is_permanent,
+        is_range_ban,
+        expires_at
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/ip-bans"))
+        .finish())
+}
+
+/// POST /admin/ip-bans/{id}/lift - Lift an IP ban
+#[post("/admin/ip-bans/{id}/lift")]
+async fn lift_ip_ban(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    ban_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.ip.ban")?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let ban_id = ban_id.into_inner();
+
+    // Find the ban using raw SQL for proper INET type handling
+    use sea_orm::{ConnectionTrait, Statement};
+
+    let sql = "SELECT ip_address::TEXT as ip_address FROM ip_bans WHERE id = $1";
+    let row = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            sql,
+            vec![ban_id.into()],
+        ))
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch IP ban: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("IP ban not found"))?;
+
+    let ip_address: String = row.try_get("", "ip_address").map_err(|e| {
+        log::error!("Failed to parse IP ban row: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    // Delete the ban (lifting it) - delete by ID works fine
+    ip_bans::Entity::delete_by_id(ban_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to lift IP ban: {}", e);
+            error::ErrorInternalServerError("Failed to lift IP ban")
+        })?;
+
+    // Log moderation action
+    let metadata = serde_json::json!({
+        "ip_address": ip_address,
+    });
+
+    let log_entry = mod_log::ActiveModel {
+        moderator_id: Set(Some(moderator_id)),
+        action: Set("unban_ip".to_string()),
+        target_type: Set("ip".to_string()),
+        target_id: Set(ban_id),
+        reason: Set(form.reason.clone()),
+        metadata: Set(Some(metadata)),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    mod_log::Entity::insert(log_entry)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to log IP unban action: {}", e);
+            error::ErrorInternalServerError("Failed to log action")
+        })?;
+
+    log::info!(
+        "IP ban {} ({}) lifted by moderator {}",
+        ban_id,
+        ip_address,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/ip-bans"))
         .finish())
 }
