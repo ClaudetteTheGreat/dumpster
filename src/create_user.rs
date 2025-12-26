@@ -85,6 +85,9 @@ pub async fn create_user_get(client: ClientCtx) -> impl Responder {
         client,
         logged_in: true,
         username: None,
+        captcha_enabled: crate::captcha::is_enabled(),
+        captcha_provider: crate::captcha::get_provider_name().map(String::from),
+        captcha_site_key: crate::captcha::get_site_key().map(String::from),
     }
     .to_response()
 }

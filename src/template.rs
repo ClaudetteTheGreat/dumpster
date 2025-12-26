@@ -110,4 +110,10 @@ pub struct CreateUserTemplate<'a> {
     pub client: ClientCtx,
     pub logged_in: bool,
     pub username: Option<&'a str>,
+    /// Whether CAPTCHA is enabled
+    pub captcha_enabled: bool,
+    /// CAPTCHA provider name if enabled ("hcaptcha" or "turnstile")
+    pub captcha_provider: Option<String>,
+    /// CAPTCHA site key if enabled
+    pub captcha_site_key: Option<String>,
 }
