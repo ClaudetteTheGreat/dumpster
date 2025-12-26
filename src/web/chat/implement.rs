@@ -367,7 +367,7 @@ pub mod default {
                         },
                         None => super::Author {
                             id: 0,
-                            username: "Guest".to_owned(),
+                            username: crate::constants::GUEST_USERNAME.to_owned(),
                             avatar_url: String::new(),
                         },
                     },
