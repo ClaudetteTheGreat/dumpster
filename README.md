@@ -92,13 +92,14 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Permissions-Policy** - Restricts geolocation, microphone, camera access
 
 ### Testing
-- **200+ integration tests** covering:
+- **205+ integration tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
   - 3 CSRF protection tests
   - 7 rate limiting tests
   - 4 CAPTCHA tests
+  - 5 configuration loading tests
   - 9 spam detection tests
   - 9 notification tests
   - 7 notification preferences tests
@@ -346,6 +347,55 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Per-Forum Feeds** - `/forums/{id}/feed.rss` - RSS feed of threads in a specific forum
 - **Feed Discovery** - Automatic `<link rel="alternate">` tags for feed reader detection
 - **Standard RSS 2.0** - Compatible with all major feed readers
+
+## Configuration
+
+### Configuration File (`config.toml`)
+
+Ruforo supports a TOML configuration file with layered priority:
+
+1. **Environment variables** (`RUFORO_*` prefix) - highest priority
+2. **Config file** (`config.toml`) - optional, for non-secret settings
+3. **Default values** - sensible secure defaults
+
+Copy `config.toml.example` to `config.toml` and customize as needed.
+
+#### Configuration Sections
+
+| Section | Description |
+|---------|-------------|
+| `[site]` | Site name, description, base URL |
+| `[captcha]` | CAPTCHA provider (hcaptcha/turnstile), site key, failed login threshold |
+| `[security]` | Max failed logins, lockout duration, session timeout, remember me duration |
+| `[rate_limit]` | Login attempts, registration limits, posts/threads per minute |
+| `[limits]` | Posts per page, max upload size, post length limits |
+| `[email]` | SMTP host, port, TLS, from address |
+| `[storage]` | S3 endpoint, region, bucket |
+| `[spam]` | Spam threshold, max URLs, first post URL blocking |
+
+#### Environment Variable Override
+
+All config values can be overridden with environment variables using the `RUFORO_` prefix:
+
+```bash
+# Override site name
+RUFORO_SITE_NAME=MyForum
+
+# Override CAPTCHA provider
+RUFORO_CAPTCHA_PROVIDER=turnstile
+
+# Override rate limits
+RUFORO_RATE_LIMIT_LOGIN_MAX_ATTEMPTS=10
+```
+
+#### Secrets
+
+Keep secrets in environment variables (not config file):
+- `RUFORO_CAPTCHA_SECRET_KEY` - CAPTCHA verification secret
+- `RUFORO_EMAIL_SMTP_PASSWORD` - SMTP password
+- `RUFORO_STORAGE_S3_ACCESS_KEY` / `RUFORO_STORAGE_S3_SECRET_KEY` - S3 credentials
+- `DATABASE_URL` - Database connection string (standard, no prefix)
+- `SECRET_KEY` - Session signing key (64+ bytes)
 
 ## Environment
  - Example `.env` file
