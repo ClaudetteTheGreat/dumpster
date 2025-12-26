@@ -24,7 +24,9 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(delete_thread)
         .service(restore_thread)
         .service(legal_hold_thread)
-        .service(remove_legal_hold_thread);
+        .service(remove_legal_hold_thread)
+        .service(move_thread)
+        .service(merge_threads);
 }
 
 /// Breadcrumb item for navigation
@@ -1421,5 +1423,170 @@ pub async fn remove_legal_hold_thread(
 
     Ok(HttpResponse::Found()
         .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MoveThreadFormData {
+    pub csrf_token: String,
+    pub target_forum_id: i32,
+}
+
+/// Move a thread to a different forum
+#[post("/threads/{thread_id}/move")]
+pub async fn move_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<MoveThreadFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::forums::Entity as Forum;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if !client.can("moderate.thread.move") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to move threads.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let thread_id = path.into_inner();
+    let target_forum_id = form.target_forum_id;
+
+    // Get the thread
+    let thread = Thread::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
+
+    // Check that source and target are different
+    if thread.forum_id == target_forum_id {
+        return Err(error::ErrorBadRequest("Thread is already in this forum."));
+    }
+
+    // Verify target forum exists
+    Forum::find_by_id(target_forum_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Target forum not found."))?;
+
+    // Move the thread
+    Thread::update_many()
+        .col_expr(threads::Column::ForumId, Expr::value(target_forum_id))
+        .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MergeThreadsFormData {
+    pub csrf_token: String,
+    pub target_thread_id: i32,
+}
+
+/// Merge a thread into another thread
+#[post("/threads/{thread_id}/merge")]
+pub async fn merge_threads(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<MergeThreadsFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::{posts, posts::Entity as Post};
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if !client.can("moderate.thread.merge") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to merge threads.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let source_thread_id = path.into_inner();
+    let target_thread_id = form.target_thread_id;
+
+    // Check that source and target are different
+    if source_thread_id == target_thread_id {
+        return Err(error::ErrorBadRequest("Cannot merge a thread into itself."));
+    }
+
+    // Get the source thread
+    let source_thread = Thread::find_by_id(source_thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Source thread not found."))?;
+
+    // Get the target thread (verify it exists)
+    Thread::find_by_id(target_thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Target thread not found."))?;
+
+    // Move all posts from source to target thread
+    Post::update_many()
+        .col_expr(posts::Column::ThreadId, Expr::value(target_thread_id))
+        .filter(posts::Column::ThreadId.eq(source_thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Update target thread's post count
+    Thread::update_many()
+        .col_expr(threads::Column::PostCount, Expr::col(threads::Column::PostCount).add(source_thread.post_count))
+        .filter(threads::Column::Id.eq(target_thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Recalculate target thread's first and last post
+    let first_post = Post::find()
+        .filter(posts::Column::ThreadId.eq(target_thread_id))
+        .order_by_asc(posts::Column::CreatedAt)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    let last_post = Post::find()
+        .filter(posts::Column::ThreadId.eq(target_thread_id))
+        .order_by_desc(posts::Column::CreatedAt)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if let (Some(first), Some(last)) = (&first_post, &last_post) {
+        Thread::update_many()
+            .col_expr(threads::Column::FirstPostId, Expr::value(first.id))
+            .col_expr(threads::Column::LastPostId, Expr::value(last.id))
+            .col_expr(threads::Column::LastPostAt, Expr::value(last.created_at))
+            .filter(threads::Column::Id.eq(target_thread_id))
+            .exec(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
+    // Mark source thread as merged (soft delete with merged_into_id)
+    Thread::update_many()
+        .col_expr(threads::Column::MergedIntoId, Expr::value(target_thread_id))
+        .col_expr(threads::Column::PostCount, Expr::value(0))
+        .col_expr(threads::Column::FirstPostId, Expr::value(Option::<i32>::None))
+        .col_expr(threads::Column::LastPostId, Expr::value(Option::<i32>::None))
+        .filter(threads::Column::Id.eq(source_thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", target_thread_id)))
         .finish())
 }

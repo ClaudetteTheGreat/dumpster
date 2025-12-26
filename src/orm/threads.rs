@@ -33,6 +33,8 @@ pub struct Model {
     pub legal_hold_by: Option<i32>,
     #[sea_orm(column_type = "Text", nullable)]
     pub legal_hold_reason: Option<String>,
+    // Merge tracking
+    pub merged_into_id: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
