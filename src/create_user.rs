@@ -3,7 +3,7 @@ use crate::middleware::ClientCtx;
 use crate::orm::users;
 use crate::session::get_argon2;
 use crate::template::CreateUserTemplate;
-use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use actix_web::{error, get, post, web, Error, HttpRequest, HttpResponse, Responder};
 use argon2::{
     password_hash::{rand_core::OsRng, SaltString},
     PasswordHasher,
@@ -22,6 +22,11 @@ pub struct FormData {
     password: String,
     #[validate(email)]
     email: String,
+    /// CAPTCHA response token (optional if CAPTCHA is disabled)
+    #[serde(rename = "h-captcha-response")]
+    hcaptcha_response: Option<String>,
+    #[serde(rename = "cf-turnstile-response")]
+    turnstile_response: Option<String>,
 }
 
 async fn insert_new_user(
@@ -84,7 +89,44 @@ pub async fn create_user_get(client: ClientCtx) -> impl Responder {
     .to_response()
 }
 #[post("/create_user")]
-pub async fn create_user_post(form: web::Form<FormData>) -> Result<HttpResponse, Error> {
+pub async fn create_user_post(
+    req: HttpRequest,
+    form: web::Form<FormData>,
+) -> Result<HttpResponse, Error> {
+    // Get client IP for rate limiting
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Rate limiting - prevent registration spam
+    if let Err(e) = crate::rate_limit::check_registration_rate_limit(&ip) {
+        log::warn!("Rate limit exceeded for registration: ip={}", ip);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many registration attempts. Please wait {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
+    // Verify CAPTCHA if enabled
+    if crate::captcha::is_enabled() {
+        let captcha_response = form
+            .hcaptcha_response
+            .as_deref()
+            .or(form.turnstile_response.as_deref())
+            .unwrap_or("");
+
+        if captcha_response.is_empty() {
+            return Err(error::ErrorBadRequest("CAPTCHA verification required"));
+        }
+
+        crate::captcha::verify(captcha_response, Some(&ip))
+            .await
+            .map_err(|e| {
+                log::warn!("CAPTCHA verification failed for registration: {}", e);
+                error::ErrorBadRequest("CAPTCHA verification failed. Please try again.")
+            })?;
+    }
+
     // Validate form input
     form.validate().map_err(|e| {
         log::debug!("User registration validation failed: {}", e);

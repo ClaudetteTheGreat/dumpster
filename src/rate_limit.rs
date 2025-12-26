@@ -100,6 +100,29 @@ impl RateLimiter {
         });
     }
 
+    /// Get the current request count for a specific action/identifier
+    ///
+    /// Returns the number of requests within the time window
+    pub fn get_request_count(&self, action: &str, identifier: &str, window: Duration) -> u32 {
+        let key = format!("{}:{}", action, identifier);
+        let now = Instant::now();
+
+        if let Some(entry) = self.requests.get(&key) {
+            entry
+                .iter()
+                .filter(|&&timestamp| now.duration_since(timestamp) < window)
+                .count() as u32
+        } else {
+            0
+        }
+    }
+
+    /// Clear all requests for a specific action/identifier
+    pub fn clear_requests(&self, action: &str, identifier: &str) {
+        let key = format!("{}:{}", action, identifier);
+        self.requests.remove(&key);
+    }
+
     /// Get the number of tracked keys (for monitoring/debugging)
     pub fn tracked_keys_count(&self) -> usize {
         self.requests.len()
@@ -142,6 +165,35 @@ pub fn check_registration_rate_limit(ip: &str) -> Result<(), RateLimitError> {
         3,
         Duration::from_secs(3600), // 1 hour
     )
+}
+
+/// Record a failed login attempt for an IP address
+///
+/// This is separate from rate limiting - it tracks failures to determine
+/// when to require CAPTCHA verification.
+pub fn record_failed_login(ip: &str) {
+    // We use check_rate_limit to add the timestamp, allowing up to 100 attempts
+    // The actual limiting is done by check_login_rate_limit, this just tracks
+    let _ = RATE_LIMITER.check_rate_limit(
+        "login_failures",
+        ip,
+        100, // High limit - we're just tracking, not limiting
+        Duration::from_secs(3600), // 1 hour window
+    );
+}
+
+/// Get the number of failed login attempts for an IP address
+///
+/// Returns the count of failed login attempts within the past hour
+pub fn get_failed_login_count(ip: &str) -> u32 {
+    RATE_LIMITER.get_request_count("login_failures", ip, Duration::from_secs(3600))
+}
+
+/// Clear failed login attempts for an IP address
+///
+/// Called on successful login to reset the CAPTCHA requirement
+pub fn clear_failed_logins(ip: &str) {
+    RATE_LIMITER.clear_requests("login_failures", ip);
 }
 
 /// Check rate limit for post creation

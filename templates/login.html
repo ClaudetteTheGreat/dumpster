@@ -28,6 +28,24 @@
             Remember me for 30 days
         </label>
     </div>
+    {% if captcha_required %}
+    {% if let Some(provider) = captcha_provider %}
+    {% if let Some(site_key) = captcha_site_key %}
+    <div class="form-group">
+        <p style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+            Due to multiple failed login attempts, please complete the CAPTCHA below.
+        </p>
+        {% if provider == "hcaptcha" %}
+        <div class="h-captcha" data-sitekey="{{ site_key }}"></div>
+        <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+        {% else if provider == "turnstile" %}
+        <div class="cf-turnstile" data-sitekey="{{ site_key }}"></div>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+        {% endif %}
+    </div>
+    {% endif %}
+    {% endif %}
+    {% endif %}
     <button type="submit">Login</button>
 </form>
 

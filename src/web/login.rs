@@ -27,6 +27,12 @@ pub struct LoginTemplate<'a> {
     pub username: Option<&'a str>,
     pub token: Option<&'a str>,
     pub success_message: Option<&'a str>,
+    /// Whether CAPTCHA is required for this login attempt
+    pub captcha_required: bool,
+    /// CAPTCHA provider name if enabled ("hcaptcha" or "turnstile")
+    pub captcha_provider: Option<String>,
+    /// CAPTCHA site key if enabled
+    pub captcha_site_key: Option<String>,
 }
 
 #[derive(Template)]
@@ -51,6 +57,12 @@ pub struct FormData {
 
     #[serde(default)]
     remember_me: bool,
+
+    /// CAPTCHA response token (required after multiple failed attempts)
+    #[serde(rename = "h-captcha-response")]
+    hcaptcha_response: Option<String>,
+    #[serde(rename = "cf-turnstile-response")]
+    turnstile_response: Option<String>,
 }
 
 /// Validate TOTP code format (must be exactly 6 digits, or empty)
@@ -278,12 +290,12 @@ pub async fn post_login(
     // Sanitize username (trim whitespace, prevent injection)
     let username = form.username.trim();
 
-    // Rate limiting - prevent brute force attacks
-    let ip = req
-        .peer_addr()
-        .map(|addr| addr.ip().to_string())
+    // Get client IP
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
+    // Rate limiting - prevent brute force attacks
     if let Err(e) = crate::rate_limit::check_login_rate_limit(&ip, username) {
         log::warn!(
             "Rate limit exceeded for login: ip={}, username={}",
@@ -296,6 +308,29 @@ pub async fn post_login(
         )));
     }
 
+    // Check if CAPTCHA is required based on failed attempts
+    let failed_attempts = crate::rate_limit::get_failed_login_count(&ip);
+    if crate::captcha::should_require_for_login(failed_attempts) {
+        let captcha_response = form
+            .hcaptcha_response
+            .as_deref()
+            .or(form.turnstile_response.as_deref())
+            .unwrap_or("");
+
+        if captcha_response.is_empty() {
+            return Err(error::ErrorBadRequest(
+                "CAPTCHA verification required due to multiple failed login attempts",
+            ));
+        }
+
+        crate::captcha::verify(captcha_response, Some(&ip))
+            .await
+            .map_err(|e| {
+                log::warn!("CAPTCHA verification failed for login: {}", e);
+                error::ErrorBadRequest("CAPTCHA verification failed. Please try again.")
+            })?;
+    }
+
     let user_id = login(username, &form.password, &form.totp)
         .await
         .map_err(|e| {
@@ -304,8 +339,16 @@ pub async fn post_login(
         })?;
 
     let user_id = match user_id.result {
-        LoginResultStatus::Success => user_id.user_id.unwrap(),
+        LoginResultStatus::Success => {
+            // Clear failed login attempts on success
+            crate::rate_limit::clear_failed_logins(&ip);
+            user_id.user_id.unwrap()
+        }
         LoginResultStatus::Missing2FA => {
+            // Password was correct, clear failed attempts
+            // (2FA failures are tracked separately)
+            crate::rate_limit::clear_failed_logins(&ip);
+
             // User has 2FA enabled but didn't provide TOTP code
             // Store pending auth state in session
             cookies
@@ -325,6 +368,7 @@ pub async fn post_login(
             .to_response());
         }
         LoginResultStatus::AccountLocked => {
+            crate::rate_limit::record_failed_login(&ip);
             log::warn!("Login attempt on locked account: {}", form.username);
             return Err(error::ErrorForbidden("Account locked due to too many failed login attempts. Please try again in 15 minutes."));
         }
@@ -351,12 +395,14 @@ pub async fn post_login(
             return Err(error::ErrorForbidden("Please verify your email address before logging in. Check your email for a verification link, or <a href=\"/verify-email/resend\">request a new one</a>."));
         }
         LoginResultStatus::Bad2FA => {
+            crate::rate_limit::record_failed_login(&ip);
             log::debug!("login failure: invalid 2FA code for {}", form.username);
             return Err(error::ErrorUnauthorized(
                 "Invalid two-factor authentication code.",
             ));
         }
         LoginResultStatus::BadName | LoginResultStatus::BadPassword => {
+            crate::rate_limit::record_failed_login(&ip);
             log::debug!("login failure: {:?} for {}", user_id.result, form.username);
             // Use generic message to avoid username enumeration
             return Err(error::ErrorUnauthorized("Invalid username or password."));
@@ -386,6 +432,9 @@ pub async fn post_login(
         username: Some(&form.username),
         token: Some(&uuid),
         success_message: None,
+        captcha_required: false,
+        captcha_provider: None,
+        captcha_site_key: None,
     }
     .to_response())
 }
@@ -513,6 +562,9 @@ pub async fn post_login_2fa(
         username: None,
         token: Some(&uuid),
         success_message: None,
+        captcha_required: false,
+        captcha_provider: None,
+        captcha_site_key: None,
     }
     .to_response())
 }
@@ -527,6 +579,7 @@ pub struct LoginQuery {
 pub async fn view_login(
     client: ClientCtx,
     cookies: actix_session::Session,
+    req: actix_web::HttpRequest,
     query: web::Query<LoginQuery>,
 ) -> Result<impl Responder, Error> {
     // Check for password reset success message
@@ -536,6 +589,13 @@ pub async fn view_login(
         None
     };
 
+    // Check if CAPTCHA is required based on failed attempts from this IP
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let failed_attempts = crate::rate_limit::get_failed_login_count(&ip);
+    let captcha_required = crate::captcha::should_require_for_login(failed_attempts);
+
     let mut tmpl = LoginTemplate {
         client,
         user_id: None,
@@ -543,6 +603,9 @@ pub async fn view_login(
         username: None,
         token: None,
         success_message,
+        captcha_required,
+        captcha_provider: crate::captcha::get_provider_name().map(String::from),
+        captcha_site_key: crate::captcha::get_site_key().map(String::from),
     };
 
     let uuid_str: String;
