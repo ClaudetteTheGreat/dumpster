@@ -53,6 +53,7 @@ pub mod user_bans;
 pub mod user_groups;
 pub mod user_name_history;
 pub mod user_names;
+pub mod user_warnings;
 pub mod users;
 pub mod watched_threads;
 pub mod word_filters;

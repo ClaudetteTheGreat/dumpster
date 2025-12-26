@@ -1,0 +1,242 @@
+{% extends "container/public.html" %}
+
+{% block title %}Issue Warning - {{ username }}{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Issue Warning</h1>
+        <p class="panel-subtitle">Warning <a href="/members/{{ user_id }}">{{ username }}</a></p>
+    </div>
+
+    {% match error %}
+    {% when Some with (msg) %}
+    <div class="alert alert-danger">{{ msg }}</div>
+    {% when None %}
+    {% endmatch %}
+
+    <form action="/admin/users/{{ user_id }}/warn" method="post" class="warning-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <div class="form-group">
+            <label for="reason">Reason for Warning</label>
+            <textarea
+                id="reason"
+                name="reason"
+                rows="4"
+                required
+                maxlength="5000"
+                placeholder="Explain why this user is being warned..."
+            ></textarea>
+            <p class="form-help">This will be visible to the user and other moderators.</p>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="points">Warning Points</label>
+                <select id="points" name="points" required>
+                    <option value="1">1 point - Minor infraction</option>
+                    <option value="2">2 points - Moderate infraction</option>
+                    <option value="3" selected>3 points - Standard warning</option>
+                    <option value="5">5 points - Serious infraction</option>
+                    <option value="10">10 points - Severe violation</option>
+                </select>
+                <p class="form-help">Users are auto-banned at 10 points.</p>
+            </div>
+
+            <div class="form-group">
+                <label for="expires_days">Expiration</label>
+                <select id="expires_days" name="expires_days">
+                    <option value="0">Never (permanent)</option>
+                    <option value="30">30 days</option>
+                    <option value="60">60 days</option>
+                    <option value="90" selected>90 days</option>
+                    <option value="180">180 days</option>
+                    <option value="365">1 year</option>
+                </select>
+                <p class="form-help">Warning points expire after this period.</p>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a href="/admin/users/{{ user_id }}/warnings" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-warning">Issue Warning</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 25px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.panel-subtitle a {
+    color: #4a90d9;
+    text-decoration: none;
+}
+
+.panel-subtitle a:hover {
+    text-decoration: underline;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.warning-form {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #ffc107;
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+}
+
+.form-help {
+    margin: 8px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    margin-top: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+    font-weight: 500;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .warning-form {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-group textarea,
+html.dark .form-group select {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .form-help {
+    color: #aaa;
+}
+
+html.dark .form-actions {
+    border-color: #444;
+}
+
+html.dark .alert-danger {
+    background: #5a2a2a;
+    color: #f8d7da;
+    border-color: #722c2c;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}

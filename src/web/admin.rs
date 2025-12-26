@@ -6,7 +6,7 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
     feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, posts, reports, sessions,
-    settings, threads, user_bans, user_groups, user_names, users, word_filters,
+    settings, threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
 };
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
@@ -52,7 +52,12 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         // Moderator notes
         .service(view_user_notes)
         .service(create_user_note)
-        .service(delete_user_note);
+        .service(delete_user_note)
+        // User warnings
+        .service(view_user_warnings)
+        .service(view_issue_warning_form)
+        .service(issue_warning)
+        .service(delete_warning);
 }
 
 // ============================================================================
@@ -2504,5 +2509,403 @@ async fn delete_user_note(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/admin/users/{}/notes", user_id)))
+        .finish())
+}
+
+// =============================================================================
+// User Warnings
+// =============================================================================
+
+/// Warning display for templates
+struct WarningDisplay {
+    id: i32,
+    issued_by_id: Option<i32>,
+    issued_by_name: String,
+    reason: String,
+    points: i32,
+    expires_at: Option<chrono::NaiveDateTime>,
+    acknowledged_at: Option<chrono::NaiveDateTime>,
+    created_at: chrono::NaiveDateTime,
+    is_expired: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/user_warnings.html")]
+struct UserWarningsTemplate {
+    client: ClientCtx,
+    user_id: i32,
+    username: String,
+    warning_points: i32,
+    warnings: Vec<WarningDisplay>,
+    can_issue: bool,
+    can_delete: bool,
+}
+
+#[derive(Template)]
+#[template(path = "admin/warning_form.html")]
+struct WarningFormTemplate {
+    client: ClientCtx,
+    user_id: i32,
+    username: String,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct WarningForm {
+    csrf_token: String,
+    reason: String,
+    points: i32,
+    expires_days: Option<i32>, // 0 or None = permanent
+}
+
+/// GET /admin/users/{id}/warnings - View warnings for a user
+#[get("/admin/users/{id}/warnings")]
+async fn view_user_warnings(
+    client: ClientCtx,
+    user_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("moderate.warnings.view")?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+    let now = Utc::now().naive_utc();
+
+    // Get user
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Get username
+    let username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(&*db)
+        .await
+        .ok()
+        .flatten()
+        .map(|un| un.name)
+        .unwrap_or_else(|| format!("User #{}", user_id));
+
+    // Check permissions
+    let can_issue = client.can("moderate.warnings.issue");
+    let can_delete = client.can("moderate.warnings.delete");
+
+    // Get warnings
+    let warning_models = user_warnings::Entity::find()
+        .filter(user_warnings::Column::UserId.eq(user_id))
+        .order_by_desc(user_warnings::Column::CreatedAt)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch warnings: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build warning displays with issuer names
+    let mut warnings = Vec::new();
+    for warning in warning_models {
+        let issued_by_name = if let Some(issuer_id) = warning.issued_by {
+            user_names::Entity::find()
+                .filter(user_names::Column::UserId.eq(issuer_id))
+                .one(&*db)
+                .await
+                .ok()
+                .flatten()
+                .map(|un| un.name)
+                .unwrap_or_else(|| format!("User #{}", issuer_id))
+        } else {
+            "Deleted User".to_string()
+        };
+
+        let is_expired = warning.expires_at.map(|exp| exp < now).unwrap_or(false);
+
+        warnings.push(WarningDisplay {
+            id: warning.id,
+            issued_by_id: warning.issued_by,
+            issued_by_name,
+            reason: warning.reason,
+            points: warning.points,
+            expires_at: warning.expires_at,
+            acknowledged_at: warning.acknowledged_at,
+            created_at: warning.created_at,
+            is_expired,
+        });
+    }
+
+    Ok(UserWarningsTemplate {
+        client,
+        user_id,
+        username,
+        warning_points: user.warning_points,
+        warnings,
+        can_issue,
+        can_delete,
+    }
+    .to_response())
+}
+
+/// GET /admin/users/{id}/warn - Show warning form
+#[get("/admin/users/{id}/warn")]
+async fn view_issue_warning_form(
+    client: ClientCtx,
+    user_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("moderate.warnings.issue")?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+
+    // Verify user exists
+    users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Get username
+    let username = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(user_id))
+        .one(&*db)
+        .await
+        .ok()
+        .flatten()
+        .map(|un| un.name)
+        .unwrap_or_else(|| format!("User #{}", user_id));
+
+    Ok(WarningFormTemplate {
+        client,
+        user_id,
+        username,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/users/{id}/warn - Issue a warning
+#[post("/admin/users/{id}/warn")]
+async fn issue_warning(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    config: web::Data<Arc<Config>>,
+    user_id: web::Path<i32>,
+    form: web::Form<WarningForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.warnings.issue")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let user_id = user_id.into_inner();
+    let now = Utc::now().naive_utc();
+
+    // Validate input
+    let reason = form.reason.trim();
+    if reason.is_empty() {
+        return Err(error::ErrorBadRequest("Reason is required"));
+    }
+    if reason.len() > 5000 {
+        return Err(error::ErrorBadRequest("Reason is too long"));
+    }
+
+    let points = form.points.clamp(1, 100);
+
+    // Calculate expiration
+    let expires_at = match form.expires_days {
+        Some(days) if days > 0 => Some(now + Duration::days(days as i64)),
+        _ => None, // Permanent warning
+    };
+
+    // Verify user exists
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Create warning
+    let warning = user_warnings::ActiveModel {
+        user_id: Set(user_id),
+        issued_by: Set(Some(moderator_id)),
+        reason: Set(reason.to_string()),
+        points: Set(points),
+        expires_at: Set(expires_at),
+        created_at: Set(now),
+        ..Default::default()
+    };
+
+    warning.insert(&*db).await.map_err(|e| {
+        log::error!("Failed to create warning: {}", e);
+        error::ErrorInternalServerError("Failed to create warning")
+    })?;
+
+    // Update user's warning points
+    let new_points = user.warning_points + points;
+    let mut active_user: users::ActiveModel = user.into();
+    active_user.warning_points = Set(new_points);
+    active_user.last_warning_at = Set(Some(now));
+    active_user.update(&*db).await.map_err(|e| {
+        log::error!("Failed to update user warning points: {}", e);
+        error::ErrorInternalServerError("Failed to update user")
+    })?;
+
+    // Log moderation action
+    log_moderation_action(
+        &*db,
+        moderator_id,
+        "issue_warning",
+        "user",
+        user_id,
+        Some(reason),
+    )
+    .await?;
+
+    log::info!(
+        "Warning issued to user {} ({} points) by moderator {}. Total points: {}",
+        user_id,
+        points,
+        moderator_id,
+        new_points
+    );
+
+    // Check if user should be auto-banned
+    let threshold = config.get_int("warning_threshold").unwrap_or(10) as i32;
+    if new_points >= threshold {
+        // Auto-ban the user
+        let ban_days = config.get_int("warning_ban_duration_days").unwrap_or(7);
+        let (expires_at, is_permanent) = if ban_days == 0 {
+            (None, true)
+        } else {
+            (Some(now + Duration::days(ban_days)), false)
+        };
+
+        let ban = user_bans::ActiveModel {
+            user_id: Set(user_id),
+            banned_by: Set(Some(moderator_id)),
+            reason: Set(format!("Auto-ban: Warning points threshold ({}) reached", threshold)),
+            expires_at: Set(expires_at),
+            is_permanent: Set(is_permanent),
+            created_at: Set(now),
+            ..Default::default()
+        };
+
+        ban.insert(&*db).await.map_err(|e| {
+            log::error!("Failed to create auto-ban: {}", e);
+            error::ErrorInternalServerError("Failed to create ban")
+        })?;
+
+        log_moderation_action(
+            &*db,
+            moderator_id,
+            "auto_ban_warning_threshold",
+            "user",
+            user_id,
+            Some(&format!("Warning points reached threshold: {} >= {}", new_points, threshold)),
+        )
+        .await?;
+
+        log::info!(
+            "User {} auto-banned due to warning threshold ({} >= {})",
+            user_id,
+            new_points,
+            threshold
+        );
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/users/{}/warnings", user_id)))
+        .finish())
+}
+
+/// POST /admin/warnings/{id}/delete - Delete a warning
+#[post("/admin/warnings/{id}/delete")]
+async fn delete_warning(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    warning_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.warnings.delete")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let warning_id = warning_id.into_inner();
+
+    // Find the warning
+    let warning = user_warnings::Entity::find_by_id(warning_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch warning: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Warning not found"))?;
+
+    let user_id = warning.user_id;
+    let points = warning.points;
+
+    // Get user to subtract points
+    let user = users::Entity::find_by_id(user_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Delete the warning
+    user_warnings::Entity::delete_by_id(warning_id)
+        .exec(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete warning: {}", e);
+            error::ErrorInternalServerError("Failed to delete warning")
+        })?;
+
+    // Subtract points from user
+    let old_points = user.warning_points;
+    let new_points = (old_points - points).max(0);
+    let mut active_user: users::ActiveModel = user.into();
+    active_user.warning_points = Set(new_points);
+    active_user.update(&*db).await.map_err(|e| {
+        log::error!("Failed to update user warning points: {}", e);
+        error::ErrorInternalServerError("Failed to update user")
+    })?;
+
+    // Log moderation action
+    log_moderation_action(
+        &*db,
+        moderator_id,
+        "delete_warning",
+        "warning",
+        warning_id,
+        form.reason.as_deref(),
+    )
+    .await?;
+
+    log::info!(
+        "Warning {} deleted by moderator {}. User {} points: {} -> {}",
+        warning_id,
+        moderator_id,
+        user_id,
+        old_points,
+        new_points
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/users/{}/warnings", user_id)))
         .finish())
 }

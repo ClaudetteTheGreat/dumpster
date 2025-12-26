@@ -22,6 +22,8 @@ pub struct Model {
     pub website_url: Option<String>,
     pub signature: Option<String>,
     pub custom_title: Option<String>,
+    pub warning_points: i32,
+    pub last_warning_at: Option<DateTime>,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

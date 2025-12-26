@@ -196,6 +196,7 @@
         <div class="form-actions">
             <a href="/admin/users" class="btn btn-secondary">Cancel</a>
             <a href="/admin/users/{{ user.id }}/notes" class="btn btn-info">Moderator Notes</a>
+            <a href="/admin/users/{{ user.id }}/warnings" class="btn btn-warning">Warnings ({{ user.warning_points }} pts)</a>
             <button type="submit" class="btn btn-primary">Save Changes</button>
         </div>
     </form>
@@ -384,6 +385,15 @@ legend {
 
 .btn-info:hover {
     background: #138496;
+}
+
+.btn-warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
 }
 
 /* Dark mode */
