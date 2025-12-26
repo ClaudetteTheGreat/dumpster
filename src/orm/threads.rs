@@ -23,6 +23,16 @@ pub struct Model {
     pub is_pinned: bool,
     pub is_announcement: bool,
     pub prefix: Option<String>,
+    // Deletion fields
+    pub deleted_at: Option<DateTime>,
+    pub deleted_by: Option<i32>,
+    pub deletion_type: Option<super::ugc_deletions::DeletionType>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub deletion_reason: Option<String>,
+    pub legal_hold_at: Option<DateTime>,
+    pub legal_hold_by: Option<i32>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub legal_hold_reason: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

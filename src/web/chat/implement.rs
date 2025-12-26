@@ -242,6 +242,11 @@ pub mod default {
                 user_id: Set(chat_message.user_id),
                 deleted_at: Set(Utc::now().naive_utc()),
                 reason: Set(None),
+                deletion_type: Set(ugc_deletions::DeletionType::Normal),
+                deleted_by_id: Set(chat_message.user_id),
+                legal_hold_at: Set(None),
+                legal_hold_by: Set(None),
+                legal_hold_reason: Set(None),
             };
 
             if let Err(err) = deletion.insert(&self.db).await {

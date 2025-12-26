@@ -20,7 +20,11 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_reply)
         .service(view_thread_unread)
         .service(view_thread)
-        .service(view_thread_page);
+        .service(view_thread_page)
+        .service(delete_thread)
+        .service(restore_thread)
+        .service(legal_hold_thread)
+        .service(remove_legal_hold_thread);
 }
 
 /// Breadcrumb item for navigation
@@ -894,7 +898,10 @@ pub async fn view_thread_unread(
             Ok(Some(post_id)) => {
                 // Redirect to the specific unread post
                 return Ok(HttpResponse::Found()
-                    .append_header(("Location", format!("/threads/{}/post-{}", thread_id, post_id)))
+                    .append_header((
+                        "Location",
+                        format!("/threads/{}/post-{}", thread_id, post_id),
+                    ))
                     .finish());
             }
             Ok(None) => {
@@ -1131,7 +1138,11 @@ pub async fn get_first_unread_post_id(user_id: i32, thread_id: i32) -> Result<Op
 }
 
 /// Check if a thread has unread posts for a user
-pub async fn has_unread_posts(user_id: i32, thread_id: i32, last_post_at: Option<chrono::NaiveDateTime>) -> bool {
+pub async fn has_unread_posts(
+    user_id: i32,
+    thread_id: i32,
+    last_post_at: Option<chrono::NaiveDateTime>,
+) -> bool {
     let last_post = match last_post_at {
         Some(t) => t,
         None => return false, // No posts in thread
@@ -1149,6 +1160,266 @@ pub async fn has_unread_posts(user_id: i32, thread_id: i32, last_post_at: Option
 
     match read_record {
         Some(r) => last_post > r.read_at, // Unread if last post is newer than read time
-        None => true, // Never read this thread
+        None => true,                     // Never read this thread
     }
+}
+
+/// Form data for thread moderation actions
+#[derive(Deserialize)]
+pub struct ThreadModActionFormData {
+    pub csrf_token: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Deletion type: "normal" or "permanent"
+    #[serde(default)]
+    pub deletion_type: Option<String>,
+}
+
+/// Delete a thread (moderators only)
+#[post("/threads/{thread_id}/delete")]
+pub async fn delete_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ThreadModActionFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::ugc_deletions::DeletionType;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let thread_id = path.into_inner();
+
+    let thread = Thread::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
+
+    // Determine deletion type and check permissions
+    let deletion_type = match form.deletion_type.as_deref() {
+        Some("permanent") => {
+            if !client.can("moderate.thread.delete_permanent") {
+                return Err(error::ErrorForbidden(
+                    "You do not have permission to permanently delete threads.",
+                ));
+            }
+            DeletionType::Permanent
+        }
+        _ => {
+            if !client.can("moderate.thread.delete_any") {
+                return Err(error::ErrorForbidden(
+                    "You do not have permission to delete threads.",
+                ));
+            }
+            DeletionType::Normal
+        }
+    };
+
+    // Check if thread is under legal hold
+    if thread.deletion_type == Some(DeletionType::LegalHold) {
+        return Err(error::ErrorForbidden(
+            "This thread is under legal hold and cannot be deleted.",
+        ));
+    }
+
+    let now = chrono::Utc::now().naive_utc();
+
+    // Update thread with deletion info
+    Thread::update_many()
+        .col_expr(threads::Column::DeletedAt, Expr::value(now))
+        .col_expr(threads::Column::DeletedBy, Expr::value(client.get_id()))
+        .col_expr(threads::Column::DeletionType, Expr::value(deletion_type.clone()))
+        .col_expr(threads::Column::DeletionReason, Expr::value(form.reason.clone()))
+        .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // For permanent deletion, also purge all post content
+    if deletion_type == DeletionType::Permanent {
+        use crate::orm::ugc_revisions;
+
+        // Get all UGC IDs for posts in this thread
+        let post_ugc_ids: Vec<i32> = posts::Entity::find()
+            .filter(posts::Column::ThreadId.eq(thread_id))
+            .all(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+            .into_iter()
+            .map(|p| p.ugc_id)
+            .collect();
+
+        // Clear content from all revisions
+        if !post_ugc_ids.is_empty() {
+            ugc_revisions::Entity::update_many()
+                .col_expr(ugc_revisions::Column::Content, Expr::value("[Content permanently removed]".to_string()))
+                .filter(ugc_revisions::Column::UgcId.is_in(post_ugc_ids))
+                .exec(db)
+                .await
+                .map_err(error::ErrorInternalServerError)?;
+        }
+    }
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/forums/{}/", thread.forum_id)))
+        .finish())
+}
+
+/// Restore a deleted thread (moderators only)
+#[post("/threads/{thread_id}/restore")]
+pub async fn restore_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ThreadModActionFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::ugc_deletions::DeletionType;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if !client.can("moderate.thread.restore") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to restore threads.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let thread_id = path.into_inner();
+
+    let thread = Thread::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
+
+    // Check if thread is deleted
+    if thread.deleted_at.is_none() {
+        return Err(error::ErrorBadRequest("Thread is not deleted."));
+    }
+
+    // Cannot restore permanently deleted threads
+    if thread.deletion_type == Some(DeletionType::Permanent) {
+        return Err(error::ErrorForbidden(
+            "Permanently deleted threads cannot be restored.",
+        ));
+    }
+
+    // Cannot restore threads under legal hold
+    if thread.deletion_type == Some(DeletionType::LegalHold) {
+        return Err(error::ErrorForbidden(
+            "Threads under legal hold cannot be restored. Contact an administrator.",
+        ));
+    }
+
+    // Clear deletion fields
+    Thread::update_many()
+        .col_expr(threads::Column::DeletedAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
+        .col_expr(threads::Column::DeletedBy, Expr::value(Option::<i32>::None))
+        .col_expr(threads::Column::DeletionType, Expr::value(Option::<DeletionType>::None))
+        .col_expr(threads::Column::DeletionReason, Expr::value(Option::<String>::None))
+        .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
+}
+
+/// Place a legal hold on a thread (admin only)
+#[post("/threads/{thread_id}/legal-hold")]
+pub async fn legal_hold_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ThreadModActionFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::ugc_deletions::DeletionType;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if !client.can("admin.content.legal_hold") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to place legal holds.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let thread_id = path.into_inner();
+
+    let _thread = Thread::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
+
+    let now = chrono::Utc::now().naive_utc();
+
+    // Update thread with legal hold
+    Thread::update_many()
+        .col_expr(threads::Column::DeletedAt, Expr::value(now))
+        .col_expr(threads::Column::DeletedBy, Expr::value(client.get_id()))
+        .col_expr(threads::Column::DeletionType, Expr::value(DeletionType::LegalHold))
+        .col_expr(threads::Column::DeletionReason, Expr::value(Some("Legal hold".to_string())))
+        .col_expr(threads::Column::LegalHoldAt, Expr::value(now))
+        .col_expr(threads::Column::LegalHoldBy, Expr::value(client.get_id()))
+        .col_expr(threads::Column::LegalHoldReason, Expr::value(form.reason.clone()))
+        .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
+}
+
+/// Remove a legal hold from a thread (admin only)
+#[post("/threads/{thread_id}/remove-legal-hold")]
+pub async fn remove_legal_hold_thread(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ThreadModActionFormData>,
+) -> Result<impl Responder, Error> {
+    use crate::orm::ugc_deletions::DeletionType;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if !client.can("admin.content.remove_legal_hold") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to remove legal holds.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let thread_id = path.into_inner();
+
+    let thread = Thread::find_by_id(thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
+
+    // Check if thread is under legal hold
+    if thread.deletion_type != Some(DeletionType::LegalHold) {
+        return Err(error::ErrorBadRequest("Thread is not under legal hold."));
+    }
+
+    // Change to normal deletion (still deleted, but can now be restored)
+    Thread::update_many()
+        .col_expr(threads::Column::DeletionType, Expr::value(DeletionType::Normal))
+        .col_expr(threads::Column::LegalHoldAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
+        .col_expr(threads::Column::LegalHoldBy, Expr::value(Option::<i32>::None))
+        .col_expr(threads::Column::LegalHoldReason, Expr::value(Option::<String>::None))
+        .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
+        .finish())
 }

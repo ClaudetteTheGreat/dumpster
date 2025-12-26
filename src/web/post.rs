@@ -14,6 +14,9 @@ use serde::Deserialize;
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(delete_post)
         .service(destroy_post)
+        .service(restore_post)
+        .service(legal_hold_post)
+        .service(remove_legal_hold_post)
         .service(edit_post)
         .service(update_post)
         .service(view_post_by_id)
@@ -32,6 +35,11 @@ pub struct NewPostFormData {
 #[derive(Deserialize)]
 pub struct DeletePostFormData {
     pub csrf_token: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Deletion type: "normal", "permanent", or omitted for normal
+    #[serde(default)]
+    pub deletion_type: Option<String>,
 }
 
 /// A fully joined struct representing the post model and its relational d&ata.
@@ -52,6 +60,7 @@ pub struct PostForTemplate {
     pub deleted_by: Option<i32>,
     pub deleted_at: Option<chrono::NaiveDateTime>,
     pub deleted_reason: Option<String>,
+    pub deletion_type: Option<String>,
 }
 
 impl PostForTemplate {}
@@ -153,25 +162,60 @@ pub async fn destroy_post(
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
 
-    if !client.can_delete_post(&post) {
+    // Determine deletion type from form
+    let deletion_type = match form.deletion_type.as_deref() {
+        Some("permanent") => {
+            // Permanent deletion requires moderator permission
+            if !client.can("moderate.post.delete_permanent") {
+                return Err(error::ErrorForbidden(
+                    "You do not have permission to permanently delete posts.",
+                ));
+            }
+            ugc_deletions::DeletionType::Permanent
+        }
+        _ => {
+            // Normal deletion - check regular permissions
+            if !client.can_delete_post(&post) {
+                return Err(error::ErrorForbidden(
+                    "You do not have permission to delete this post.",
+                ));
+            }
+            ugc_deletions::DeletionType::Normal
+        }
+    };
+
+    // Check if post is under legal hold - cannot be deleted except by admin
+    if post.deletion_type.as_deref() == Some("legal_hold") {
         return Err(error::ErrorForbidden(
-            "You do not have permission to delete this post.",
+            "This post is under legal hold and cannot be deleted.",
         ));
     }
 
     if post.deleted_at.is_some() {
-        ugc_deletions::Entity::update_many()
-            .col_expr(ugc_deletions::Column::UserId, Expr::value(client.get_id()))
-            .filter(ugc_deletions::Column::Id.eq(post.id))
+        // Post already deleted - update the deletion record
+        let mut update = ugc_deletions::Entity::update_many()
+            .col_expr(ugc_deletions::Column::DeletedById, Expr::value(client.get_id()))
+            .col_expr(ugc_deletions::Column::DeletionType, Expr::value(deletion_type.clone()));
+
+        if let Some(ref reason) = form.reason {
+            update = update.col_expr(ugc_deletions::Column::Reason, Expr::value(reason.clone()));
+        }
+
+        update.filter(ugc_deletions::Column::Id.eq(post.ugc_id))
             .exec(db)
             .await
             .map_err(error::ErrorInternalServerError)?;
     } else {
         ugc_deletions::Entity::insert(ugc_deletions::ActiveModel {
             id: Set(post.ugc_id),
-            user_id: Set(client.get_id()),
+            user_id: Set(post.user_id),
             deleted_at: Set(Utc::now().naive_utc()),
-            reason: Set(Some("Temporary reason holder".to_owned())),
+            reason: Set(form.reason.clone()),
+            deletion_type: Set(deletion_type.clone()),
+            deleted_by_id: Set(client.get_id()),
+            legal_hold_at: Set(None),
+            legal_hold_by: Set(None),
+            legal_hold_reason: Set(None),
         })
         .exec(db)
         .await
@@ -199,6 +243,195 @@ pub async fn destroy_post(
                 .map_err(|e| log::error!("destroy_post thread: {}", e));
         });
     }
+
+    // For permanent deletion, also clear the content
+    if deletion_type == ugc_deletions::DeletionType::Permanent {
+        ugc_revisions::Entity::update_many()
+            .col_expr(ugc_revisions::Column::Content, Expr::value("[Content permanently removed]".to_string()))
+            .filter(ugc_revisions::Column::UgcId.eq(post.ugc_id))
+            .exec(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", get_url_for_pos(post.thread_id, post.position)))
+        .finish())
+}
+
+/// Form data for restore/legal hold operations
+#[derive(Deserialize)]
+pub struct ModActionFormData {
+    pub csrf_token: String,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+/// Restore a soft-deleted post (moderators only)
+#[post("/posts/{post_id}/restore")]
+pub async fn restore_post(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ModActionFormData>,
+) -> Result<impl Responder, Error> {
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Require moderator permission
+    if !client.can("moderate.post.restore") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to restore posts.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
+
+    // Check if post is deleted
+    if post.deleted_at.is_none() {
+        return Err(error::ErrorBadRequest("Post is not deleted."));
+    }
+
+    // Cannot restore permanently deleted posts
+    if post.deletion_type.as_deref() == Some("permanent") {
+        return Err(error::ErrorForbidden(
+            "Permanently deleted posts cannot be restored.",
+        ));
+    }
+
+    // Cannot restore posts under legal hold without admin permission
+    if post.deletion_type.as_deref() == Some("legal_hold") {
+        return Err(error::ErrorForbidden(
+            "Posts under legal hold cannot be restored. Contact an administrator.",
+        ));
+    }
+
+    // Delete the ugc_deletions record to restore the post
+    ugc_deletions::Entity::delete_by_id(post.ugc_id)
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Update post positions
+    actix_web::rt::spawn(async move {
+        // Increment positions of posts that came after this one
+        let _post_res = posts::Entity::update_many()
+            .col_expr(posts::Column::Position, Expr::cust("position + 1"))
+            .filter(
+                Condition::all()
+                    .add(posts::Column::ThreadId.eq(post.thread_id))
+                    .add(posts::Column::Position.gte(post.position)),
+            )
+            .exec(db)
+            .await
+            .map_err(|e| log::error!("restore_post thread: {}", e));
+    });
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", get_url_for_pos(post.thread_id, post.position)))
+        .finish())
+}
+
+/// Place a legal hold on a post (admin only)
+#[post("/posts/{post_id}/legal-hold")]
+pub async fn legal_hold_post(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ModActionFormData>,
+) -> Result<impl Responder, Error> {
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Require admin permission
+    if !client.can("admin.content.legal_hold") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to place legal holds.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
+
+    let now = Utc::now().naive_utc();
+
+    if post.deleted_at.is_some() {
+        // Post already deleted - update to legal hold
+        ugc_deletions::Entity::update_many()
+            .col_expr(ugc_deletions::Column::DeletionType, Expr::value(ugc_deletions::DeletionType::LegalHold))
+            .col_expr(ugc_deletions::Column::LegalHoldAt, Expr::value(now))
+            .col_expr(ugc_deletions::Column::LegalHoldBy, Expr::value(client.get_id()))
+            .col_expr(ugc_deletions::Column::LegalHoldReason, Expr::value(form.reason.clone()))
+            .filter(ugc_deletions::Column::Id.eq(post.ugc_id))
+            .exec(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    } else {
+        // Create new deletion record with legal hold
+        ugc_deletions::Entity::insert(ugc_deletions::ActiveModel {
+            id: Set(post.ugc_id),
+            user_id: Set(post.user_id),
+            deleted_at: Set(now),
+            reason: Set(Some("Legal hold".to_string())),
+            deletion_type: Set(ugc_deletions::DeletionType::LegalHold),
+            deleted_by_id: Set(client.get_id()),
+            legal_hold_at: Set(Some(now)),
+            legal_hold_by: Set(client.get_id()),
+            legal_hold_reason: Set(form.reason.clone()),
+        })
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+    }
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", get_url_for_pos(post.thread_id, post.position)))
+        .finish())
+}
+
+/// Remove a legal hold from a post (admin only)
+#[post("/posts/{post_id}/remove-legal-hold")]
+pub async fn remove_legal_hold_post(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ModActionFormData>,
+) -> Result<impl Responder, Error> {
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Require admin permission
+    if !client.can("admin.content.remove_legal_hold") {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to remove legal holds.",
+        ));
+    }
+
+    let db = get_db_pool();
+    let (post, _user) = get_post_and_author_for_template(db, path.into_inner())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Post not found."))?;
+
+    // Check if post is under legal hold
+    if post.deletion_type.as_deref() != Some("legal_hold") {
+        return Err(error::ErrorBadRequest("Post is not under legal hold."));
+    }
+
+    // Change to normal deletion (still deleted, but can now be restored)
+    ugc_deletions::Entity::update_many()
+        .col_expr(ugc_deletions::Column::DeletionType, Expr::value(ugc_deletions::DeletionType::Normal))
+        .col_expr(ugc_deletions::Column::LegalHoldAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
+        .col_expr(ugc_deletions::Column::LegalHoldBy, Expr::value(Option::<i32>::None))
+        .col_expr(ugc_deletions::Column::LegalHoldReason, Expr::value(Option::<String>::None))
+        .filter(ugc_deletions::Column::Id.eq(post.ugc_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
 
     Ok(HttpResponse::Found()
         .append_header(("Location", get_url_for_pos(post.thread_id, post.position)))
@@ -366,7 +599,8 @@ pub async fn get_post_and_author_for_template(
             .left_join(ugc_deletions::Entity)
             .column_as(ugc_deletions::Column::UserId, "deleted_by")
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
-            .column_as(ugc_deletions::Column::Reason, "deleted_reason"),
+            .column_as(ugc_deletions::Column::Reason, "deleted_reason")
+            .column_as(ugc_deletions::Column::DeletionType, "deletion_type"),
         posts::Column::UserId,
     )
     .into_model::<PostForTemplate, UserProfile>()
@@ -390,7 +624,8 @@ pub async fn get_replies_and_author_for_template(
             .left_join(ugc_deletions::Entity)
             .column_as(ugc_deletions::Column::UserId, "deleted_by")
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
-            .column_as(ugc_deletions::Column::Reason, "deleted_reason"),
+            .column_as(ugc_deletions::Column::Reason, "deleted_reason")
+            .column_as(ugc_deletions::Column::DeletionType, "deletion_type"),
         posts::Column::UserId,
     )
     .filter(posts::Column::ThreadId.eq(id))
