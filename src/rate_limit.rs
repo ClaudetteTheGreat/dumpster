@@ -177,7 +177,7 @@ pub fn record_failed_login(ip: &str) {
     let _ = RATE_LIMITER.check_rate_limit(
         "login_failures",
         ip,
-        100, // High limit - we're just tracking, not limiting
+        100,                       // High limit - we're just tracking, not limiting
         Duration::from_secs(3600), // 1 hour window
     );
 }

@@ -178,9 +178,10 @@ pub async fn verify(response_token: &str, remote_ip: Option<&str>) -> Result<(),
 
     let (verify_url, response_field) = match CAPTCHA_CONFIG.provider {
         CaptchaProvider::HCaptcha => ("https://hcaptcha.com/siteverify", "response"),
-        CaptchaProvider::Turnstile => {
-            ("https://challenges.cloudflare.com/turnstile/v0/siteverify", "response")
-        }
+        CaptchaProvider::Turnstile => (
+            "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+            "response",
+        ),
         CaptchaProvider::Disabled => return Err(CaptchaError::NotConfigured),
     };
 

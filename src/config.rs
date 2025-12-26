@@ -126,9 +126,7 @@ impl Config {
 
     /// Get a string setting
     pub fn get_string(&self, key: &str) -> Option<String> {
-        self.settings
-            .get(key)
-            .and_then(|v| v.as_string().cloned())
+        self.settings.get(key).and_then(|v| v.as_string().cloned())
     }
 
     /// Get a string setting with a default value
@@ -158,10 +156,7 @@ impl Config {
 
     /// Check if a feature flag is enabled
     pub fn is_feature_enabled(&self, key: &str) -> bool {
-        self.feature_flags
-            .get(key)
-            .map(|v| *v)
-            .unwrap_or(false)
+        self.feature_flags.get(key).map(|v| *v).unwrap_or(false)
     }
 
     /// Update a setting value (also updates database and history)
@@ -173,7 +168,9 @@ impl Config {
         user_id: Option<i32>,
     ) -> Result<(), DbErr> {
         // Get old value for history
-        let old_setting = settings::Entity::find_by_id(key.to_string()).one(db).await?;
+        let old_setting = settings::Entity::find_by_id(key.to_string())
+            .one(db)
+            .await?;
 
         let value_str = value.to_string_value();
         let value_type = value.type_name().to_string();

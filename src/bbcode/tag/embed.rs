@@ -60,10 +60,7 @@ impl super::Tag {
                 || arg_lower == "unfurl";
 
             // Parse URL from argument (strip unfurl part if present)
-            let url_part = arg
-                .split_whitespace()
-                .next()
-                .unwrap_or("");
+            let url_part = arg.split_whitespace().next().unwrap_or("");
 
             if url_part.starts_with('=') {
                 url = match url_arg(url_part).transpose() {

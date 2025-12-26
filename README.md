@@ -92,28 +92,28 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Permissions-Policy** - Restricts geolocation, microphone, camera access
 
 ### Testing
-- **205+ integration tests** covering:
+- **220+ tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
   - 3 CSRF protection tests
-  - 7 rate limiting tests
-  - 4 CAPTCHA tests
-  - 5 configuration loading tests
-  - 9 spam detection tests
   - 9 notification tests
   - 7 notification preferences tests
   - 9 email verification tests
   - 10 password reset tests
-  - 12 moderation tests
+  - 6 moderation tests (lock/pin/unpin)
+  - 8 deletion types tests (normal/permanent/legal hold)
+  - 8 IP ban tests
   - 8 search tests
-  - 12 conversation/PM tests
+  - 10 conversation/PM tests
   - 9 thread watching tests
   - 6 post reactions tests
   - 7 report system tests
   - 6 user ban tests
   - 5 RSS feed tests
-  - 17 BBCode unit tests (including @mention linkification)
+  - 7 thread move/merge tests
+  - 10 user profile tests
+  - 78 unit tests (BBCode, spam detection, rate limiting, etc.)
 - **Test infrastructure** - Comprehensive test utilities and fixtures
 - **Test database** - Isolated test database with full migration support
 
@@ -161,6 +161,11 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - Forum selection dropdown with all available destinations
   - Optional reason field for moderation logs
   - Metadata logged includes source and destination forum IDs
+- **Thread Merge** - Combine threads together
+  - Moves all posts from source thread to target thread
+  - Recalculates post counts and first/last post references
+  - Source thread marked as merged with link to target
+  - Merged threads hidden from forum listings
 - **Permission-Based Display** - Moderation tools only visible to users with appropriate permissions
 - **Moderation Logging** - All moderation actions logged with reason in `mod_log` table
 - **CSRF-Protected Actions** - All moderation operations protected against CSRF attacks

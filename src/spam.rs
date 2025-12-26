@@ -99,9 +99,8 @@ pub fn analyze_content(content: &str, user_post_count: i32) -> SpamAnalysis {
     if content.len() > 30 {
         let alpha_chars: Vec<char> = content.chars().filter(|c| c.is_alphabetic()).collect();
         if !alpha_chars.is_empty() {
-            let caps_ratio =
-                alpha_chars.iter().filter(|c| c.is_uppercase()).count() as f32
-                    / alpha_chars.len() as f32;
+            let caps_ratio = alpha_chars.iter().filter(|c| c.is_uppercase()).count() as f32
+                / alpha_chars.len() as f32;
 
             if caps_ratio > 0.8 {
                 score += 0.25;
@@ -144,7 +143,7 @@ pub fn analyze_content(content: &str, user_post_count: i32) -> SpamAnalysis {
             (0x1F600..=0x1F64F).contains(&code)  // Emoticons
                 || (0x1F300..=0x1F5FF).contains(&code) // Misc Symbols
                 || (0x1F680..=0x1F6FF).contains(&code) // Transport
-                || (0x2600..=0x26FF).contains(&code)   // Misc symbols
+                || (0x2600..=0x26FF).contains(&code) // Misc symbols
         })
         .count();
 
@@ -227,10 +226,7 @@ mod tests {
     fn test_all_caps() {
         let result = analyze_content("THIS IS ALL CAPS AND IT'S VERY ANNOYING TO READ", 10);
         assert!(result.score >= 0.1);
-        assert!(result
-            .reasons
-            .iter()
-            .any(|r| r.contains("capitalization")));
+        assert!(result.reasons.iter().any(|r| r.contains("capitalization")));
     }
 
     #[test]
@@ -252,7 +248,11 @@ mod tests {
         // Content with multiple spam indicators: new user, multiple URLs, spam phrase, all caps
         let content = "CLICK HERE NOW!!! BUY NOW!!! http://spam1.com http://spam2.com http://spam3.com http://spam4.com";
         let result = analyze_content(content, 0);
-        assert!(result.is_spam, "Score was {:.2}, reasons: {:?}", result.score, result.reasons);
+        assert!(
+            result.is_spam,
+            "Score was {:.2}, reasons: {:?}",
+            result.score, result.reasons
+        );
         assert!(result.score >= 0.7);
     }
 

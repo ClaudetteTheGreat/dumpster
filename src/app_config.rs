@@ -265,10 +265,7 @@ impl AppConfig {
             // Start with defaults
             .add_source(config::Config::try_from(&AppConfig::default())?)
             // Add config file (optional) - use from_file for full path support
-            .add_source(
-                File::new(path, FileFormat::Toml)
-                    .required(false),
-            )
+            .add_source(File::new(path, FileFormat::Toml).required(false))
             // Override with environment variables (RUFORO_ prefix)
             // e.g., RUFORO_CAPTCHA_PROVIDER, RUFORO_SITE_NAME
             .add_source(
