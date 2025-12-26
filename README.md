@@ -85,6 +85,22 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Emoji Spam** - Flags excessive emoji usage
 - **Integrated into** post creation and thread creation
 
+### Word Filters
+- **Admin-configurable content filters** for automatic moderation
+- **Filter Actions:**
+  - **Replace** - Substitute matched words with alternatives (e.g., "Solana" → "Salona")
+  - **Block** - Reject content containing specific words entirely
+  - **Flag** - Allow content but mark it for moderator review
+- **Matching Options:**
+  - Regular expression support for complex patterns
+  - Case-sensitive or case-insensitive matching
+  - Whole-word only or partial matching within words
+  - Enable/disable individual filters without deletion
+- **Case Preservation** - Replacements preserve original case (WORD→REPLACEMENT, Word→Replacement, word→replacement)
+- **Admin Panel** - Full CRUD interface at `/admin/word-filters`
+- **Integrated into** thread creation (title and content) and post replies
+- **Efficient Caching** - Compiled regex patterns cached in memory, reloaded on filter changes
+
 ### Security Headers
 - **X-Frame-Options: DENY** - Prevents clickjacking attacks
 - **X-Content-Type-Options: nosniff** - Prevents MIME type sniffing
@@ -92,7 +108,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 - **Permissions-Policy** - Restricts geolocation, microphone, camera access
 
 ### Testing
-- **220+ tests** covering:
+- **230+ tests** covering:
   - 6 account lockout tests
   - 7 input validation tests
   - 5 two-factor authentication tests
@@ -113,6 +129,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
   - 5 RSS feed tests
   - 7 thread move/merge tests
   - 10 user profile tests
+  - 12 word filter tests
   - 78 unit tests (BBCode, spam detection, rate limiting, etc.)
 - **Test infrastructure** - Comprehensive test utilities and fixtures
 - **Test database** - Isolated test database with full migration support
