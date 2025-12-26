@@ -54,3 +54,4 @@ pub mod user_name_history;
 pub mod user_names;
 pub mod users;
 pub mod watched_threads;
+pub mod word_filters;

@@ -3,9 +3,9 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{forum_read, poll_options, polls, posts, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
-use serde::Deserialize;
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
+use serde::Deserialize;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
@@ -46,7 +46,9 @@ pub struct ModeratorForTemplate {
 }
 
 /// Fetch moderators for a forum
-pub async fn get_forum_moderators(forum_id: i32) -> Result<Vec<ModeratorForTemplate>, sea_orm::DbErr> {
+pub async fn get_forum_moderators(
+    forum_id: i32,
+) -> Result<Vec<ModeratorForTemplate>, sea_orm::DbErr> {
     use sea_orm::{DbBackend, Statement};
 
     let db = get_db_pool();
@@ -84,7 +86,9 @@ struct ModeratorQueryResult {
 }
 
 /// Build breadcrumbs for a forum, including parent forums
-pub async fn build_forum_breadcrumbs(forum: &crate::orm::forums::Model) -> Vec<super::thread::Breadcrumb> {
+pub async fn build_forum_breadcrumbs(
+    forum: &crate::orm::forums::Model,
+) -> Vec<super::thread::Breadcrumb> {
     use crate::orm::forums;
 
     let mut breadcrumbs = vec![super::thread::Breadcrumb {
@@ -254,6 +258,39 @@ pub async fn create_thread(
         ));
     }
 
+    // Word filter: check title and content
+    let title_filter = crate::word_filter::apply_filters(&form.title);
+    if title_filter.blocked {
+        log::warn!(
+            "Thread title blocked by word filter: user_id={}, patterns={:?}",
+            user_id,
+            title_filter.matched_patterns
+        );
+        return Err(error::ErrorBadRequest(
+            title_filter
+                .block_reason
+                .unwrap_or_else(|| "Your thread title contains blocked content.".to_string()),
+        ));
+    }
+
+    let content_filter = crate::word_filter::apply_filters(&form.content);
+    if content_filter.blocked {
+        log::warn!(
+            "Thread content blocked by word filter: user_id={}, patterns={:?}",
+            user_id,
+            content_filter.matched_patterns
+        );
+        return Err(error::ErrorBadRequest(
+            content_filter
+                .block_reason
+                .unwrap_or_else(|| "Your thread content contains blocked content.".to_string()),
+        ));
+    }
+
+    // Use filtered content (with replacements applied)
+    let filtered_title = title_filter.content;
+    let filtered_content = content_filter.content;
+
     // Begin Transaction
     let txn = get_db_pool()
         .begin()
@@ -266,7 +303,7 @@ pub async fn create_thread(
         NewUgcPartial {
             ip_id,
             user_id: Some(user_id),
-            content: &form.content,
+            content: &filtered_content,
         },
     )
     .await
@@ -277,7 +314,7 @@ pub async fn create_thread(
         user_id: Set(Some(user_id)),
         forum_id: Set(forum_id),
         created_at: Set(revision.created_at),
-        title: Set(form.title.trim().to_owned()),
+        title: Set(filtered_title.trim().to_owned()),
         subtitle: Set(form
             .subtitle
             .to_owned()
@@ -591,7 +628,9 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
 
     // Get unread forums for logged-in users
     let unread_forums = if let Some(user_id) = client.get_id() {
-        get_unread_forums(user_id, &all_forums).await.unwrap_or_default()
+        get_unread_forums(user_id, &all_forums)
+            .await
+            .unwrap_or_default()
     } else {
         HashSet::new()
     };
@@ -609,7 +648,10 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
 }
 
 /// Get set of forum IDs that have unread posts for the given user
-async fn get_unread_forums(user_id: i32, forums: &[ForumWithStats]) -> Result<HashSet<i32>, sea_orm::DbErr> {
+async fn get_unread_forums(
+    user_id: i32,
+    forums: &[ForumWithStats],
+) -> Result<HashSet<i32>, sea_orm::DbErr> {
     let db = get_db_pool();
 
     // Get all forum read timestamps for this user

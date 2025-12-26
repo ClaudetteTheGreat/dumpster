@@ -6,6 +6,7 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
     feature_flags, forums, ip_bans, mod_log, settings, threads, user_bans, user_names, users,
+    word_filters,
 };
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
@@ -35,7 +36,14 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_ip_bans)
         .service(view_ip_ban_form)
         .service(create_ip_ban)
-        .service(lift_ip_ban);
+        .service(lift_ip_ban)
+        // Word filter management
+        .service(view_word_filters)
+        .service(view_word_filter_form)
+        .service(create_word_filter)
+        .service(view_edit_word_filter)
+        .service(update_word_filter)
+        .service(delete_word_filter);
 }
 
 #[derive(Deserialize)]
@@ -1299,5 +1307,285 @@ async fn lift_ip_ban(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/ip-bans"))
+        .finish())
+}
+
+// =============================================================================
+// Word Filter Management
+// =============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/word_filters.html")]
+struct WordFiltersTemplate {
+    client: ClientCtx,
+    filters: Vec<word_filters::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/word_filter_form.html")]
+struct WordFilterFormTemplate {
+    client: ClientCtx,
+    filter: Option<word_filters::Model>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct WordFilterForm {
+    csrf_token: String,
+    pattern: String,
+    replacement: Option<String>,
+    action: String,
+    is_regex: Option<String>,
+    is_case_sensitive: Option<String>,
+    is_whole_word: Option<String>,
+    is_enabled: Option<String>,
+    notes: Option<String>,
+}
+
+/// GET /admin/word-filters - View all word filters
+#[get("/admin/word-filters")]
+async fn view_word_filters(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.word_filters.view")?;
+
+    let db = get_db_pool();
+
+    let filters = word_filters::Entity::find()
+        .order_by_asc(word_filters::Column::Pattern)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch word filters: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(WordFiltersTemplate { client, filters }.to_response())
+}
+
+/// GET /admin/word-filters/new - Show word filter creation form
+#[get("/admin/word-filters/new")]
+async fn view_word_filter_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.word_filters.manage")?;
+
+    Ok(WordFilterFormTemplate {
+        client,
+        filter: None,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/word-filters - Create a new word filter
+#[post("/admin/word-filters")]
+async fn create_word_filter(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<WordFilterForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    client.require_permission("admin.word_filters.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate pattern is not empty
+    if form.pattern.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Pattern is required"));
+    }
+
+    // Validate action
+    let action = match form.action.as_str() {
+        "replace" => word_filters::FilterAction::Replace,
+        "block" => word_filters::FilterAction::Block,
+        "flag" => word_filters::FilterAction::Flag,
+        _ => return Err(error::ErrorBadRequest("Invalid action")),
+    };
+
+    // For replace action, replacement is recommended
+    let replacement = form.replacement.as_ref().map(|r| r.trim().to_string());
+
+    // If regex, validate it compiles
+    let is_regex = form.is_regex.is_some();
+    if is_regex {
+        if let Err(e) = regex::Regex::new(&form.pattern) {
+            return Err(error::ErrorBadRequest(format!("Invalid regex pattern: {}", e)));
+        }
+    }
+
+    let filter = word_filters::ActiveModel {
+        pattern: Set(form.pattern.trim().to_string()),
+        replacement: Set(replacement),
+        is_regex: Set(is_regex),
+        is_case_sensitive: Set(form.is_case_sensitive.is_some()),
+        is_whole_word: Set(form.is_whole_word.is_some()),
+        action: Set(action),
+        is_enabled: Set(form.is_enabled.is_some()),
+        created_by: Set(Some(user_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        notes: Set(form.notes.as_ref().map(|n| n.trim().to_string())),
+        ..Default::default()
+    };
+
+    filter.insert(db).await.map_err(|e| {
+        log::error!("Failed to create word filter: {}", e);
+        error::ErrorInternalServerError("Failed to create word filter")
+    })?;
+
+    // Reload filters in cache
+    crate::word_filter::reload_filters(db).await.ok();
+
+    log::info!("Word filter '{}' created by user {}", form.pattern.trim(), user_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/word-filters"))
+        .finish())
+}
+
+/// GET /admin/word-filters/{id}/edit - Show word filter edit form
+#[get("/admin/word-filters/{id}/edit")]
+async fn view_edit_word_filter(
+    client: ClientCtx,
+    filter_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.word_filters.manage")?;
+
+    let db = get_db_pool();
+    let filter_id = filter_id.into_inner();
+
+    let filter = word_filters::Entity::find_by_id(filter_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch word filter: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Word filter not found"))?;
+
+    Ok(WordFilterFormTemplate {
+        client,
+        filter: Some(filter),
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/word-filters/{id} - Update a word filter
+#[post("/admin/word-filters/{id}")]
+async fn update_word_filter(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    filter_id: web::Path<i32>,
+    form: web::Form<WordFilterForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    client.require_permission("admin.word_filters.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let filter_id = filter_id.into_inner();
+
+    // Validate pattern is not empty
+    if form.pattern.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Pattern is required"));
+    }
+
+    // Find existing filter
+    let filter = word_filters::Entity::find_by_id(filter_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch word filter: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Word filter not found"))?;
+
+    // Validate action
+    let action = match form.action.as_str() {
+        "replace" => word_filters::FilterAction::Replace,
+        "block" => word_filters::FilterAction::Block,
+        "flag" => word_filters::FilterAction::Flag,
+        _ => return Err(error::ErrorBadRequest("Invalid action")),
+    };
+
+    let replacement = form.replacement.as_ref().map(|r| r.trim().to_string());
+
+    // If regex, validate it compiles
+    let is_regex = form.is_regex.is_some();
+    if is_regex {
+        if let Err(e) = regex::Regex::new(&form.pattern) {
+            return Err(error::ErrorBadRequest(format!("Invalid regex pattern: {}", e)));
+        }
+    }
+
+    let mut active_filter: word_filters::ActiveModel = filter.into();
+    active_filter.pattern = Set(form.pattern.trim().to_string());
+    active_filter.replacement = Set(replacement);
+    active_filter.is_regex = Set(is_regex);
+    active_filter.is_case_sensitive = Set(form.is_case_sensitive.is_some());
+    active_filter.is_whole_word = Set(form.is_whole_word.is_some());
+    active_filter.action = Set(action);
+    active_filter.is_enabled = Set(form.is_enabled.is_some());
+    active_filter.notes = Set(form.notes.as_ref().map(|n| n.trim().to_string()));
+
+    active_filter.update(db).await.map_err(|e| {
+        log::error!("Failed to update word filter: {}", e);
+        error::ErrorInternalServerError("Failed to update word filter")
+    })?;
+
+    // Reload filters in cache
+    crate::word_filter::reload_filters(db).await.ok();
+
+    log::info!("Word filter {} updated by user {}", filter_id, user_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/word-filters"))
+        .finish())
+}
+
+/// POST /admin/word-filters/{id}/delete - Delete a word filter
+#[post("/admin/word-filters/{id}/delete")]
+async fn delete_word_filter(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    filter_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    client.require_permission("admin.word_filters.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let filter_id = filter_id.into_inner();
+
+    // Find filter to get pattern for logging
+    let filter = word_filters::Entity::find_by_id(filter_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch word filter: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Word filter not found"))?;
+
+    let pattern = filter.pattern.clone();
+
+    // Delete the filter
+    word_filters::Entity::delete_by_id(filter_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete word filter: {}", e);
+            error::ErrorInternalServerError("Failed to delete word filter")
+        })?;
+
+    // Reload filters in cache
+    crate::word_filter::reload_filters(db).await.ok();
+
+    log::info!("Word filter '{}' (id: {}) deleted by user {}", pattern, filter_id, user_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/word-filters"))
         .finish())
 }

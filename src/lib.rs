@@ -31,3 +31,4 @@ pub mod ugc;
 pub mod url;
 pub mod user;
 pub mod web;
+pub mod word_filter;

@@ -27,6 +27,11 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to load configuration from database");
 
+    // Initialize word filters from database
+    ruforo::word_filter::init_filters(&get_db_pool())
+        .await
+        .expect("Failed to load word filters from database");
+
     let permissions = ruforo::permission::new()
         .await
         .expect("Permission System failed to initialize.");
@@ -81,7 +86,10 @@ async fn main() -> std::io::Result<()> {
                     .add((header::X_CONTENT_TYPE_OPTIONS, "nosniff"))
                     .add(("X-XSS-Protection", "0")) // Disable legacy XSS filter
                     .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
-                    .add(("Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
+                    .add((
+                        "Permissions-Policy",
+                        "geolocation=(), microphone=(), camera=()",
+                    )),
             )
             .wrap(
                 ErrorHandlers::new()

@@ -767,6 +767,24 @@ pub async fn create_reply(
         ));
     }
 
+    // Word filter: check and apply filters to content
+    let filter_result = crate::word_filter::apply_filters(&content);
+    if filter_result.blocked {
+        log::warn!(
+            "Post blocked by word filter: user_id={}, patterns={:?}",
+            authenticated_user_id,
+            filter_result.matched_patterns
+        );
+        return Err(error::ErrorBadRequest(
+            filter_result
+                .block_reason
+                .unwrap_or_else(|| "Your post contains blocked content.".to_string()),
+        ));
+    }
+
+    // Use filtered content (with replacements applied)
+    let content = filter_result.content;
+
     // Begin Transaction
     let db = get_db_pool();
     let txn = db.begin().await.map_err(error::ErrorInternalServerError)?;

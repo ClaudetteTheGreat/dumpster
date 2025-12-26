@@ -374,6 +374,40 @@ pub async fn is_ip_banned(db: &DatabaseConnection, ip_address: &str) -> Result<b
     }
 }
 
+/// Create a word filter
+pub async fn create_word_filter(
+    db: &DatabaseConnection,
+    pattern: &str,
+    replacement: Option<&str>,
+    action: &str,
+    is_regex: bool,
+    is_case_sensitive: bool,
+    is_whole_word: bool,
+) -> Result<ruforo::orm::word_filters::Model, DbErr> {
+    use ruforo::orm::word_filters::{self, FilterAction};
+
+    let action_enum = match action {
+        "block" => FilterAction::Block,
+        "flag" => FilterAction::Flag,
+        _ => FilterAction::Replace,
+    };
+
+    let filter = word_filters::ActiveModel {
+        pattern: Set(pattern.to_string()),
+        replacement: Set(replacement.map(|s| s.to_string())),
+        is_regex: Set(is_regex),
+        is_case_sensitive: Set(is_case_sensitive),
+        is_whole_word: Set(is_whole_word),
+        action: Set(action_enum),
+        is_enabled: Set(true),
+        created_by: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        notes: Set(None),
+        ..Default::default()
+    };
+    filter.insert(db).await
+}
+
 /// Create a test forum and thread for testing
 pub async fn create_test_forum_and_thread(
     db: &DatabaseConnection,
