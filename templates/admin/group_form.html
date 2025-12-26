@@ -1,0 +1,339 @@
+{% extends "container/public.html" %}
+
+{% block title %}{% if is_edit %}Edit Group{% else %}Create Group{% endif %} - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel admin-group-form">
+    <div class="panel-header">
+        <h1>{% if is_edit %}Edit Group{% else %}Create New Group{% endif %}</h1>
+        {% if is_edit %}
+        {% match group %}
+        {% when Some with (g) %}
+        <p class="panel-subtitle">{{ g.label }}{% if is_system %} (System Group){% endif %}</p>
+        {% when None %}
+        {% endmatch %}
+        {% else %}
+        <p class="panel-subtitle">Create a new permission group</p>
+        {% endif %}
+    </div>
+
+    <div class="panel-actions">
+        <a href="/admin/groups" class="btn btn-secondary">Back to Groups</a>
+    </div>
+
+    <form method="post" class="group-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <!-- Group Name -->
+        <div class="form-section">
+            <h2>Group Details</h2>
+            <div class="form-group">
+                <label for="label">Group Name</label>
+                {% if is_system %}
+                <input type="text" id="label" name="label" value="{% match group %}{% when Some with (g) %}{{ g.label }}{% when None %}{% endmatch %}" disabled class="form-control" />
+                <input type="hidden" name="label" value="{% match group %}{% when Some with (g) %}{{ g.label }}{% when None %}{% endmatch %}" />
+                <p class="form-hint">System group names cannot be changed.</p>
+                {% else %}
+                <input type="text" id="label" name="label" value="{% match group %}{% when Some with (g) %}{{ g.label }}{% when None %}{% endmatch %}" required class="form-control" placeholder="Enter group name" />
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Permissions -->
+        <div class="form-section">
+            <h2>Permissions</h2>
+            <p class="section-desc">Set permissions for this group. Options: <strong>Yes</strong> (grant), <strong>No</strong> (deny), <strong>Never</strong> (permanent deny), <strong>Default</strong> (inherit).</p>
+
+            {% for category in categories %}
+            <div class="permission-category">
+                <h3>{{ category.label }}</h3>
+                <div class="permission-grid">
+                    {% for perm in category.permissions %}
+                    <div class="permission-row">
+                        <div class="permission-label">
+                            <code>{{ perm.label }}</code>
+                        </div>
+                        <div class="permission-value">
+                            <select name="permissions[{{ perm.id }}]" class="permission-select">
+                                <option value="default"{% if perm.value == "default" %} selected{% endif %}>Default</option>
+                                <option value="yes"{% if perm.value == "yes" %} selected{% endif %}>Yes</option>
+                                <option value="no"{% if perm.value == "no" %} selected{% endif %}>No</option>
+                                <option value="never"{% if perm.value == "never" %} selected{% endif %}>Never</option>
+                            </select>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                {% if is_edit %}Save Changes{% else %}Create Group{% endif %}
+            </button>
+            <a href="/admin/groups" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-group-form {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.panel-actions {
+    margin-bottom: 20px;
+}
+
+.form-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.form-section h2 {
+    margin: 0 0 15px 0;
+    font-size: 1.2em;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.section-desc {
+    margin: 0 0 20px 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    max-width: 400px;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #0066cc;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-control:disabled {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.form-hint {
+    margin: 8px 0 0 0;
+    font-size: 0.85em;
+    color: #666;
+    font-style: italic;
+}
+
+.permission-category {
+    margin-bottom: 25px;
+}
+
+.permission-category:last-child {
+    margin-bottom: 0;
+}
+
+.permission-category h3 {
+    margin: 0 0 15px 0;
+    font-size: 1em;
+    color: #0066cc;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.permission-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.permission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.permission-label {
+    flex: 1;
+}
+
+.permission-label code {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.permission-value {
+    flex-shrink: 0;
+}
+
+.permission-select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    background: #fff;
+    min-width: 100px;
+}
+
+.permission-select:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+/* Color coding for permission values */
+.permission-select option[value="yes"] {
+    color: #28a745;
+}
+
+.permission-select option[value="no"] {
+    color: #dc3545;
+}
+
+.permission-select option[value="never"] {
+    color: #6f42c1;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .form-section h2,
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .section-desc,
+html.dark .form-hint {
+    color: #aaa;
+}
+
+html.dark .form-section {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-section h2 {
+    border-color: #444;
+}
+
+html.dark .form-control {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .form-control:disabled {
+    background: #222;
+}
+
+html.dark .permission-row {
+    background: #333;
+}
+
+html.dark .permission-label code {
+    color: #fff;
+}
+
+html.dark .permission-select {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .permission-category h3 {
+    color: #5fa8e0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .permission-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .permission-value {
+        width: 100%;
+    }
+
+    .permission-select {
+        width: 100%;
+    }
+}
+</style>
+{% endblock %}

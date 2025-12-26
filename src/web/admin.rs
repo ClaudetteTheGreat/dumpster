@@ -5,9 +5,12 @@ use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, posts, reports, sessions,
-    settings, threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
+    feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
+    permission_collections, permission_values, permissions, posts, reports, sessions, settings,
+    threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
 };
+use crate::group::GroupType;
+use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
 use askama_actix::TemplateToResponse;
@@ -61,7 +64,16 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         // Approval queue
         .service(view_approval_queue)
         .service(approve_user)
-        .service(reject_user);
+        .service(reject_user)
+        // Mass moderation actions
+        .service(mass_user_action)
+        // Permission groups management
+        .service(view_groups)
+        .service(view_create_group_form)
+        .service(create_group)
+        .service(view_edit_group)
+        .service(update_group)
+        .service(delete_group);
 }
 
 // ============================================================================
@@ -1877,6 +1889,7 @@ struct UsersTemplate {
     page: i32,
     total_pages: i32,
     search_query: String,
+    can_mass_moderate: bool,
 }
 
 /// Group with membership status for template
@@ -2016,12 +2029,15 @@ async fn view_users(
         });
     }
 
+    let can_mass_moderate = client.can("moderate.mass.users");
+
     Ok(UsersTemplate {
         client,
         users: user_displays,
         page,
         total_pages,
         search_query,
+        can_mass_moderate,
     }
     .to_response())
 }
@@ -3095,4 +3111,754 @@ async fn reject_user(
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/approval-queue"))
         .finish())
+}
+
+// ============================================================================
+// Mass Moderation Actions
+// ============================================================================
+
+/// Form for mass user actions
+#[derive(Deserialize)]
+struct MassUserActionForm {
+    csrf_token: String,
+    action: String,
+    #[serde(default)]
+    user_ids: Vec<i32>,
+    reason: Option<String>,
+    ban_duration_days: Option<i32>,
+}
+
+/// POST /admin/users/mass-action - Perform mass action on users
+#[post("/admin/users/mass-action")]
+async fn mass_user_action(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<MassUserActionForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.mass.users")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    if form.user_ids.is_empty() {
+        return Err(error::ErrorBadRequest("No users selected"));
+    }
+
+    let db = get_db_pool();
+    let now = Utc::now().naive_utc();
+
+    match form.action.as_str() {
+        "ban" => {
+            // Mass ban users
+            let duration_days = form.ban_duration_days.unwrap_or(7);
+            let expires_at = if duration_days > 0 {
+                Some(now + Duration::days(duration_days as i64))
+            } else {
+                None // Permanent
+            };
+            let is_permanent = expires_at.is_none();
+
+            for user_id in &form.user_ids {
+                // Skip self-ban
+                if *user_id == moderator_id {
+                    continue;
+                }
+
+                // Check if already banned
+                let existing_ban = user_bans::Entity::find()
+                    .filter(user_bans::Column::UserId.eq(*user_id))
+                    .filter(
+                        user_bans::Column::IsPermanent
+                            .eq(true)
+                            .or(user_bans::Column::ExpiresAt.gt(now)),
+                    )
+                    .one(&*db)
+                    .await
+                    .ok()
+                    .flatten();
+
+                if existing_ban.is_some() {
+                    continue; // Already banned
+                }
+
+                // Create ban
+                let ban = user_bans::ActiveModel {
+                    user_id: Set(*user_id),
+                    banned_by: Set(Some(moderator_id)),
+                    reason: Set(form.reason.clone().unwrap_or_else(|| "Mass ban".to_string())),
+                    is_permanent: Set(is_permanent),
+                    expires_at: Set(expires_at),
+                    created_at: Set(now),
+                    ..Default::default()
+                };
+                let _ = ban.insert(&*db).await;
+
+                // Log action
+                let _ = log_moderation_action(
+                    &*db,
+                    moderator_id,
+                    "mass_ban",
+                    "user",
+                    *user_id,
+                    form.reason.as_deref(),
+                )
+                .await;
+            }
+
+            log::info!(
+                "Mass ban of {} users by moderator {}",
+                form.user_ids.len(),
+                moderator_id
+            );
+        }
+        "unban" => {
+            // Mass unban users
+            for user_id in &form.user_ids {
+                // Find active bans
+                let active_bans = user_bans::Entity::find()
+                    .filter(user_bans::Column::UserId.eq(*user_id))
+                    .filter(
+                        user_bans::Column::IsPermanent
+                            .eq(true)
+                            .or(user_bans::Column::ExpiresAt.gt(now)),
+                    )
+                    .all(&*db)
+                    .await
+                    .unwrap_or_default();
+
+                for ban in active_bans {
+                    let mut active_ban: user_bans::ActiveModel = ban.into();
+                    active_ban.expires_at = Set(Some(now));
+                    active_ban.is_permanent = Set(false);
+                    let _ = active_ban.update(&*db).await;
+                }
+
+                // Log action
+                let _ = log_moderation_action(
+                    &*db,
+                    moderator_id,
+                    "mass_unban",
+                    "user",
+                    *user_id,
+                    None,
+                )
+                .await;
+            }
+
+            log::info!(
+                "Mass unban of {} users by moderator {}",
+                form.user_ids.len(),
+                moderator_id
+            );
+        }
+        "verify_email" => {
+            // Mass verify email
+            for user_id in &form.user_ids {
+                let user = users::Entity::find_by_id(*user_id)
+                    .one(&*db)
+                    .await
+                    .ok()
+                    .flatten();
+
+                if let Some(user) = user {
+                    if !user.email_verified {
+                        let mut active_user: users::ActiveModel = user.into();
+                        active_user.email_verified = Set(true);
+                        let _ = active_user.update(&*db).await;
+
+                        let _ = log_moderation_action(
+                            &*db,
+                            moderator_id,
+                            "mass_verify_email",
+                            "user",
+                            *user_id,
+                            None,
+                        )
+                        .await;
+                    }
+                }
+            }
+
+            log::info!(
+                "Mass email verification of {} users by moderator {}",
+                form.user_ids.len(),
+                moderator_id
+            );
+        }
+        "approve" => {
+            // Mass approve pending users
+            for user_id in &form.user_ids {
+                let user = users::Entity::find_by_id(*user_id)
+                    .one(&*db)
+                    .await
+                    .ok()
+                    .flatten();
+
+                if let Some(user) = user {
+                    if user.approval_status == users::ApprovalStatus::Pending {
+                        let mut active_user: users::ActiveModel = user.into();
+                        active_user.approval_status = Set(users::ApprovalStatus::Approved);
+                        active_user.approved_at = Set(Some(now));
+                        active_user.approved_by = Set(Some(moderator_id));
+                        let _ = active_user.update(&*db).await;
+
+                        let _ = log_moderation_action(
+                            &*db,
+                            moderator_id,
+                            "mass_approve",
+                            "user",
+                            *user_id,
+                            None,
+                        )
+                        .await;
+                    }
+                }
+            }
+
+            log::info!(
+                "Mass approval of {} users by moderator {}",
+                form.user_ids.len(),
+                moderator_id
+            );
+        }
+        "delete" => {
+            // Mass delete users - requires admin permission
+            client.require_permission("admin.user.manage")?;
+
+            for user_id in &form.user_ids {
+                // Skip self-delete
+                if *user_id == moderator_id {
+                    continue;
+                }
+
+                let _ = users::Entity::delete_by_id(*user_id).exec(&*db).await;
+
+                let _ = log_moderation_action(
+                    &*db,
+                    moderator_id,
+                    "mass_delete",
+                    "user",
+                    *user_id,
+                    form.reason.as_deref(),
+                )
+                .await;
+            }
+
+            log::info!(
+                "Mass deletion of {} users by moderator {}",
+                form.user_ids.len(),
+                moderator_id
+            );
+        }
+        _ => {
+            return Err(error::ErrorBadRequest("Invalid action"));
+        }
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/users"))
+        .finish())
+}
+
+// ============================================================================
+// Permission Groups Management
+// ============================================================================
+
+/// Display data for a group in the list
+struct GroupDisplay {
+    id: i32,
+    label: String,
+    group_type: GroupType,
+    is_system: bool,
+    member_count: i64,
+}
+
+/// Template for listing groups
+#[derive(Template)]
+#[template(path = "admin/groups.html")]
+struct GroupsTemplate {
+    client: ClientCtx,
+    groups: Vec<GroupDisplay>,
+}
+
+/// Permission display with current value for a group
+struct PermissionDisplay {
+    id: i32,
+    label: String,
+    value: String,
+}
+
+/// Category with permissions
+struct CategoryDisplay {
+    id: i32,
+    label: String,
+    permissions: Vec<PermissionDisplay>,
+}
+
+/// Template for creating a new group
+#[derive(Template)]
+#[template(path = "admin/group_form.html")]
+struct GroupFormTemplate {
+    client: ClientCtx,
+    group: Option<groups::Model>,
+    categories: Vec<CategoryDisplay>,
+    is_edit: bool,
+    is_system: bool,
+}
+
+/// Form for creating/updating a group
+#[derive(Deserialize)]
+struct GroupForm {
+    csrf_token: String,
+    label: String,
+    #[serde(default)]
+    permissions: std::collections::HashMap<String, String>,
+}
+
+/// GET /admin/groups - List all groups
+#[get("/admin/groups")]
+async fn view_groups(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.permissions.manage")?;
+
+    let db = get_db_pool();
+
+    // Get all groups with member counts
+    let all_groups = groups::Entity::find()
+        .order_by_asc(groups::Column::Id)
+        .all(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let mut group_displays = Vec::new();
+    for group in all_groups {
+        // Count members in this group
+        let member_count = user_groups::Entity::find()
+            .filter(user_groups::Column::GroupId.eq(group.id))
+            .count(&*db)
+            .await
+            .unwrap_or(0) as i64;
+
+        let is_system = group.group_type != GroupType::Normal;
+
+        group_displays.push(GroupDisplay {
+            id: group.id,
+            label: group.label,
+            group_type: group.group_type,
+            is_system,
+            member_count,
+        });
+    }
+
+    Ok(GroupsTemplate {
+        client,
+        groups: group_displays,
+    }
+    .to_response())
+}
+
+/// GET /admin/groups/new - Form to create a new group
+#[get("/admin/groups/new")]
+async fn view_create_group_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.permissions.manage")?;
+
+    let db = get_db_pool();
+
+    // Get all permission categories with their permissions
+    let categories = load_permission_categories(&*db).await?;
+
+    Ok(GroupFormTemplate {
+        client,
+        group: None,
+        categories,
+        is_edit: false,
+        is_system: false,
+    }
+    .to_response())
+}
+
+/// POST /admin/groups/new - Create a new group
+#[post("/admin/groups/new")]
+async fn create_group(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<GroupForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.permissions.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate label
+    let label = form.label.trim();
+    if label.is_empty() {
+        return Err(error::ErrorBadRequest("Group name cannot be empty"));
+    }
+
+    // Create the group
+    let new_group = groups::ActiveModel {
+        label: Set(label.to_string()),
+        group_type: Set(GroupType::Normal),
+        ..Default::default()
+    };
+
+    let group = new_group.insert(&*db).await.map_err(|e| {
+        log::error!("Failed to create group: {}", e);
+        error::ErrorInternalServerError("Failed to create group")
+    })?;
+
+    // Create a permission collection for this group
+    let collection = permission_collections::ActiveModel {
+        group_id: Set(Some(group.id)),
+        user_id: Set(None),
+        ..Default::default()
+    };
+
+    let collection = collection.insert(&*db).await.map_err(|e| {
+        log::error!("Failed to create permission collection: {}", e);
+        error::ErrorInternalServerError("Failed to create permission collection")
+    })?;
+
+    // Save permissions
+    save_group_permissions(&*db, collection.id, &form.permissions).await?;
+
+    // Log moderation action
+    log_moderation_action(&*db, moderator_id, "create_group", "group", group.id, Some(label))
+        .await?;
+
+    log::info!("Group {} created by user {}", group.id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/groups/{}/edit", group.id)))
+        .finish())
+}
+
+/// GET /admin/groups/{id}/edit - Edit a group
+#[get("/admin/groups/{id}/edit")]
+async fn view_edit_group(
+    client: ClientCtx,
+    group_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.permissions.manage")?;
+
+    let db = get_db_pool();
+    let group_id = group_id.into_inner();
+
+    // Find the group
+    let group = groups::Entity::find_by_id(group_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch group: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Group not found"))?;
+
+    let is_system = group.group_type != GroupType::Normal;
+
+    // Get the permission collection for this group
+    let collection = permission_collections::Entity::find()
+        .filter(permission_collections::Column::GroupId.eq(group_id))
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission collection: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Load categories with current permission values
+    let categories = load_permission_categories_with_values(&*db, collection.map(|c| c.id)).await?;
+
+    Ok(GroupFormTemplate {
+        client,
+        group: Some(group),
+        categories,
+        is_edit: true,
+        is_system,
+    }
+    .to_response())
+}
+
+/// POST /admin/groups/{id}/edit - Update a group
+#[post("/admin/groups/{id}/edit")]
+async fn update_group(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    group_id: web::Path<i32>,
+    form: web::Form<GroupForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.permissions.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let group_id = group_id.into_inner();
+
+    // Find the group
+    let group = groups::Entity::find_by_id(group_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch group: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Group not found"))?;
+
+    // Update group label (only for non-system groups)
+    if group.group_type == GroupType::Normal {
+        let label = form.label.trim();
+        if !label.is_empty() {
+            let mut active_group: groups::ActiveModel = group.into();
+            active_group.label = Set(label.to_string());
+            active_group.update(&*db).await.map_err(|e| {
+                log::error!("Failed to update group: {}", e);
+                error::ErrorInternalServerError("Failed to update group")
+            })?;
+        }
+    }
+
+    // Get or create permission collection
+    let collection = permission_collections::Entity::find()
+        .filter(permission_collections::Column::GroupId.eq(group_id))
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission collection: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let collection_id = match collection {
+        Some(c) => c.id,
+        None => {
+            // Create collection if it doesn't exist
+            let new_collection = permission_collections::ActiveModel {
+                group_id: Set(Some(group_id)),
+                user_id: Set(None),
+                ..Default::default()
+            };
+            let c = new_collection.insert(&*db).await.map_err(|e| {
+                log::error!("Failed to create permission collection: {}", e);
+                error::ErrorInternalServerError("Failed to create permission collection")
+            })?;
+            c.id
+        }
+    };
+
+    // Save permissions
+    save_group_permissions(&*db, collection_id, &form.permissions).await?;
+
+    // Log moderation action
+    log_moderation_action(
+        &*db,
+        moderator_id,
+        "update_group",
+        "group",
+        group_id,
+        Some(&form.label),
+    )
+    .await?;
+
+    log::info!("Group {} updated by user {}", group_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/groups/{}/edit", group_id)))
+        .finish())
+}
+
+/// Form for deleting a group
+#[derive(Deserialize)]
+struct DeleteGroupForm {
+    csrf_token: String,
+}
+
+/// POST /admin/groups/{id}/delete - Delete a group
+#[post("/admin/groups/{id}/delete")]
+async fn delete_group(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    group_id: web::Path<i32>,
+    form: web::Form<DeleteGroupForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.permissions.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let group_id = group_id.into_inner();
+
+    // Find the group
+    let group = groups::Entity::find_by_id(group_id)
+        .one(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch group: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Group not found"))?;
+
+    // Cannot delete system groups
+    if group.group_type != GroupType::Normal {
+        return Err(error::ErrorBadRequest("Cannot delete system groups"));
+    }
+
+    let group_label = group.label.clone();
+
+    // Delete the group (cascades to user_groups and permission_collections)
+    groups::Entity::delete_by_id(group_id)
+        .exec(&*db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete group: {}", e);
+            error::ErrorInternalServerError("Failed to delete group")
+        })?;
+
+    // Log moderation action
+    log_moderation_action(
+        &*db,
+        moderator_id,
+        "delete_group",
+        "group",
+        group_id,
+        Some(&group_label),
+    )
+    .await?;
+
+    log::info!("Group {} deleted by user {}", group_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/groups"))
+        .finish())
+}
+
+/// Helper to load permission categories
+async fn load_permission_categories(
+    db: &DatabaseConnection,
+) -> Result<Vec<CategoryDisplay>, Error> {
+    load_permission_categories_with_values(db, None).await
+}
+
+/// Helper to load permission categories with current values for a collection
+async fn load_permission_categories_with_values(
+    db: &DatabaseConnection,
+    collection_id: Option<i32>,
+) -> Result<Vec<CategoryDisplay>, Error> {
+    // Get all categories
+    let categories = permission_categories::Entity::find()
+        .order_by_asc(permission_categories::Column::Sort)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission categories: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get all permissions
+    let all_permissions = permissions::Entity::find()
+        .order_by_asc(permissions::Column::Sort)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permissions: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get current values if collection_id provided
+    let current_values: std::collections::HashMap<i32, String> = if let Some(cid) = collection_id {
+        permission_values::Entity::find()
+            .filter(permission_values::Column::CollectionId.eq(cid))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch permission values: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+            .into_iter()
+            .map(|pv| {
+                let value_str = match pv.value {
+                    Flag::YES => "yes",
+                    Flag::NO => "no",
+                    Flag::NEVER => "never",
+                    Flag::DEFAULT => "default",
+                };
+                (pv.permission_id, value_str.to_string())
+            })
+            .collect()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    // Build category displays
+    let mut category_displays = Vec::new();
+    for cat in categories {
+        let perms: Vec<PermissionDisplay> = all_permissions
+            .iter()
+            .filter(|p| p.category_id == cat.id)
+            .map(|p| PermissionDisplay {
+                id: p.id,
+                label: p.label.clone(),
+                value: current_values
+                    .get(&p.id)
+                    .cloned()
+                    .unwrap_or_else(|| "default".to_string()),
+            })
+            .collect();
+
+        if !perms.is_empty() {
+            category_displays.push(CategoryDisplay {
+                id: cat.id,
+                label: cat.label,
+                permissions: perms,
+            });
+        }
+    }
+
+    Ok(category_displays)
+}
+
+/// Helper to save group permissions
+async fn save_group_permissions(
+    db: &DatabaseConnection,
+    collection_id: i32,
+    permissions_map: &std::collections::HashMap<String, String>,
+) -> Result<(), Error> {
+    // Delete existing permission values for this collection
+    permission_values::Entity::delete_many()
+        .filter(permission_values::Column::CollectionId.eq(collection_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete old permission values: {}", e);
+            error::ErrorInternalServerError("Failed to update permissions")
+        })?;
+
+    // Insert new permission values
+    for (perm_id_str, value_str) in permissions_map {
+        let perm_id: i32 = match perm_id_str.parse() {
+            Ok(id) => id,
+            Err(_) => continue,
+        };
+
+        let flag = match value_str.as_str() {
+            "yes" => Flag::YES,
+            "no" => Flag::NO,
+            "never" => Flag::NEVER,
+            _ => continue, // Skip "default" values - don't store them
+        };
+
+        let pv = permission_values::ActiveModel {
+            permission_id: Set(perm_id),
+            collection_id: Set(collection_id),
+            value: Set(flag),
+        };
+
+        let _ = pv.insert(db).await;
+    }
+
+    Ok(())
 }

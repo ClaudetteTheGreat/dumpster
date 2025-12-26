@@ -1,0 +1,231 @@
+{% extends "container/public.html" %}
+
+{% block title %}Permission Groups - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel admin-groups">
+    <div class="panel-header">
+        <h1>Permission Groups</h1>
+        <p class="panel-subtitle">Manage user groups and their permissions</p>
+    </div>
+
+    <div class="panel-actions">
+        <a href="/admin" class="btn btn-secondary">Back to Dashboard</a>
+        <a href="/admin/groups/new" class="btn btn-primary">Create New Group</a>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Members</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for group in groups %}
+                <tr>
+                    <td>{{ group.id }}</td>
+                    <td>
+                        <strong>{{ group.label }}</strong>
+                        {% if group.is_system %}
+                        <span class="badge badge-info">System</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% match group.group_type %}
+                        {% when crate::group::GroupType::Normal %}
+                        <span class="type-normal">Custom</span>
+                        {% when crate::group::GroupType::SystemGuest %}
+                        <span class="type-system">Guest</span>
+                        {% when crate::group::GroupType::SystemUser %}
+                        <span class="type-system">Registered</span>
+                        {% when crate::group::GroupType::SystemAnon %}
+                        <span class="type-system">Anonymous</span>
+                        {% endmatch %}
+                    </td>
+                    <td>{{ group.member_count }}</td>
+                    <td class="actions">
+                        <a href="/admin/groups/{{ group.id }}/edit" class="btn btn-sm btn-secondary">
+                            {% if group.is_system %}View{% else %}Edit{% endif %}
+                        </a>
+                        {% if !group.is_system %}
+                        <form action="/admin/groups/{{ group.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Are you sure you want to delete this group? All members will be removed from it.');">
+                            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-groups {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.panel-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.table-container {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table tr:hover {
+    background: #f8f9fa;
+}
+
+.actions {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.85em;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.75em;
+    font-weight: 600;
+    margin-left: 8px;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.type-normal {
+    color: #28a745;
+}
+
+.type-system {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Dark mode */
+html.dark .panel-header h1 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .table-container {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .data-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .data-table td {
+    border-color: #444;
+}
+
+html.dark .data-table tr:hover {
+    background: #333;
+}
+</style>
+{% endblock %}

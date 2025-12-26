@@ -17,11 +17,49 @@
         </form>
     </div>
 
+    {% if can_mass_moderate %}
+    <form id="mass-action-form" action="/admin/users/mass-action" method="post">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <!-- Mass Action Bar -->
+        <div class="mass-action-bar" id="mass-action-bar" style="display: none;">
+            <div class="selected-count">
+                <span id="selected-count">0</span> users selected
+            </div>
+            <div class="mass-action-controls">
+                <select name="action" id="mass-action-select" class="mass-action-select">
+                    <option value="">-- Select Action --</option>
+                    <option value="ban">Ban Selected</option>
+                    <option value="unban">Unban Selected</option>
+                    <option value="verify_email">Verify Email</option>
+                    <option value="approve">Approve</option>
+                    <option value="delete">Delete</option>
+                </select>
+                <input type="text" name="reason" placeholder="Reason (optional)" class="mass-action-reason" />
+                <select name="ban_duration_days" class="mass-action-duration" id="ban-duration" style="display: none;">
+                    <option value="1">1 day</option>
+                    <option value="3">3 days</option>
+                    <option value="7" selected>7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                    <option value="90">90 days</option>
+                    <option value="0">Permanent</option>
+                </select>
+                <button type="submit" class="btn btn-danger" id="mass-action-submit" disabled>Apply</button>
+            </div>
+        </div>
+    {% endif %}
+
     <!-- User List -->
     <div class="table-container">
         <table class="data-table">
             <thead>
                 <tr>
+                    {% if can_mass_moderate %}
+                    <th class="checkbox-col">
+                        <input type="checkbox" id="select-all" title="Select all" />
+                    </th>
+                    {% endif %}
                     <th>ID</th>
                     <th>Username</th>
                     <th>Email</th>
@@ -33,6 +71,11 @@
             <tbody>
                 {% for user in users %}
                 <tr>
+                    {% if can_mass_moderate %}
+                    <td class="checkbox-col">
+                        <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox" />
+                    </td>
+                    {% endif %}
                     <td>{{ user.id }}</td>
                     <td>
                         <a href="/members/{{ user.id }}/">{{ user.username }}</a>
@@ -61,6 +104,10 @@
             </tbody>
         </table>
     </div>
+
+    {% if can_mass_moderate %}
+    </form>
+    {% endif %}
 
     <!-- Pagination -->
     {% if total_pages > 1 %}
@@ -290,5 +337,180 @@ html.dark .data-table tr:hover {
 html.dark .page-info {
     color: #aaa;
 }
+
+/* Mass Action Bar */
+.mass-action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 12px 15px;
+    background: #f0f4f8;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.selected-count {
+    font-weight: 600;
+    color: #333;
+}
+
+.mass-action-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mass-action-select,
+.mass-action-duration {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    background: #fff;
+}
+
+.mass-action-reason {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    width: 200px;
+}
+
+.checkbox-col {
+    width: 40px;
+    text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Dark mode */
+html.dark .mass-action-bar {
+    background: #333;
+    border-color: #555;
+}
+
+html.dark .selected-count {
+    color: #fff;
+}
+
+html.dark .mass-action-select,
+html.dark .mass-action-duration,
+html.dark .mass-action-reason {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #fff;
+}
 </style>
+
+{% if can_mass_moderate %}
+<script>
+(function() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    const massActionBar = document.getElementById('mass-action-bar');
+    const selectedCount = document.getElementById('selected-count');
+    const actionSelect = document.getElementById('mass-action-select');
+    const banDuration = document.getElementById('ban-duration');
+    const submitBtn = document.getElementById('mass-action-submit');
+    const form = document.getElementById('mass-action-form');
+
+    function updateSelection() {
+        const checked = document.querySelectorAll('.user-checkbox:checked');
+        const count = checked.length;
+
+        selectedCount.textContent = count;
+
+        if (count > 0) {
+            massActionBar.style.display = 'flex';
+        } else {
+            massActionBar.style.display = 'none';
+        }
+
+        // Update select-all checkbox state
+        if (count === 0) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        } else if (count === checkboxes.length) {
+            selectAll.checked = true;
+            selectAll.indeterminate = false;
+        } else {
+            selectAll.checked = false;
+            selectAll.indeterminate = true;
+        }
+
+        updateSubmitButton();
+    }
+
+    function updateSubmitButton() {
+        const hasSelection = document.querySelectorAll('.user-checkbox:checked').length > 0;
+        const hasAction = actionSelect.value !== '';
+        submitBtn.disabled = !hasSelection || !hasAction;
+    }
+
+    // Select all checkbox
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateSelection();
+    });
+
+    // Individual checkboxes
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelection);
+    });
+
+    // Action select - show/hide ban duration
+    actionSelect.addEventListener('change', function() {
+        if (this.value === 'ban') {
+            banDuration.style.display = 'inline-block';
+        } else {
+            banDuration.style.display = 'none';
+        }
+        updateSubmitButton();
+    });
+
+    // Form submission confirmation
+    form.addEventListener('submit', function(e) {
+        const action = actionSelect.value;
+        const count = document.querySelectorAll('.user-checkbox:checked').length;
+
+        let message = 'Are you sure you want to ';
+        switch (action) {
+            case 'ban':
+                message += 'ban';
+                break;
+            case 'unban':
+                message += 'unban';
+                break;
+            case 'verify_email':
+                message += 'verify email for';
+                break;
+            case 'approve':
+                message += 'approve';
+                break;
+            case 'delete':
+                message += 'DELETE';
+                break;
+            default:
+                message += 'perform action on';
+        }
+        message += ' ' + count + ' user(s)?';
+
+        if (action === 'delete') {
+            message += '\n\nThis action cannot be undone!';
+        }
+
+        if (!confirm(message)) {
+            e.preventDefault();
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}
