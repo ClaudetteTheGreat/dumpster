@@ -235,7 +235,7 @@ async fn test_activity_cursor_parsing() {
     let id = 42;
     let cursor_str = format!("{}_{}", timestamp, id);
 
-    let parsed = ActivityCursor::from_str(&cursor_str);
+    let parsed = ActivityCursor::parse(&cursor_str);
     assert!(parsed.is_some());
 
     let cursor = parsed.unwrap();
@@ -247,10 +247,10 @@ async fn test_activity_cursor_parsing() {
     assert_eq!(back_to_string, cursor_str);
 
     // Test invalid cursors
-    assert!(ActivityCursor::from_str("invalid").is_none());
-    assert!(ActivityCursor::from_str("123").is_none());
-    assert!(ActivityCursor::from_str("abc_123").is_none());
-    assert!(ActivityCursor::from_str("123_abc").is_none());
+    assert!(ActivityCursor::parse("invalid").is_none());
+    assert!(ActivityCursor::parse("123").is_none());
+    assert!(ActivityCursor::parse("abc_123").is_none());
+    assert!(ActivityCursor::parse("123_abc").is_none());
 }
 
 #[actix_rt::test]

@@ -64,7 +64,7 @@ async fn view_personal_feed(
         error::ErrorUnauthorized("You must be logged in to view your personal feed")
     })?;
 
-    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::from_str(s));
+    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::parse(s));
     let limit = 25;
 
     let activities = get_personal_feed(user_id, cursor, limit + 1)
@@ -89,7 +89,7 @@ async fn view_global_feed(
     client: ClientCtx,
     query: web::Query<FeedQuery>,
 ) -> Result<impl Responder, Error> {
-    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::from_str(s));
+    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::parse(s));
     let limit = 25;
 
     let activities = get_global_feed(cursor, limit + 1)
@@ -124,7 +124,7 @@ async fn view_user_activity(
         .map_err(|e| error::ErrorInternalServerError(format!("Database error: {}", e)))?
         .ok_or_else(|| error::ErrorNotFound("User not found"))?;
 
-    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::from_str(s));
+    let cursor = query.cursor.as_ref().and_then(|s| ActivityCursor::parse(s));
     let limit = 25;
 
     let activities = get_user_feed(profile_user_id, cursor, limit + 1)

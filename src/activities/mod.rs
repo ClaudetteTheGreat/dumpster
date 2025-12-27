@@ -169,7 +169,7 @@ pub struct ActivityCursor {
 }
 
 impl ActivityCursor {
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         let parts: Vec<&str> = s.split('_').collect();
         if parts.len() != 2 {
             return None;
@@ -181,9 +181,11 @@ impl ActivityCursor {
             id,
         })
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("{}_{}", self.created_at.timestamp(), self.id)
+impl std::fmt::Display for ActivityCursor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}_{}", self.created_at.timestamp(), self.id)
     }
 }
 
@@ -249,10 +251,7 @@ pub async fn get_personal_feed(
         .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
         .await?;
 
-    Ok(results
-        .iter()
-        .map(|row| parse_activity_row(row))
-        .collect())
+    Ok(results.iter().map(parse_activity_row).collect())
 }
 
 /// Get user profile feed (specific user's activities)
@@ -312,10 +311,7 @@ pub async fn get_user_feed(
         .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
         .await?;
 
-    Ok(results
-        .iter()
-        .map(|row| parse_activity_row(row))
-        .collect())
+    Ok(results.iter().map(parse_activity_row).collect())
 }
 
 /// Get global feed (all site activity, respecting privacy)
@@ -374,10 +370,7 @@ pub async fn get_global_feed(
         .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
         .await?;
 
-    Ok(results
-        .iter()
-        .map(|row| parse_activity_row(row))
-        .collect())
+    Ok(results.iter().map(parse_activity_row).collect())
 }
 
 /// Parse a database row into an ActivityDisplay
