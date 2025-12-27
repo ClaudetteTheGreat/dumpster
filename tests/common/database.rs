@@ -93,6 +93,7 @@ pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
             sessions,
             posts,
             threads,
+            profile_posts,
             ugc_deletions,
             ugc_attachments,
             ugc_revisions,

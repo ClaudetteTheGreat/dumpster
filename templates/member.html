@@ -94,6 +94,54 @@
         {% endmatch %}
     </div>
     {% endif %}
+
+    <div class="member-wall">
+        <h3>Profile Wall</h3>
+
+        {% if allow_profile_posts && client.is_user() %}
+        <div class="wall-post-form">
+            <form action="/members/{{ user.id }}/posts" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                <textarea name="content" placeholder="Write something on {{ user.name }}'s wall..." rows="3" required maxlength="10000"></textarea>
+                <button type="submit" class="btn btn-primary">Post</button>
+            </form>
+        </div>
+        {% else if !allow_profile_posts %}
+        <p class="wall-disabled">This user has disabled profile posts.</p>
+        {% else %}
+        <p class="wall-disabled">Log in to post on this profile.</p>
+        {% endif %}
+
+        {% if profile_posts.is_empty() %}
+        <p class="no-posts">No posts yet.</p>
+        {% else %}
+        <div class="wall-posts">
+            {% for post in profile_posts %}
+            <div class="wall-post">
+                <div class="wall-post-author">
+                    {% match post.author_name %}
+                    {% when Some with (name) %}
+                    <a href="/members/{{ post.author_id.unwrap_or(0) }}/">{{ name }}</a>
+                    {% when None %}
+                    <span class="deleted-user">Deleted User</span>
+                    {% endmatch %}
+                </div>
+                <div class="wall-post-content">{{ post.content }}</div>
+                <div class="wall-post-meta">
+                    <span class="wall-post-date">{{ post.created_at.format("%b %d, %Y at %H:%M") }}</span>
+                    {% let can_delete = post.author_id == client.get_id() || user.id == client.get_id().unwrap_or(0) || client.can("admin.user.edit") %}
+                    {% if can_delete %}
+                    <form action="/members/{{ user.id }}/posts/{{ post.id }}/delete" method="POST" class="delete-form" onsubmit="return confirm('Delete this post?');">
+                        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                        <button type="submit" class="btn-delete">Delete</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <style>
@@ -347,6 +395,132 @@
     white-space: nowrap;
 }
 
+.member-wall {
+    margin-top: 20px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.member-wall h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.wall-post-form {
+    margin-bottom: 20px;
+}
+
+.wall-post-form textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 0.95em;
+    box-sizing: border-box;
+}
+
+.wall-post-form textarea:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.wall-post-form button {
+    margin-top: 10px;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.wall-disabled {
+    color: #666;
+    font-style: italic;
+    margin-bottom: 15px;
+}
+
+.no-posts {
+    color: #999;
+    font-style: italic;
+}
+
+.wall-posts {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.wall-post {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #0066cc;
+}
+
+.wall-post-author {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.wall-post-author a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.wall-post-author a:hover {
+    text-decoration: underline;
+}
+
+.wall-post-author .deleted-user {
+    color: #999;
+    font-style: italic;
+}
+
+.wall-post-content {
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.wall-post-meta {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: #666;
+}
+
+.wall-post-date {
+    flex: 1;
+}
+
+.delete-form {
+    display: inline;
+}
+
+.btn-delete {
+    background: none;
+    border: none;
+    color: #dc3545;
+    cursor: pointer;
+    font-size: 0.85em;
+    padding: 0;
+}
+
+.btn-delete:hover {
+    text-decoration: underline;
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
     .member-badges {
@@ -393,6 +567,41 @@
 
     .social-link-username {
         color: #aaa;
+    }
+
+    .member-wall {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .member-wall h3 {
+        color: #e0e0e0;
+    }
+
+    .wall-post-form textarea {
+        background: #3d3d3d;
+        border-color: #505050;
+        color: #e0e0e0;
+    }
+
+    .wall-post-form textarea::placeholder {
+        color: #888;
+    }
+
+    .wall-post {
+        background: #3d3d3d;
+    }
+
+    .wall-post-author a {
+        color: #4da6ff;
+    }
+
+    .wall-post-content {
+        color: #e0e0e0;
+    }
+
+    .wall-post-meta {
+        color: #999;
     }
 }
 </style>

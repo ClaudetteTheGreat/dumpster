@@ -31,6 +31,7 @@ pub struct Model {
     pub last_activity_at: Option<DateTimeWithTimeZone>,
     pub show_online: bool,
     pub reputation_score: i32,
+    pub allow_profile_posts: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
@@ -85,6 +86,8 @@ pub enum Relation {
     UserName,
     #[sea_orm(has_many = "super::user_2fa::Entity")]
     User2fa,
+    #[sea_orm(has_many = "super::profile_posts::Entity")]
+    ProfilePosts,
 }
 
 impl Related<super::attachments::Entity> for Entity {
@@ -158,6 +161,12 @@ impl Related<super::user_names::Entity> for Entity {
 impl Related<super::ugc_revisions::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::UgcRevisions.def()
+    }
+}
+
+impl Related<super::profile_posts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ProfilePosts.def()
     }
 }
 

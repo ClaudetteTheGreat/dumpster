@@ -31,6 +31,7 @@ pub mod poll_options;
 pub mod poll_votes;
 pub mod polls;
 pub mod posts;
+pub mod profile_posts;
 pub mod private_messages;
 pub mod reaction_types;
 pub mod report_reasons;
