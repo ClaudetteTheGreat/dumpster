@@ -12,6 +12,7 @@ pub mod login;
 pub mod logout;
 pub mod member;
 pub mod notifications;
+pub mod notifications_ws;
 pub mod password_reset;
 pub mod polls;
 pub mod post;
@@ -41,6 +42,7 @@ pub fn configure(conf: &mut actix_web::web::ServiceConfig) {
     logout::configure(conf);
     member::configure(conf);
     notifications::configure(conf);
+    notifications_ws::configure(conf);
     password_reset::configure(conf);
     polls::configure(conf);
     post::configure(conf);

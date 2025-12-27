@@ -96,11 +96,9 @@
                             <span class="notification-badge" aria-label="{{ client.get_unread_messages() }} unread messages">{{ client.get_unread_messages() }}</span>
                             {% endif %}
                         </a></li>
-                    <li role="none"><a href="/notifications" class="nav-link" role="menuitem">
+                    <li role="none"><a href="/notifications" class="nav-link" role="menuitem" id="notification-link">
                             Notifications
-                            {% if client.get_unread_notifications() > 0 %}
-                            <span class="notification-badge" aria-label="{{ client.get_unread_notifications() }} unread notifications">{{ client.get_unread_notifications() }}</span>
-                            {% endif %}
+                            <span class="notification-badge{% if client.get_unread_notifications() == 0 %} hidden{% endif %}" id="notification-badge" aria-label="{{ client.get_unread_notifications() }} unread notifications">{{ client.get_unread_notifications() }}</span>
                         </a></li>
                     <li role="none"><a href="/account" class="nav-link" role="menuitem" aria-label="Account settings for {{ user.name }}">
                             {{ user.get_avatar_html(crate::attachment::AttachmentSize::S)|safe }}
@@ -138,6 +136,15 @@
         </div>
     </footer>
     {% endblock %}
+
+    <!-- Notification toast container -->
+    <div id="notification-toasts" class="notification-toasts" aria-live="polite" aria-label="Notifications"></div>
+
+    {% if let Some(user) = client.get_user() %}
+    <script type="application/javascript" nonce="{{ client.get_nonce() }}">
+        window.RUFORO_USER = { id: {{ user.id }} };
+    </script>
+    {% endif %}
 
     {% block lazyjs %}
     <script src="/public/assets/main.js" type="module" nonce="{{ client.get_nonce() }}"></script>

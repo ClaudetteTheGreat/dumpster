@@ -4,6 +4,7 @@ use crate::db::get_db_pool;
 use crate::notifications::{create_notification, get_user_preferences, NotificationType};
 use crate::orm::{threads, ugc, ugc_revisions, user_names, users, watched_threads};
 use crate::user::Profile;
+use crate::web::notifications_ws::{get_notification_server, BroadcastNotification, NotificationData};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
@@ -13,6 +14,32 @@ static MENTION_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"@([a-zA-Z0-9_-]+)"
 /// Get base URL for email links
 fn get_base_url() -> String {
     std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+}
+
+/// Broadcast a notification via WebSocket if the server is available
+fn broadcast_realtime_notification(
+    user_id: i32,
+    notification_id: i32,
+    notification_type: &str,
+    title: &str,
+    message: &str,
+    url: Option<&str>,
+) {
+    if let Some(server) = get_notification_server() {
+        let notification = NotificationData {
+            id: notification_id,
+            notification_type: notification_type.to_string(),
+            title: title.to_string(),
+            message: message.to_string(),
+            url: url.map(|s| s.to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        server.do_send(BroadcastNotification {
+            user_id,
+            notification,
+        });
+    }
 }
 
 /// Detect mentions in content and create notifications
@@ -64,17 +91,33 @@ pub async fn detect_and_notify_mentions(
             }
 
             // Create in-app notification
-            create_notification(
+            let title = format!("{} mentioned you", author_name);
+            let message = format!("You were mentioned in: {}", thread_title);
+            let url = format!("/threads/{}#post-{}", thread_id, post_id);
+
+            let notification_id = create_notification(
                 mentioned_user_id,
                 NotificationType::Mention,
-                format!("{} mentioned you", author_name),
-                format!("You were mentioned in: {}", thread_title),
-                Some(format!("/threads/{}#post-{}", thread_id, post_id)),
+                title.clone(),
+                message.clone(),
+                Some(url.clone()),
                 Some(author_id),
                 Some("post".to_string()),
                 Some(post_id),
             )
             .await?;
+
+            // Broadcast real-time notification
+            if notification_id > 0 {
+                broadcast_realtime_notification(
+                    mentioned_user_id,
+                    notification_id,
+                    "mention",
+                    &title,
+                    &message,
+                    Some(&url),
+                );
+            }
 
             // Check if user wants email notifications for mentions
             let prefs = get_user_preferences(mentioned_user_id, &NotificationType::Mention).await?;
@@ -147,17 +190,33 @@ pub async fn notify_thread_reply(
     if let Some(thread_author_id) = thread.user_id {
         if thread_author_id != author_id {
             // Create in-app notification
-            create_notification(
+            let title = format!("{} replied to your thread", author_name);
+            let message = format!("New reply in: {}", thread.title);
+            let url = format!("/threads/{}#post-{}", thread_id, post_id);
+
+            let notification_id = create_notification(
                 thread_author_id,
                 NotificationType::Reply,
-                format!("{} replied to your thread", author_name),
-                format!("New reply in: {}", thread.title),
-                Some(format!("/threads/{}#post-{}", thread_id, post_id)),
+                title.clone(),
+                message.clone(),
+                Some(url.clone()),
                 Some(author_id),
                 Some("post".to_string()),
                 Some(post_id),
             )
             .await?;
+
+            // Broadcast real-time notification
+            if notification_id > 0 {
+                broadcast_realtime_notification(
+                    thread_author_id,
+                    notification_id,
+                    "reply",
+                    &title,
+                    &message,
+                    Some(&url),
+                );
+            }
 
             // Send email to thread author if they want it
             let prefs = get_user_preferences(thread_author_id, &NotificationType::Reply).await?;
@@ -215,17 +274,33 @@ pub async fn notify_thread_reply(
             continue;
         }
 
-        create_notification(
+        let title = format!("{} replied to a watched thread", author_name);
+        let message = format!("New reply in: {}", thread.title);
+        let url = format!("/threads/{}#post-{}", thread_id, post_id);
+
+        let notification_id = create_notification(
             watcher.user_id,
             NotificationType::ThreadWatch,
-            format!("{} replied to a watched thread", author_name),
-            format!("New reply in: {}", thread.title),
-            Some(format!("/threads/{}#post-{}", thread_id, post_id)),
+            title.clone(),
+            message.clone(),
+            Some(url.clone()),
             Some(author_id),
             Some("post".to_string()),
             Some(post_id),
         )
         .await?;
+
+        // Broadcast real-time notification
+        if notification_id > 0 {
+            broadcast_realtime_notification(
+                watcher.user_id,
+                notification_id,
+                "thread_watch",
+                &title,
+                &message,
+                Some(&url),
+            );
+        }
     }
 
     // Send email notifications to watchers with email_on_reply enabled
@@ -370,17 +445,29 @@ pub async fn notify_moderation_action(
         format!("Action taken by {}", moderator_name)
     };
 
-    create_notification(
+    let notification_id = create_notification(
         target_user_id,
         NotificationType::ModAction,
-        title,
-        message,
+        title.clone(),
+        message.clone(),
         None,
         Some(moderator_id),
         Some("mod_action".to_string()),
         None,
     )
     .await?;
+
+    // Broadcast real-time notification
+    if notification_id > 0 {
+        broadcast_realtime_notification(
+            target_user_id,
+            notification_id,
+            "mod_action",
+            &title,
+            &message,
+            None,
+        );
+    }
 
     Ok(())
 }

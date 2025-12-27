@@ -56,6 +56,10 @@ async fn main() -> std::io::Result<()> {
         .await
         .start();
 
+    // Start notification WebSocket server
+    let notification_server = ruforo::web::notifications_ws::NotificationServer::new().start();
+    ruforo::web::notifications_ws::init_notification_server(notification_server.clone());
+
     // Spawn rate limiter cleanup task
     actix_web::rt::spawn(async {
         let mut interval = actix_web::rt::time::interval(Duration::from_secs(300)); // Every 5 minutes
@@ -79,6 +83,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(Data::new(config.clone()))
             .app_data(layer_data)
             .app_data(chat.clone())
+            .app_data(Data::new(notification_server.clone()))
             // Security headers - applied to all responses
             .wrap(
                 DefaultHeaders::new()
