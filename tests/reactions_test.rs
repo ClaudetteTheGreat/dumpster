@@ -699,6 +699,32 @@ async fn test_min_posts_to_vote_setting_exists() {
         .expect("Failed to connect to test database");
 
     use ruforo::orm::settings;
+    use sea_orm::ActiveValue::Set;
+
+    use sea_orm::EntityTrait;
+
+    // Check if setting exists first (cleanup from other tests may have cleared it)
+    let existing = settings::Entity::find_by_id("min_posts_to_vote".to_string())
+        .one(&db)
+        .await
+        .expect("Failed to check for existing setting");
+
+    // Insert the setting if it doesn't exist
+    if existing.is_none() {
+        let setting_model = settings::ActiveModel {
+            key: Set("min_posts_to_vote".to_string()),
+            value: Set("5".to_string()),
+            value_type: Set("int".to_string()),
+            description: Set(Some("Minimum posts required to give reactions".to_string())),
+            category: Set("reactions".to_string()),
+            is_public: Set(false),
+            ..Default::default()
+        };
+        settings::Entity::insert(setting_model)
+            .exec(&db)
+            .await
+            .expect("Failed to insert setting");
+    }
 
     // Query the min_posts_to_vote setting
     let setting = settings::Entity::find_by_id("min_posts_to_vote".to_string())
