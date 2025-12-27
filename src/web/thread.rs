@@ -883,6 +883,18 @@ pub async fn create_reply(
             log::error!("Failed to send mention notifications: {}", e);
         }
 
+        // Detect and notify quotes
+        if let Err(e) = crate::notifications::dispatcher::detect_and_notify_quotes(
+            &post_content,
+            post_id,
+            thread_id,
+            authenticated_user_id,
+        )
+        .await
+        {
+            log::error!("Failed to send quote notifications: {}", e);
+        }
+
         // Notify thread participants
         if let Err(e) = crate::notifications::dispatcher::notify_thread_reply(
             thread_id,

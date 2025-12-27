@@ -11,6 +11,10 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 static MENTION_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"@([a-zA-Z0-9_-]+)").unwrap());
 
+/// Regex to match [quote=username] BBCode tags (case-insensitive)
+static QUOTE_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?i)\[quote=([a-zA-Z0-9_-]+)\]").unwrap());
+
 /// Get base URL for email links
 fn get_base_url() -> String {
     std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
@@ -150,6 +154,130 @@ pub async fn detect_and_notify_mentions(
                                 log::error!(
                                     "Failed to send mention email to user {}: {}",
                                     mentioned_user_id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Detect quotes in content and create notifications for quoted users
+pub async fn detect_and_notify_quotes(
+    content: &str,
+    post_id: i32,
+    thread_id: i32,
+    author_id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let db = get_db_pool();
+
+    // Extract quoted usernames (deduplicate)
+    let quoted_usernames: std::collections::HashSet<String> = QUOTE_REGEX
+        .captures_iter(content)
+        .filter_map(|cap| cap.get(1))
+        .map(|m| m.as_str().to_lowercase())
+        .collect();
+
+    if quoted_usernames.is_empty() {
+        return Ok(());
+    }
+
+    // Get author info once
+    let author = Profile::get_by_id(db, author_id).await?;
+    let author_name = author
+        .map(|a| a.name)
+        .unwrap_or_else(|| "Someone".to_string());
+
+    // Get thread info once
+    let thread = threads::Entity::find_by_id(thread_id).one(db).await?;
+    let thread_title = thread
+        .map(|t| t.title)
+        .unwrap_or_else(|| "a thread".to_string());
+
+    // Look up users and create notifications
+    for username in quoted_usernames {
+        // Find user by username (case-insensitive search)
+        let user_name = user_names::Entity::find()
+            .filter(
+                sea_orm::Condition::all()
+                    .add(user_names::Column::Name.eq(username.clone())),
+            )
+            .one(db)
+            .await?;
+
+        if let Some(user_name_rec) = user_name {
+            let quoted_user_id = user_name_rec.user_id;
+
+            // Don't notify yourself
+            if quoted_user_id == author_id {
+                continue;
+            }
+
+            // Create in-app notification
+            let title = format!("{} quoted you", author_name);
+            let message = format!("Your post was quoted in: {}", thread_title);
+            let url = format!("/threads/{}#post-{}", thread_id, post_id);
+
+            let notification_id = create_notification(
+                quoted_user_id,
+                NotificationType::Quote,
+                title.clone(),
+                message.clone(),
+                Some(url.clone()),
+                Some(author_id),
+                Some("post".to_string()),
+                Some(post_id),
+            )
+            .await?;
+
+            // Broadcast real-time notification
+            if notification_id > 0 {
+                broadcast_realtime_notification(
+                    quoted_user_id,
+                    notification_id,
+                    "quote",
+                    &title,
+                    &message,
+                    Some(&url),
+                );
+            }
+
+            // Check if user wants email notifications for quotes
+            let prefs = get_user_preferences(quoted_user_id, &NotificationType::Quote).await?;
+            if prefs.email && prefs.frequency == "immediate" {
+                // Get user's email and check if verified
+                if let Some(user) = users::Entity::find_by_id(quoted_user_id).one(db).await? {
+                    if user.email_verified {
+                        if let Some(email) = &user.email {
+                            // Get recipient username
+                            let recipient_name = user_names::Entity::find()
+                                .filter(user_names::Column::UserId.eq(quoted_user_id))
+                                .one(db)
+                                .await?
+                                .map(|un| un.name)
+                                .unwrap_or_else(|| "User".to_string());
+
+                            // Send quote email
+                            if let Err(e) = crate::email::templates::send_quote_email(
+                                email,
+                                &recipient_name,
+                                &author_name,
+                                &thread_title,
+                                thread_id,
+                                post_id,
+                                content,
+                                &get_base_url(),
+                            )
+                            .await
+                            {
+                                log::error!(
+                                    "Failed to send quote email to user {}: {}",
+                                    quoted_user_id,
                                     e
                                 );
                             }

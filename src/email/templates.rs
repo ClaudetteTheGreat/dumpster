@@ -407,3 +407,81 @@ Ruforo Forum
     let subject = format!("Re: {}", thread_title);
     send_email(to, &subject, &body_text, Some(&body_html)).await
 }
+
+/// Send a quote notification email
+pub async fn send_quote_email(
+    to: &str,
+    recipient_username: &str,
+    quoter_username: &str,
+    thread_title: &str,
+    thread_id: i32,
+    post_id: i32,
+    post_preview: &str,
+    base_url: &str,
+) -> EmailResult<()> {
+    let post_link = format!("{}/threads/{}#post-{}", base_url, thread_id, post_id);
+
+    // Truncate preview to 500 chars
+    let preview = if post_preview.len() > 500 {
+        format!("{}...", &post_preview[..500])
+    } else {
+        post_preview.to_string()
+    };
+
+    let body_text = format!(
+        r#"Hello {},
+
+{} quoted you in a post:
+
+"{}"
+
+---
+{}
+---
+
+View the post: {}
+
+To stop receiving these emails, update your notification preferences in your account settings.
+
+---
+Ruforo Forum
+"#,
+        recipient_username, quoter_username, thread_title, preview, post_link
+    );
+
+    let body_html = format!(
+        r#"<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>You were quoted</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>You were quoted</h2>
+        <p>Hello <strong>{}</strong>,</p>
+        <p><strong>{}</strong> quoted your post in:</p>
+        <h3 style="color: #007bff;">{}</h3>
+        <div style="background: #f8f9fa; border-left: 4px solid #6f42c1; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; white-space: pre-wrap;">{}</p>
+        </div>
+        <p style="margin: 30px 0;">
+            <a href="{}"
+               style="background-color: #6f42c1; color: white; padding: 12px 24px;
+                      text-decoration: none; border-radius: 4px; display: inline-block;">
+                View Post
+            </a>
+        </p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 0.9em;">
+            To stop receiving these emails, update your notification preferences in your account settings.
+        </p>
+    </div>
+</body>
+</html>"#,
+        recipient_username, quoter_username, thread_title, preview, post_link
+    );
+
+    let subject = format!("{} quoted you in: {}", quoter_username, thread_title);
+    send_email(to, &subject, &body_text, Some(&body_html)).await
+}

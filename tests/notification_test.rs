@@ -517,3 +517,286 @@ async fn test_get_user_notifications() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
+
+#[actix_rt::test]
+#[serial]
+async fn test_quote_detection() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create test users
+    let author = create_test_user_with_email(&db, "quoter", "quoter@example.com", true)
+        .await
+        .expect("Failed to create author");
+
+    let quoted_user = create_test_user_with_email(&db, "quoteduser", "quoted@example.com", true)
+        .await
+        .expect("Failed to create quoted user");
+
+    // Create notification preferences
+    create_notification_preferences(&db, quoted_user.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences");
+
+    // Create a thread
+    let (_forum, thread) = create_test_forum_and_thread(&db, author.id, "Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Test quote detection with BBCode
+    let content = r#"[quote=quoteduser]This is the quoted text[/quote]
+And here's my response."#;
+
+    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+        content,
+        1, // post_id
+        thread.id,
+        author.id,
+    )
+    .await
+    .expect("Failed to detect quotes");
+
+    // Verify notification was created for quoted user
+    let count = notifications::count_unread_notifications(quoted_user.id)
+        .await
+        .expect("Failed to count notifications");
+
+    assert_eq!(count, 1, "Quoted user should have 1 notification");
+
+    // Verify the notification content
+    let notifs = notifications::get_user_notifications(quoted_user.id, 10, false)
+        .await
+        .expect("Failed to get notifications");
+
+    assert_eq!(notifs.len(), 1);
+    assert_eq!(notifs[0].type_, "quote");
+    assert!(notifs[0].title.contains("quoted you"));
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_quote_detection_multiple_quotes() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create test users
+    let author = create_test_user_with_email(&db, "quoter2", "quoter2@example.com", true)
+        .await
+        .expect("Failed to create author");
+
+    let quoted_user1 = create_test_user_with_email(&db, "quotedone", "quotedone@example.com", true)
+        .await
+        .expect("Failed to create quoted user 1");
+
+    let quoted_user2 = create_test_user_with_email(&db, "quotedtwo", "quotedtwo@example.com", true)
+        .await
+        .expect("Failed to create quoted user 2");
+
+    // Create notification preferences
+    create_notification_preferences(&db, quoted_user1.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences 1");
+    create_notification_preferences(&db, quoted_user2.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences 2");
+
+    // Create a thread
+    let (_forum, thread) = create_test_forum_and_thread(&db, author.id, "Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Test with multiple quotes
+    let content = r#"[quote=quotedone]First quote[/quote]
+[quote=quotedtwo]Second quote[/quote]
+And my response."#;
+
+    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+        content,
+        1, // post_id
+        thread.id,
+        author.id,
+    )
+    .await
+    .expect("Failed to detect quotes");
+
+    // Both users should have notifications
+    let count1 = notifications::count_unread_notifications(quoted_user1.id)
+        .await
+        .expect("Failed to count");
+    let count2 = notifications::count_unread_notifications(quoted_user2.id)
+        .await
+        .expect("Failed to count");
+
+    assert_eq!(count1, 1, "First quoted user should have 1 notification");
+    assert_eq!(count2, 1, "Second quoted user should have 1 notification");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_quote_detection_no_self_notification() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create user
+    let user = create_test_user_with_email(&db, "selfquoter", "selfquoter@example.com", true)
+        .await
+        .expect("Failed to create user");
+
+    create_notification_preferences(&db, user.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences");
+
+    // Create a thread
+    let (_forum, thread) = create_test_forum_and_thread(&db, user.id, "Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Test self-quote (should not create notification)
+    let content = r#"[quote=selfquoter]My own quote[/quote]
+Quoting myself."#;
+
+    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+        content,
+        1, // post_id
+        thread.id,
+        user.id,
+    )
+    .await
+    .expect("Failed to detect quotes");
+
+    // Verify no notifications were created
+    let count = notifications::count_unread_notifications(user.id)
+        .await
+        .expect("Failed to count notifications");
+
+    assert_eq!(
+        count, 0,
+        "User should not receive notification for quoting themselves"
+    );
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_quote_detection_duplicate_quotes_same_user() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create test users
+    let author = create_test_user_with_email(&db, "dupquoter", "dupquoter@example.com", true)
+        .await
+        .expect("Failed to create author");
+
+    let quoted_user =
+        create_test_user_with_email(&db, "dupquoted", "dupquoted@example.com", true)
+            .await
+            .expect("Failed to create quoted user");
+
+    // Create notification preferences
+    create_notification_preferences(&db, quoted_user.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences");
+
+    // Create a thread
+    let (_forum, thread) = create_test_forum_and_thread(&db, author.id, "Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Test with same user quoted multiple times
+    let content = r#"[quote=dupquoted]First quote[/quote]
+[quote=dupquoted]Second quote from same user[/quote]
+My response."#;
+
+    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+        content,
+        1, // post_id
+        thread.id,
+        author.id,
+    )
+    .await
+    .expect("Failed to detect quotes");
+
+    // Should only have 1 notification (deduplicated)
+    let count = notifications::count_unread_notifications(quoted_user.id)
+        .await
+        .expect("Failed to count notifications");
+
+    assert_eq!(
+        count, 1,
+        "Quoted user should only have 1 notification even when quoted multiple times"
+    );
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_quote_detection_case_insensitive() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create test users
+    let author = create_test_user_with_email(&db, "caseauthor", "caseauthor@example.com", true)
+        .await
+        .expect("Failed to create author");
+
+    let quoted_user =
+        create_test_user_with_email(&db, "caseuser", "caseuser@example.com", true)
+            .await
+            .expect("Failed to create quoted user");
+
+    // Create notification preferences
+    create_notification_preferences(&db, quoted_user.id, "quote", true, false)
+        .await
+        .expect("Failed to create preferences");
+
+    // Create a thread
+    let (_forum, thread) = create_test_forum_and_thread(&db, author.id, "Test Thread")
+        .await
+        .expect("Failed to create thread");
+
+    // Test with uppercase QUOTE tag
+    let content = r#"[QUOTE=caseuser]Quoted text[/QUOTE]
+My response."#;
+
+    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+        content,
+        1, // post_id
+        thread.id,
+        author.id,
+    )
+    .await
+    .expect("Failed to detect quotes");
+
+    // Should still detect the quote
+    let count = notifications::count_unread_notifications(quoted_user.id)
+        .await
+        .expect("Failed to count notifications");
+
+    assert_eq!(
+        count, 1,
+        "Quote detection should be case-insensitive for the tag"
+    );
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
