@@ -1,0 +1,347 @@
+{% extends "container/public.html" %}
+
+{% block title %}{% if reaction_type.is_some() %}Edit{% else %}Add{% endif %} Reaction Type - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>{% if reaction_type.is_some() %}Edit{% else %}Add{% endif %} Reaction Type</h1>
+        <p class="panel-subtitle">{% if reaction_type.is_some() %}Modify an existing reaction type{% else %}Create a new reaction type{% endif %}</p>
+    </div>
+
+    {% if let Some(err) = error %}
+    <div class="alert alert-danger">{{ err }}</div>
+    {% endif %}
+
+    <form action="{% if let Some(rt) = reaction_type %}/admin/reaction-types/{{ rt.id }}{% else %}/admin/reaction-types{% endif %}" method="post" class="reaction-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name"
+                   value="{% if let Some(rt) = reaction_type %}{{ rt.name }}{% endif %}"
+                   placeholder="e.g., Like, Thanks, Agree" required />
+            <small class="form-help">The display name for this reaction type.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="emoji">Emoji</label>
+            <input type="text" id="emoji" name="emoji"
+                   value="{% if let Some(rt) = reaction_type %}{{ rt.emoji }}{% endif %}"
+                   placeholder="e.g., &#128077;" required />
+            <small class="form-help">The emoji or icon displayed for this reaction.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="display_order">Display Order</label>
+            <input type="number" id="display_order" name="display_order"
+                   value="{% if let Some(rt) = reaction_type %}{{ rt.display_order }}{% else %}0{% endif %}" />
+            <small class="form-help">Controls the order in which reactions appear in the picker. Lower numbers appear first.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="reputation_value">Reputation Value</label>
+            <input type="number" id="reputation_value" name="reputation_value"
+                   value="{% if let Some(rt) = reaction_type %}{{ rt.reputation_value }}{% else %}0{% endif %}" />
+            <small class="form-help">Points given to the post author when this reaction is added. Positive for helpful reactions, negative for negative reactions, zero for neutral.</small>
+        </div>
+
+        <div class="form-section">
+            <h3>Options</h3>
+
+            {% if let Some(rt) = reaction_type %}
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_positive" id="is_positive"
+                           {% if rt.is_positive %}checked{% endif %} />
+                    Positive Reaction
+                </label>
+                <small class="form-help">Mark as a positive reaction type (affects styling and display).</small>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_active" id="is_active"
+                           {% if rt.is_active %}checked{% endif %} />
+                    Active
+                </label>
+                <small class="form-help">Only active reaction types can be used by members.</small>
+            </div>
+            {% else %}
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_positive" id="is_positive" checked />
+                    Positive Reaction
+                </label>
+                <small class="form-help">Mark as a positive reaction type (affects styling and display).</small>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_active" id="is_active" checked />
+                    Active
+                </label>
+                <small class="form-help">Only active reaction types can be used by members.</small>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{% if reaction_type.is_some() %}Update{% else %}Create{% endif %} Reaction Type</button>
+            <a href="/admin/reaction-types" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+
+    <div class="help-section">
+        <h3>Reputation Value Examples</h3>
+        <table class="examples-table">
+            <tr>
+                <th>Reaction</th>
+                <th>Suggested Value</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td>Like / Thanks</td>
+                <td class="reputation-positive">+1</td>
+                <td>Standard positive reactions</td>
+            </tr>
+            <tr>
+                <td>Informative / Agree</td>
+                <td class="reputation-positive">+1</td>
+                <td>Content is valuable</td>
+            </tr>
+            <tr>
+                <td>Funny</td>
+                <td>0</td>
+                <td>Neutral reaction</td>
+            </tr>
+            <tr>
+                <td>Disagree</td>
+                <td class="reputation-negative">-1</td>
+                <td>Mild negative reaction</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.reaction-form {
+    background: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.form-section {
+    margin: 25px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.form-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 1em;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-help {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 0.85em;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.help-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.help-section h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.examples-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.examples-table th,
+.examples-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.examples-table th {
+    background: #e9ecef;
+    font-weight: 600;
+}
+
+.reputation-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.reputation-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .form-section h3,
+html.dark .help-section h3 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .form-help {
+    color: #aaa;
+}
+
+html.dark .reaction-form {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-section,
+html.dark .help-section {
+    background: #333;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-group input,
+html.dark .form-group select {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .alert-danger {
+    background: #3a2a2a;
+    color: #ff6b6b;
+    border-color: #5a3a3a;
+}
+
+html.dark .examples-table th {
+    background: #444;
+    color: #fff;
+}
+
+html.dark .examples-table td {
+    border-color: #555;
+}
+</style>
+{% endblock %}

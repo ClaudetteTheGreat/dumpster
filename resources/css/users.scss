@@ -38,9 +38,20 @@
     line-height: 1.6;
 
     .user-joined,
-    .user-posts {
+    .user-posts,
+    .user-reputation {
         margin: 2px 0;
     }
+}
+
+.reputation-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.reputation-negative {
+    color: #dc3545;
+    font-weight: 600;
 }
 
 .user-stats {

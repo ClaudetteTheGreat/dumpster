@@ -1,12 +1,14 @@
 //! Post reaction endpoints
 
+use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{reaction_types, ugc_reactions};
+use crate::orm::{posts, reaction_types, ugc_reactions};
 use actix_web::{error, get, post, web, Error, HttpResponse};
 use chrono::Utc;
 use sea_orm::{entity::*, query::*, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(toggle_reaction)
@@ -53,6 +55,7 @@ async fn toggle_reaction(
     session: actix_session::Session,
     path: web::Path<(i32, i32)>,
     form: web::Form<CsrfForm>,
+    config: web::Data<Arc<Config>>,
 ) -> Result<HttpResponse, Error> {
     let user_id = client
         .get_id()
@@ -75,6 +78,37 @@ async fn toggle_reaction(
         return Err(error::ErrorBadRequest(
             "This reaction type is not available",
         ));
+    }
+
+    // Check if this UGC belongs to a post and if the user is the post author
+    let post = posts::Entity::find()
+        .filter(posts::Column::UgcId.eq(ugc_id))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if let Some(ref post) = post {
+        // Cannot react to own posts
+        if post.user_id == Some(user_id) {
+            return Err(error::ErrorForbidden("Cannot react to your own posts"));
+        }
+    }
+
+    // Check minimum post count requirement
+    let min_posts: i64 = config.get_int_or("min_posts_to_vote", 5);
+
+    // Get user's post count
+    let user_post_count: i64 = posts::Entity::find()
+        .filter(posts::Column::UserId.eq(user_id))
+        .count(db)
+        .await
+        .map_err(error::ErrorInternalServerError)? as i64;
+
+    if user_post_count < min_posts {
+        return Err(error::ErrorForbidden(format!(
+            "You need at least {} posts to give reactions (you have {})",
+            min_posts, user_post_count
+        )));
     }
 
     // Check if user already has this reaction

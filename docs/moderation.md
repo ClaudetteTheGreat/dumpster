@@ -125,6 +125,24 @@ Admin-configurable content filters for automatic moderation:
 - **Integration** - Applied to thread creation (title and content) and post replies
 - **Efficient Caching** - Compiled regex patterns cached in memory
 
+## Reaction Type Management
+
+Manage reaction types and their reputation values:
+
+- **Admin Panel** - Manage reaction types at `/admin/reaction-types`
+- **CRUD Operations:**
+  - Create new reaction types with custom emoji
+  - Edit existing reaction type properties
+  - Enable/disable reaction types without deletion
+- **Configurable Properties:**
+  - **Name** - Display name for the reaction
+  - **Emoji** - Unicode emoji or icon
+  - **Display Order** - Control picker ordering
+  - **Reputation Value** - Points given to post author (+/- values)
+  - **Positive Flag** - Whether reaction is considered positive
+  - **Active Status** - Enable/disable the reaction type
+- **Reputation Impact** - Each reaction type has a configurable reputation value that affects the post author's reputation score
+
 ## Moderation Logging
 
 All moderation actions are logged:

@@ -6,8 +6,9 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
     feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
-    permission_collections, permission_values, permissions, posts, reports, sessions, settings,
-    threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
+    permission_collections, permission_values, permissions, posts, reaction_types, reports,
+    sessions, settings, threads, user_bans, user_groups, user_names, user_warnings, users,
+    word_filters,
 };
 use crate::group::GroupType;
 use crate::permission::flag::Flag;
@@ -73,7 +74,13 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(create_group)
         .service(view_edit_group)
         .service(update_group)
-        .service(delete_group);
+        .service(delete_group)
+        // Reaction types management
+        .service(view_reaction_types)
+        .service(view_edit_reaction_type)
+        .service(update_reaction_type)
+        .service(view_create_reaction_type_form)
+        .service(create_reaction_type);
 }
 
 // ============================================================================
@@ -3861,4 +3868,214 @@ async fn save_group_permissions(
     }
 
     Ok(())
+}
+
+// ============================================================================
+// Reaction Types Management
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/reaction_types.html")]
+struct ReactionTypesTemplate {
+    client: ClientCtx,
+    reaction_types: Vec<reaction_types::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/reaction_type_form.html")]
+struct ReactionTypeFormTemplate {
+    client: ClientCtx,
+    reaction_type: Option<reaction_types::Model>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ReactionTypeForm {
+    csrf_token: String,
+    name: String,
+    emoji: String,
+    display_order: i32,
+    is_positive: Option<String>,
+    is_active: Option<String>,
+    reputation_value: i32,
+}
+
+/// GET /admin/reaction-types - List all reaction types
+#[get("/admin/reaction-types")]
+async fn view_reaction_types(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings.manage")?;
+
+    let db = get_db_pool();
+
+    let reaction_types = reaction_types::Entity::find()
+        .order_by_asc(reaction_types::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch reaction types: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(ReactionTypesTemplate {
+        client,
+        reaction_types,
+    }
+    .to_response())
+}
+
+/// GET /admin/reaction-types/new - Show form to create new reaction type
+#[get("/admin/reaction-types/new")]
+async fn view_create_reaction_type_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings.manage")?;
+
+    Ok(ReactionTypeFormTemplate {
+        client,
+        reaction_type: None,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/reaction-types - Create a new reaction type
+#[post("/admin/reaction-types")]
+async fn create_reaction_type(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<ReactionTypeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.settings.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate input
+    if form.name.trim().is_empty() {
+        return Ok(ReactionTypeFormTemplate {
+            client,
+            reaction_type: None,
+            error: Some("Name is required".to_string()),
+        }
+        .to_response());
+    }
+
+    if form.emoji.trim().is_empty() {
+        return Ok(ReactionTypeFormTemplate {
+            client,
+            reaction_type: None,
+            error: Some("Emoji is required".to_string()),
+        }
+        .to_response());
+    }
+
+    let new_reaction_type = reaction_types::ActiveModel {
+        name: Set(form.name.trim().to_string()),
+        emoji: Set(form.emoji.trim().to_string()),
+        display_order: Set(form.display_order),
+        is_positive: Set(form.is_positive.is_some()),
+        is_active: Set(form.is_active.is_some()),
+        reputation_value: Set(form.reputation_value),
+        ..Default::default()
+    };
+
+    new_reaction_type.insert(db).await.map_err(|e| {
+        log::error!("Failed to create reaction type: {}", e);
+        error::ErrorInternalServerError("Failed to create reaction type")
+    })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/reaction-types"))
+        .finish())
+}
+
+/// GET /admin/reaction-types/{id}/edit - Show form to edit reaction type
+#[get("/admin/reaction-types/{id}/edit")]
+async fn view_edit_reaction_type(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings.manage")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    let reaction_type = reaction_types::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch reaction type: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
+
+    Ok(ReactionTypeFormTemplate {
+        client,
+        reaction_type: Some(reaction_type),
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/reaction-types/{id} - Update a reaction type
+#[post("/admin/reaction-types/{id}")]
+async fn update_reaction_type(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ReactionTypeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.settings.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    // Fetch existing reaction type
+    let existing = reaction_types::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch reaction type: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
+
+    // Validate input
+    if form.name.trim().is_empty() {
+        return Ok(ReactionTypeFormTemplate {
+            client,
+            reaction_type: Some(existing),
+            error: Some("Name is required".to_string()),
+        }
+        .to_response());
+    }
+
+    if form.emoji.trim().is_empty() {
+        return Ok(ReactionTypeFormTemplate {
+            client,
+            reaction_type: Some(existing),
+            error: Some("Emoji is required".to_string()),
+        }
+        .to_response());
+    }
+
+    let mut updated: reaction_types::ActiveModel = existing.into();
+    updated.name = Set(form.name.trim().to_string());
+    updated.emoji = Set(form.emoji.trim().to_string());
+    updated.display_order = Set(form.display_order);
+    updated.is_positive = Set(form.is_positive.is_some());
+    updated.is_active = Set(form.is_active.is_some());
+    updated.reputation_value = Set(form.reputation_value);
+
+    updated.update(db).await.map_err(|e| {
+        log::error!("Failed to update reaction type: {}", e);
+        error::ErrorInternalServerError("Failed to update reaction type")
+    })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/reaction-types"))
+        .finish())
 }

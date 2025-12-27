@@ -34,6 +34,9 @@
                 Posts: {{ post_count }}
             </div>
             {% endif %}
+            <div class="user-reputation{% if user.reputation_score > 0 %} reputation-positive{% else if user.reputation_score < 0 %} reputation-negative{% endif %}">
+                Reputation: {{ user.reputation_score }}
+            </div>
         </div>
         {% else %}
         {# TODO: l10n #}

@@ -64,6 +64,9 @@ This document covers the user-facing features and interface elements.
   - Real-time reaction count updates
   - Visual indication of user's own reactions
   - Database-backed with automatic count triggers
+  - Reputation system: reactions affect post author's reputation score
+  - Admin-configurable reputation values per reaction type
+  - Voting restrictions: cannot react to own posts, minimum post count required
 - **Quote Reply** - Click Quote button on any post to insert quoted content into reply
   - Inserts `[quote=username]content[/quote]` BBCode
   - Scrolls to and focuses the reply textarea
@@ -171,6 +174,10 @@ Server-side BBCode preview before posting:
   - Rate-limited activity tracking (updates at most once per 60 seconds)
   - Privacy setting to hide online status from other users
   - Hidden users excluded from online counts and listings
+- **Reputation Score** - Aggregate score based on reactions received
+  - Displayed in post sidebar and member profile
+  - Color-coded: green for positive, red for negative
+  - Updated automatically via database triggers when reactions change
 
 ## Responsive Design
 

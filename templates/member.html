@@ -25,6 +25,9 @@
 
             <dt>Threads Started:</dt>
             <dd>{{ stats.thread_count }}</dd>
+
+            <dt>Reputation:</dt>
+            <dd class="{% if user.reputation_score > 0 %}reputation-positive{% else if user.reputation_score < 0 %}reputation-negative{% endif %}">{{ user.reputation_score }}</dd>
         </dl>
     </div>
 
@@ -143,6 +146,16 @@
 .stats-list dd {
     margin: 0;
     color: #333;
+}
+
+.reputation-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.reputation-negative {
+    color: #dc3545;
+    font-weight: 600;
 }
 
 .member-about {

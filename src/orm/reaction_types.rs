@@ -12,6 +12,7 @@ pub struct Model {
     pub display_order: i32,
     pub is_positive: bool,
     pub is_active: bool,
+    pub reputation_value: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

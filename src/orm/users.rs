@@ -30,6 +30,7 @@ pub struct Model {
     pub rejection_reason: Option<String>,
     pub last_activity_at: Option<DateTimeWithTimeZone>,
     pub show_online: bool,
+    pub reputation_score: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
