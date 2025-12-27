@@ -1,17 +1,20 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
+use crate::orm::user_social_links::{self, SocialPlatform};
 use crate::user::Profile as UserProfile;
 use actix_multipart::Multipart;
 use actix_web::{error, get, post, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::Utc;
-use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter, QueryOrder};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(update_avatar)
         .service(delete_avatar)
         .service(update_preferences)
         .service(update_profile)
+        .service(update_social_links)
+        .service(delete_social_link)
         .service(view_account);
 }
 
@@ -20,6 +23,8 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
 pub struct AccountTemplate {
     pub client: ClientCtx,
     pub profile: UserProfile,
+    pub social_links: Vec<user_social_links::Model>,
+    pub available_platforms: Vec<SocialPlatform>,
 }
 
 #[post("/account/avatar")]
@@ -340,6 +345,157 @@ async fn update_profile(
         .finish())
 }
 
+#[post("/account/social-links")]
+async fn update_social_links(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: actix_web::web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Get platform and username from form
+    let platform_str = form
+        .get("platform")
+        .ok_or_else(|| error::ErrorBadRequest("Platform is required"))?;
+    let platform = SocialPlatform::from_str(platform_str)
+        .ok_or_else(|| error::ErrorBadRequest("Invalid platform"))?;
+
+    let username = form
+        .get("username")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| error::ErrorBadRequest("Username is required"))?;
+
+    // Validate username length
+    if username.len() > 255 {
+        return Err(error::ErrorBadRequest(
+            "Username must be 255 characters or less",
+        ));
+    }
+
+    // Get optional custom URL (for Discord, Website, Other)
+    let url = form
+        .get("url")
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    // Validate URL if provided
+    if let Some(ref url_str) = url {
+        if url_str.len() > 500 {
+            return Err(error::ErrorBadRequest(
+                "URL must be 500 characters or less",
+            ));
+        }
+        // Validate URL format for platforms that need custom URLs
+        if matches!(platform, SocialPlatform::Website | SocialPlatform::Discord | SocialPlatform::Other) {
+            match url::Url::parse(url_str) {
+                Ok(parsed) => {
+                    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+                        return Err(error::ErrorBadRequest("URL must use http or https"));
+                    }
+                }
+                Err(_) => {
+                    return Err(error::ErrorBadRequest("Invalid URL format"));
+                }
+            }
+        }
+    }
+
+    // Check if user already has this platform linked
+    let existing = user_social_links::Entity::find()
+        .filter(user_social_links::Column::UserId.eq(user_id))
+        .filter(user_social_links::Column::Platform.eq(platform.clone()))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if let Some(existing_link) = existing {
+        // Update existing link
+        let mut link: user_social_links::ActiveModel = existing_link.into();
+        link.username = Set(username);
+        link.url = Set(url);
+        link.updated_at = Set(Utc::now().into());
+        link.update(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    } else {
+        // Get next display order
+        let max_order: Option<i32> = user_social_links::Entity::find()
+            .filter(user_social_links::Column::UserId.eq(user_id))
+            .order_by_desc(user_social_links::Column::DisplayOrder)
+            .one(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+            .map(|l| l.display_order);
+        let next_order = max_order.unwrap_or(-1) + 1;
+
+        // Insert new link
+        let new_link = user_social_links::ActiveModel {
+            user_id: Set(user_id),
+            platform: Set(platform),
+            username: Set(username),
+            url: Set(url),
+            display_order: Set(next_order),
+            is_visible: Set(true),
+            created_at: Set(Utc::now().into()),
+            updated_at: Set(Utc::now().into()),
+            ..Default::default()
+        };
+        new_link
+            .insert(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/account"))
+        .finish())
+}
+
+#[post("/account/social-links/delete")]
+async fn delete_social_link(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: actix_web::web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Get platform to delete
+    let platform_str = form
+        .get("platform")
+        .ok_or_else(|| error::ErrorBadRequest("Platform is required"))?;
+    let platform = SocialPlatform::from_str(platform_str)
+        .ok_or_else(|| error::ErrorBadRequest("Invalid platform"))?;
+
+    // Delete the link (only if it belongs to this user)
+    user_social_links::Entity::delete_many()
+        .filter(user_social_links::Column::UserId.eq(user_id))
+        .filter(user_social_links::Column::Platform.eq(platform))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(HttpResponse::Found()
+        .append_header(("Location", "/account"))
+        .finish())
+}
+
 #[get("/account")]
 async fn view_account(client: ClientCtx) -> Result<impl Responder, Error> {
     if !client.is_user() {
@@ -349,10 +505,33 @@ async fn view_account(client: ClientCtx) -> Result<impl Responder, Error> {
     }
 
     let db = get_db_pool();
-    let profile = UserProfile::get_by_id(db, client.get_id().unwrap())
+    let user_id = client.get_id().unwrap();
+
+    let profile = UserProfile::get_by_id(db, user_id)
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorInternalServerError("Unable to find account."))?;
 
-    Ok(AccountTemplate { client, profile }.to_response())
+    // Fetch user's social links
+    let social_links = user_social_links::Entity::find()
+        .filter(user_social_links::Column::UserId.eq(user_id))
+        .order_by_asc(user_social_links::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get available platforms (exclude ones already added)
+    let used_platforms: Vec<_> = social_links.iter().map(|l| l.platform.clone()).collect();
+    let available_platforms: Vec<_> = SocialPlatform::all()
+        .into_iter()
+        .filter(|p| !used_platforms.contains(p))
+        .collect();
+
+    Ok(AccountTemplate {
+        client,
+        profile,
+        social_links,
+        available_platforms,
+    }
+    .to_response())
 }

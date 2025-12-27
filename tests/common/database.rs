@@ -103,6 +103,7 @@ pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
             user_bans,
             ip_bans,
             user_badges,
+            user_social_links,
             users,
             forums,
             groups,

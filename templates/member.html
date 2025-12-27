@@ -45,6 +45,23 @@
     </div>
     {% endif %}
 
+    {% if !social_links.is_empty() %}
+    <div class="member-social-links">
+        <h3>Social Links</h3>
+        <div class="social-links-grid">
+            {% for link in social_links %}
+            <a href="{{ link.get_url() }}" target="_blank" rel="noopener nofollow" class="social-link-card">
+                <span class="social-link-icon">{{ link.platform.icon() }}</span>
+                <span class="social-link-info">
+                    <span class="social-link-platform">{{ link.platform.display_name() }}</span>
+                    <span class="social-link-username">{{ link.username }}</span>
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     {% if user.bio.is_some() || user.location.is_some() || user.website_url.is_some() %}
     <div class="member-about">
         <h3>About</h3>
@@ -269,6 +286,67 @@
     padding-left: 8px;
 }
 
+.member-social-links {
+    margin-top: 20px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.member-social-links h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.social-links-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.social-link-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.social-link-card:hover {
+    background: #e9ecef;
+    transform: translateY(-1px);
+}
+
+.social-link-icon {
+    font-size: 1.5em;
+}
+
+.social-link-info {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.social-link-platform {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9em;
+}
+
+.social-link-username {
+    color: #666;
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
     .member-badges {
@@ -290,6 +368,31 @@
 
     .badge-name {
         color: #e0e0e0;
+    }
+
+    .member-social-links {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .member-social-links h3 {
+        color: #e0e0e0;
+    }
+
+    .social-link-card {
+        background: #3d3d3d;
+    }
+
+    .social-link-card:hover {
+        background: #4d4d4d;
+    }
+
+    .social-link-platform {
+        color: #e0e0e0;
+    }
+
+    .social-link-username {
+        color: #aaa;
     }
 }
 </style>

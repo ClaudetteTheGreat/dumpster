@@ -1,10 +1,10 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{attachments, posts, threads, user_names, users};
+use crate::orm::{attachments, posts, threads, user_names, user_social_links, users};
 use crate::user::Profile as UserProfile;
 use actix_web::{error, get, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection};
+use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection, QueryOrder};
 use serde::{Deserialize, Serialize};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
@@ -59,6 +59,7 @@ pub async fn view_member(
         pub user: UserProfile,
         pub stats: UserStatistics,
         pub badges: Vec<crate::badges::UserBadge>,
+        pub social_links: Vec<user_social_links::Model>,
     }
 
     let user_id = path.into_inner().0;
@@ -100,11 +101,24 @@ pub async fn view_member(
             error::ErrorInternalServerError("Couldn't load user badges.")
         })?;
 
+    // Get user social links (only visible ones)
+    let social_links = user_social_links::Entity::find()
+        .filter(user_social_links::Column::UserId.eq(user_id))
+        .filter(user_social_links::Column::IsVisible.eq(true))
+        .order_by_asc(user_social_links::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("error getting user social links: {:?}", e);
+            error::ErrorInternalServerError("Couldn't load user social links.")
+        })?;
+
     Ok(MemberTemplate {
         client,
         user,
         stats,
         badges,
+        social_links,
     }
     .to_response())
 }

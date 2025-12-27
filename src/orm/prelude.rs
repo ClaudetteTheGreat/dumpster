@@ -24,5 +24,6 @@ pub use super::ugc_revisions::Entity as UgcRevisions;
 pub use super::user_2fa::Entity as User2fa;
 pub use super::user_badges::Entity as UserBadges;
 pub use super::user_groups::Entity as UserGroups;
+pub use super::user_social_links::Entity as UserSocialLinks;
 pub use super::user_name_history::Entity as UserNameHistory;
 pub use super::users::Entity as Users;

@@ -588,4 +588,261 @@
     </form>
 </div>
 
+<h2>Social Links</h2>
+
+<div class="social-links-section">
+    <p class="section-description">Add links to your social media profiles. These will be displayed on your public profile.</p>
+
+    {% if !social_links.is_empty() %}
+    <div class="current-social-links">
+        <h4>Your Social Links</h4>
+        <div class="social-links-list">
+            {% for link in social_links %}
+            <div class="social-link-item">
+                <span class="social-icon">{{ link.platform.icon() }}</span>
+                <span class="social-platform">{{ link.platform.display_name() }}</span>
+                <span class="social-username">{{ link.username }}</span>
+                <a href="{{ link.get_url() }}" target="_blank" rel="noopener nofollow" class="social-link-url">Visit</a>
+                <form action="/account/social-links/delete" method="post" class="delete-social-form">
+                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                    <input type="hidden" name="platform" value="{% match link.platform %}{% when crate::orm::user_social_links::SocialPlatform::Twitter %}twitter{% when crate::orm::user_social_links::SocialPlatform::Discord %}discord{% when crate::orm::user_social_links::SocialPlatform::Github %}github{% when crate::orm::user_social_links::SocialPlatform::Youtube %}youtube{% when crate::orm::user_social_links::SocialPlatform::Twitch %}twitch{% when crate::orm::user_social_links::SocialPlatform::Steam %}steam{% when crate::orm::user_social_links::SocialPlatform::Telegram %}telegram{% when crate::orm::user_social_links::SocialPlatform::Reddit %}reddit{% when crate::orm::user_social_links::SocialPlatform::Instagram %}instagram{% when crate::orm::user_social_links::SocialPlatform::Facebook %}facebook{% when crate::orm::user_social_links::SocialPlatform::Linkedin %}linkedin{% when crate::orm::user_social_links::SocialPlatform::Tiktok %}tiktok{% when crate::orm::user_social_links::SocialPlatform::Website %}website{% when crate::orm::user_social_links::SocialPlatform::Other %}other{% endmatch %}">
+                    <button type="submit" class="delete-social-btn" title="Remove">✕</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if !available_platforms.is_empty() %}
+    <div class="add-social-link">
+        <h4>Add Social Link</h4>
+        <form action="/account/social-links" method="post" class="add-social-form">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+
+            <div class="social-form-row">
+                <div class="form-group">
+                    <label for="platform">Platform</label>
+                    <select name="platform" id="platform" required>
+                        {% for platform in available_platforms %}
+                        <option value="{% match platform %}{% when crate::orm::user_social_links::SocialPlatform::Twitter %}twitter{% when crate::orm::user_social_links::SocialPlatform::Discord %}discord{% when crate::orm::user_social_links::SocialPlatform::Github %}github{% when crate::orm::user_social_links::SocialPlatform::Youtube %}youtube{% when crate::orm::user_social_links::SocialPlatform::Twitch %}twitch{% when crate::orm::user_social_links::SocialPlatform::Steam %}steam{% when crate::orm::user_social_links::SocialPlatform::Telegram %}telegram{% when crate::orm::user_social_links::SocialPlatform::Reddit %}reddit{% when crate::orm::user_social_links::SocialPlatform::Instagram %}instagram{% when crate::orm::user_social_links::SocialPlatform::Facebook %}facebook{% when crate::orm::user_social_links::SocialPlatform::Linkedin %}linkedin{% when crate::orm::user_social_links::SocialPlatform::Tiktok %}tiktok{% when crate::orm::user_social_links::SocialPlatform::Website %}website{% when crate::orm::user_social_links::SocialPlatform::Other %}other{% endmatch %}">{{ platform.icon() }} {{ platform.display_name() }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Username/Handle</label>
+                    <input type="text" name="username" id="username" maxlength="255" placeholder="your_username" required>
+                </div>
+
+                <div class="form-group url-field">
+                    <label for="url">Custom URL (optional)</label>
+                    <input type="url" name="url" id="url" maxlength="500" placeholder="https://...">
+                    <p class="help-text">Only needed for Discord, Website, or Other</p>
+                </div>
+            </div>
+
+            <button type="submit">Add Social Link</button>
+        </form>
+    </div>
+    {% else %}
+    <p class="all-platforms-used">You've added all available platforms!</p>
+    {% endif %}
+</div>
+
+<style>
+    .social-links-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f5f5f5;
+        border-radius: 4px;
+    }
+
+    .section-description {
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .current-social-links {
+        margin-bottom: 30px;
+    }
+
+    .current-social-links h4,
+    .add-social-link h4 {
+        margin: 0 0 15px 0;
+        color: #333;
+    }
+
+    .social-links-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .social-link-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 15px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    .social-icon {
+        font-size: 1.3em;
+    }
+
+    .social-platform {
+        font-weight: 600;
+        min-width: 100px;
+    }
+
+    .social-username {
+        flex: 1;
+        color: #666;
+    }
+
+    .social-link-url {
+        padding: 4px 12px;
+        background: #007bff;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.85em;
+    }
+
+    .social-link-url:hover {
+        background: #0056b3;
+    }
+
+    .delete-social-form {
+        display: inline;
+    }
+
+    .delete-social-btn {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        background: #dc3545;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .delete-social-btn:hover {
+        background: #c82333;
+    }
+
+    .add-social-form {
+        background: #fff;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+    }
+
+    .social-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1.5fr;
+        gap: 15px;
+        margin-bottom: 15px;
+    }
+
+    .add-social-form .form-group {
+        margin: 0;
+    }
+
+    .add-social-form label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #333;
+    }
+
+    .add-social-form select,
+    .add-social-form input {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 14px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+
+    .add-social-form button {
+        padding: 10px 20px;
+        background: #28a745;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+    }
+
+    .add-social-form button:hover {
+        background: #218838;
+    }
+
+    .all-platforms-used {
+        color: #28a745;
+        font-style: italic;
+    }
+
+    /* Dark mode */
+    html.dark .social-links-section {
+        background: #2a2a2a;
+    }
+
+    html.dark .section-description {
+        color: #aaa;
+    }
+
+    html.dark .current-social-links h4,
+    html.dark .add-social-link h4 {
+        color: #fff;
+    }
+
+    html.dark .social-link-item {
+        background: #333;
+        border-color: #444;
+    }
+
+    html.dark .social-username {
+        color: #aaa;
+    }
+
+    html.dark .add-social-form {
+        background: #333;
+        border-color: #444;
+    }
+
+    html.dark .add-social-form label {
+        color: #fff;
+    }
+
+    html.dark .add-social-form select,
+    html.dark .add-social-form input {
+        background: #2a2a2a;
+        border-color: #555;
+        color: #fff;
+    }
+
+    @media (max-width: 768px) {
+        .social-form-row {
+            grid-template-columns: 1fr;
+        }
+
+        .social-link-item {
+            flex-wrap: wrap;
+        }
+
+        .social-username {
+            width: 100%;
+            order: 3;
+        }
+    }
+</style>
+
 {% endblock %}
