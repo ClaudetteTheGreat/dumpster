@@ -272,6 +272,7 @@ struct NotificationPreferencesTemplate {
 /// Form data for updating preferences
 #[derive(Deserialize)]
 struct PreferenceUpdateForm {
+    csrf_token: String,
     notification_type: String,
     in_app: Option<String>,
     email: Option<String>,
@@ -298,9 +299,13 @@ pub async fn view_preferences(client: ClientCtx) -> Result<impl Responder, Error
 #[post("/notifications/preferences")]
 pub async fn update_preferences(
     client: ClientCtx,
+    cookies: actix_session::Session,
     form: web::Form<PreferenceUpdateForm>,
 ) -> Result<impl Responder, Error> {
     let user_id = client.require_login()?;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
 
     // Convert checkbox values (Some("on") or None) to boolean
     let in_app = form.in_app.is_some();

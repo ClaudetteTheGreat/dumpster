@@ -98,5 +98,44 @@
         color: #666;
         font-size: 0.9em;
     }
+
+    .settings-link {
+        text-decoration: none;
+    }
+
+    /* Dark Mode */
+    html.dark .notification-header {
+        background: #333;
+    }
+
+    html.dark .notification-count p {
+        color: #ddd;
+    }
+
+    html.dark .notification-item {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .notification-item.unread {
+        background: #1a3a5c;
+        border-color: #4a90e2;
+    }
+
+    html.dark .notification-content h4 {
+        color: #fff;
+    }
+
+    html.dark .notification-content p {
+        color: #ccc;
+    }
+
+    html.dark .notification-time {
+        color: #999;
+    }
+
+    html.dark .notification-actions a {
+        color: #4a90e2;
+    }
 </style>
 {% endblock %}

@@ -21,7 +21,9 @@ This document covers the communication features including notifications, private
 - Per-type configuration for delivery method:
   - In-app notifications (on/off)
   - Email notifications (on/off)
-- Access preferences at `/account/notifications`
+  - Frequency options: Immediate, Hourly digest, Daily digest, Never
+- Access preferences at `/notifications/preferences`
+- Configure separately for each notification type
 
 ### Read/Unread Tracking
 - Mark individual notifications as read
@@ -142,16 +144,25 @@ RSS-enabled browsers and readers can auto-detect feeds via:
 ## Email Notifications
 
 ### Supported Email Events
-- Thread watch notifications
-- Private message notifications
-- Password reset requests
-- Email verification
-- Mention notifications (if enabled)
+- **Thread Reply** - When someone replies to your thread (configurable)
+- **Mention** - When someone @mentions you in a post (configurable)
+- **Thread Watch** - New posts in threads you're watching (per-thread toggle)
+- **Password Reset** - Password reset request emails
+- **Email Verification** - Account verification emails
+- **Welcome Email** - Sent after email verification
+
+### Email Templates
+All emails include:
+- Professional HTML formatting with responsive design
+- Plain text fallback for email clients that don't support HTML
+- Clear call-to-action buttons
+- Unsubscribe instructions
 
 ### Email Requirements
 - SMTP server configuration required
 - Users must have verified email addresses
-- Per-type opt-in/opt-out settings
+- Email preference set to "on" for the notification type
+- Frequency set to "immediate" (digests not yet implemented)
 
 ### Email Configuration
 See [Configuration](configuration.md) for SMTP setup.

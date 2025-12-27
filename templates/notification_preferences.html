@@ -10,6 +10,7 @@
 <div class="preferences-container">
     {% for pref in preferences %}
     <form method="post" action="/notifications/preferences" class="preference-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
         <input type="hidden" name="notification_type" value="{{ pref.notification_type }}">
 
         <div class="preference-item">
@@ -171,6 +172,42 @@
 
     .back-link:hover {
         text-decoration: underline;
+    }
+
+    /* Dark Mode */
+    html.dark .intro-text {
+        color: #aaa;
+    }
+
+    html.dark .preference-item {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .preference-header h3 {
+        color: #fff;
+    }
+
+    html.dark .preference-description {
+        color: #aaa;
+    }
+
+    html.dark .setting-group label {
+        color: #ccc;
+    }
+
+    html.dark .checkbox-label span {
+        color: #ddd;
+    }
+
+    html.dark .setting-group select {
+        background: #333;
+        border-color: #555;
+        color: #fff;
+    }
+
+    html.dark .preference-actions {
+        border-color: #444;
     }
 </style>
 {% endblock %}

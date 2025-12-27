@@ -1,7 +1,7 @@
 //! Notification dispatcher for detecting events and sending notifications
 
 use crate::db::get_db_pool;
-use crate::notifications::{create_notification, NotificationType};
+use crate::notifications::{create_notification, get_user_preferences, NotificationType};
 use crate::orm::{threads, ugc, ugc_revisions, user_names, users, watched_threads};
 use crate::user::Profile;
 use once_cell::sync::Lazy;
@@ -9,6 +9,11 @@ use regex::Regex;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 static MENTION_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"@([a-zA-Z0-9_-]+)").unwrap());
+
+/// Get base URL for email links
+fn get_base_url() -> String {
+    std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
+}
 
 /// Detect mentions in content and create notifications
 pub async fn detect_and_notify_mentions(
@@ -26,6 +31,22 @@ pub async fn detect_and_notify_mentions(
         .map(|m| m.as_str())
         .collect();
 
+    if mentioned_usernames.is_empty() {
+        return Ok(());
+    }
+
+    // Get author info once
+    let author = Profile::get_by_id(db, author_id).await?;
+    let author_name = author
+        .map(|a| a.name)
+        .unwrap_or_else(|| "Someone".to_string());
+
+    // Get thread info once
+    let thread = threads::Entity::find_by_id(thread_id).one(db).await?;
+    let thread_title = thread
+        .map(|t| t.title)
+        .unwrap_or_else(|| "a thread".to_string());
+
     // Look up users and create notifications
     for username in mentioned_usernames {
         // Find user by username (using user_names table for current name)
@@ -35,27 +56,16 @@ pub async fn detect_and_notify_mentions(
             .await?;
 
         if let Some(user_name_rec) = user_name {
-            let user_id = user_name_rec.user_id;
+            let mentioned_user_id = user_name_rec.user_id;
 
             // Don't notify yourself
-            if user_id == author_id {
+            if mentioned_user_id == author_id {
                 continue;
             }
 
-            // Get author username
-            let author = Profile::get_by_id(db, author_id).await?;
-            let author_name = author
-                .map(|a| a.name)
-                .unwrap_or_else(|| "Someone".to_string());
-
-            // Get thread info
-            let thread = threads::Entity::find_by_id(thread_id).one(db).await?;
-            let thread_title = thread
-                .map(|t| t.title)
-                .unwrap_or_else(|| "a thread".to_string());
-
+            // Create in-app notification
             create_notification(
-                user_id,
+                mentioned_user_id,
                 NotificationType::Mention,
                 format!("{} mentioned you", author_name),
                 format!("You were mentioned in: {}", thread_title),
@@ -65,6 +75,45 @@ pub async fn detect_and_notify_mentions(
                 Some(post_id),
             )
             .await?;
+
+            // Check if user wants email notifications for mentions
+            let prefs = get_user_preferences(mentioned_user_id, &NotificationType::Mention).await?;
+            if prefs.email && prefs.frequency == "immediate" {
+                // Get user's email and check if verified
+                if let Some(user) = users::Entity::find_by_id(mentioned_user_id).one(db).await? {
+                    if user.email_verified {
+                        if let Some(email) = &user.email {
+                            // Get recipient username
+                            let recipient_name = user_names::Entity::find()
+                                .filter(user_names::Column::UserId.eq(mentioned_user_id))
+                                .one(db)
+                                .await?
+                                .map(|un| un.name)
+                                .unwrap_or_else(|| "User".to_string());
+
+                            // Send mention email
+                            if let Err(e) = crate::email::templates::send_mention_email(
+                                email,
+                                &recipient_name,
+                                &author_name,
+                                &thread_title,
+                                thread_id,
+                                post_id,
+                                content,
+                                &get_base_url(),
+                            )
+                            .await
+                            {
+                                log::error!(
+                                    "Failed to send mention email to user {}: {}",
+                                    mentioned_user_id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -91,9 +140,13 @@ pub async fn notify_thread_reply(
         .map(|a| a.name.clone())
         .unwrap_or_else(|| "Someone".to_string());
 
+    // Get post content for emails
+    let post_content = get_post_content(post_id).await.unwrap_or_default();
+
     // Notify thread author if they're not the one posting
     if let Some(thread_author_id) = thread.user_id {
         if thread_author_id != author_id {
+            // Create in-app notification
             create_notification(
                 thread_author_id,
                 NotificationType::Reply,
@@ -105,6 +158,44 @@ pub async fn notify_thread_reply(
                 Some(post_id),
             )
             .await?;
+
+            // Send email to thread author if they want it
+            let prefs = get_user_preferences(thread_author_id, &NotificationType::Reply).await?;
+            if prefs.email && prefs.frequency == "immediate" {
+                if let Some(user) = users::Entity::find_by_id(thread_author_id).one(db).await? {
+                    if user.email_verified {
+                        if let Some(email) = &user.email {
+                            // Get recipient username
+                            let recipient_name = user_names::Entity::find()
+                                .filter(user_names::Column::UserId.eq(thread_author_id))
+                                .one(db)
+                                .await?
+                                .map(|un| un.name)
+                                .unwrap_or_else(|| "User".to_string());
+
+                            // Send author reply email
+                            if let Err(e) = crate::email::templates::send_author_reply_email(
+                                email,
+                                &recipient_name,
+                                &author_name,
+                                &thread.title,
+                                thread_id,
+                                post_id,
+                                &post_content,
+                                &get_base_url(),
+                            )
+                            .await
+                            {
+                                log::error!(
+                                    "Failed to send reply email to thread author {}: {}",
+                                    thread_author_id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -141,6 +232,25 @@ pub async fn notify_thread_reply(
     send_thread_reply_emails(thread_id, post_id, author_id, &author_name, &thread.title).await?;
 
     Ok(())
+}
+
+/// Get post content from UGC table
+async fn get_post_content(post_id: i32) -> Result<String, Box<dyn std::error::Error>> {
+    use crate::orm::posts;
+
+    let db = get_db_pool();
+
+    let post = posts::Entity::find_by_id(post_id).one(db).await?;
+    if let Some(post) = post {
+        if let Some(ugc_model) = ugc::Entity::find_by_id(post.ugc_id).one(db).await? {
+            if let Some(rev_id) = ugc_model.ugc_revision_id {
+                if let Some(rev) = ugc_revisions::Entity::find_by_id(rev_id).one(db).await? {
+                    return Ok(rev.content);
+                }
+            }
+        }
+    }
+    Ok(String::new())
 }
 
 /// Send email notifications to thread watchers
