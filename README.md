@@ -75,7 +75,7 @@ export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_tes
 TEST_DATABASE_URL="$TEST_DATABASE_URL" sqlx database create
 TEST_DATABASE_URL="$TEST_DATABASE_URL" sqlx migrate run
 
-# Run all tests (255+ tests)
+# Run all tests (265+ tests)
 TEST_DATABASE_URL="$TEST_DATABASE_URL" cargo test
 ```
 
@@ -89,6 +89,7 @@ TEST_DATABASE_URL="$TEST_DATABASE_URL" cargo test
 
 ### User Features
 - User profiles with avatars and custom titles
+- Online status tracking with privacy controls
 - Private messaging and conversations
 - Thread watching with email notifications
 - Real-time WebSocket chat

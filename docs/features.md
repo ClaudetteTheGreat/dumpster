@@ -165,6 +165,12 @@ Server-side BBCode preview before posting:
   - Client-side file type and size validation
   - Support for JPEG, PNG, GIF, and WebP formats
 - **Custom Title** - User-defined title displayed under username in posts (100 character limit)
+- **Online Status** - Track and display which users are currently active
+  - Users shown as online if active within the last 15 minutes
+  - Online user count and list displayed on forum index page
+  - Rate-limited activity tracking (updates at most once per 60 seconds)
+  - Privacy setting to hide online status from other users
+  - Hidden users excluded from online counts and listings
 
 ## Responsive Design
 
@@ -188,6 +194,7 @@ Server-side BBCode preview before posting:
   - Comprehensive dark mode styling for all UI components
   - Auto mode respects operating system dark mode preference
 - **Posts Per Page** - Configurable pagination (10, 25, 50, or 100 posts per page)
+- **Show Online Status** - Privacy toggle to hide/show online presence to other users
 - **Character Counter** - Real-time character counting for post/thread creation
   - Visual feedback (green/yellow/red) based on remaining characters
   - Automatic limit detection (50,000 for users, 100,000 for moderators)
