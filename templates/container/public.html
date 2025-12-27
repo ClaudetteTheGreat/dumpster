@@ -85,11 +85,13 @@
                 <ul class="nav-main" role="menubar" aria-label="Site sections">
                     <li role="none"><a href="/forums" class="nav-link" role="menuitem">Forums</a></li>
                     <li role="none"><a href="/recent/posts" class="nav-link" role="menuitem">New Posts</a></li>
+                    <li role="none"><a href="/activity/global" class="nav-link" role="menuitem">Activity</a></li>
                     <li role="none"><a href="/chat" class="nav-link" role="menuitem">Chat</a></li>
                     <li role="none"><a href="/members" class="nav-link" role="menuitem">Members</a></li>
                 </ul>
                 <ul class="nav-side" role="menubar" aria-label="User menu">
                     {% if let Some(user) = client.get_user() %}
+                    <li role="none"><a href="/activity" class="nav-link" role="menuitem">Your Feed</a></li>
                     <li role="none"><a href="/conversations" class="nav-link" role="menuitem">
                             Messages
                             {% if client.get_unread_messages() > 0 %}

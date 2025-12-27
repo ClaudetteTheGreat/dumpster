@@ -15,6 +15,9 @@
                     <span class="follow-count">{{ user.following_count }}</span>
                     <span class="follow-label">Following</span>
                 </a>
+                <a href="/members/{{ user.id }}/activity" class="follow-stat">
+                    <span class="follow-label">Activity</span>
+                </a>
             </div>
             <div class="member-actions">
                 {% if client.is_user() && client.get_id().unwrap_or(0) != user.id %}
