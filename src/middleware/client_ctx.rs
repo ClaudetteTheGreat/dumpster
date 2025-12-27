@@ -82,6 +82,14 @@ impl ClientCtxInner {
             0
         };
 
+        // Update last activity for logged-in users (rate-limited internally)
+        if let Some(ref user) = client {
+            let user_id = user.id;
+            actix::spawn(async move {
+                crate::user::update_last_activity(user_id).await;
+            });
+        }
+
         ClientCtxInner {
             client,
             groups,

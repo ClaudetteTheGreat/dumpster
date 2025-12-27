@@ -28,6 +28,8 @@ pub struct Model {
     pub approved_at: Option<DateTime>,
     pub approved_by: Option<i32>,
     pub rejection_reason: Option<String>,
+    pub last_activity_at: Option<DateTimeWithTimeZone>,
+    pub show_online: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

@@ -201,6 +201,9 @@ async fn update_preferences(
         ));
     }
 
+    // Get show_online preference (checkbox, so may not be present if unchecked)
+    let show_online = form.get("show_online").map(|v| v == "true").unwrap_or(false);
+
     // Update the user's preferences
     let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
         .one(get_db_pool())
@@ -211,6 +214,7 @@ async fn update_preferences(
 
     user.posts_per_page = Set(posts_per_page);
     user.theme = Set(theme.to_string());
+    user.show_online = Set(show_online);
     user.update(get_db_pool())
         .await
         .map_err(error::ErrorInternalServerError)?;

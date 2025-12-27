@@ -66,7 +66,8 @@ async fn main() -> std::io::Result<()> {
         loop {
             interval.tick().await;
             ruforo::rate_limit::cleanup_old_entries_public();
-            log::debug!("Rate limiter cleanup completed");
+            ruforo::user::cleanup_activity_cache();
+            log::debug!("Rate limiter and activity cache cleanup completed");
         }
     });
 

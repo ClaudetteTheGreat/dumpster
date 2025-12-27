@@ -192,6 +192,9 @@ pub struct ForumIndexTemplate<'a> {
     pub client: ClientCtx,
     pub forums: &'a Vec<ForumWithChildren>,
     pub unread_forums: HashSet<i32>,
+    pub online_users: Vec<crate::user::OnlineUser>,
+    pub online_count: i64,
+    pub online_users_len: i64,
 }
 
 #[post("/forums/{forum}/post-thread")]
@@ -639,10 +642,18 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
     // Top-level forums (parent_id = NULL) with their children
     let forums = organize_forums_hierarchy(&all_forums);
 
+    // Get online users for display
+    let online_users = crate::user::get_online_users(20).await.unwrap_or_default();
+    let online_count = crate::user::count_online_users().await.unwrap_or(0);
+
+    let online_users_len = online_users.len() as i64;
     Ok(ForumIndexTemplate {
         client: client.to_owned(),
         forums: &forums,
         unread_forums,
+        online_users,
+        online_count,
+        online_users_len,
     }
     .to_response())
 }

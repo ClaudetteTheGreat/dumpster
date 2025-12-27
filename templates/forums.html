@@ -73,6 +73,30 @@
     {% endif %}
 </div>
 
+<!-- Online Users Section -->
+<div class="online-users-section">
+    <div class="online-users-header">
+        <h3>
+            <span class="online-indicator"></span>
+            {{ online_count }} User{% if online_count != 1 %}s{% endif %} Online
+        </h3>
+    </div>
+    {% if online_users.len() > 0 %}
+    <div class="online-users-list">
+        {% for user in online_users %}
+        <a href="/members/{{ user.id }}/" class="online-user">{{ user.name }}</a>{% if !loop.last %}, {% endif %}
+        {% endfor %}
+        {% if online_count > online_users_len %}
+        <span class="online-users-more">and {{ online_count - online_users_len }} more...</span>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="online-users-list online-users-empty">
+        No users currently online
+    </div>
+    {% endif %}
+</div>
+
 <style>
     .forums-header {
         display: flex;
