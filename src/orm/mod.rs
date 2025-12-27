@@ -2,6 +2,7 @@
 
 pub mod prelude;
 
+pub mod activities;
 pub mod attachment_thumbnails;
 pub mod attachments;
 pub mod badges;

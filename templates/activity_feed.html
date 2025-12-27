@@ -1,0 +1,284 @@
+{% extends "container/public.html" %}
+
+{% block content %}
+<h1>{{ feed_type.title() }}</h1>
+<p class="feed-description">{{ feed_type.description() }}</p>
+
+{% if let Some(user) = profile_user %}
+<div class="profile-header">
+    <a href="/members/{{ user.id }}/" class="profile-link">
+        {% if let Some(avatar) = user.avatar_filename.as_ref() %}
+        <img src="/data/avatars/{{ avatar }}" alt="{{ user.name }}" class="profile-avatar" />
+        {% else %}
+        <div class="profile-avatar profile-avatar--placeholder">{{ user.name.chars().next().unwrap_or('?') }}</div>
+        {% endif %}
+        <span class="profile-name">{{ user.name }}</span>
+    </a>
+</div>
+{% endif %}
+
+<div class="activity-nav">
+    <a href="/activity" class="activity-nav-link{% match feed_type %}{% when crate::web::activity::FeedType::Personal %} active{% when _ %}{% endmatch %}">Your Feed</a>
+    <a href="/activity/global" class="activity-nav-link{% match feed_type %}{% when crate::web::activity::FeedType::Global %} active{% when _ %}{% endmatch %}">Global Activity</a>
+</div>
+
+<div class="struct-container activity-feed">
+    {% if activities.len() > 0 %}
+    {% for activity in activities %}
+    <div class="struct-item struct-item--activity" data-id="{{ activity.id }}">
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
+            <div class="activity-avatar">
+                {% if let Some(avatar) = activity.actor_avatar.as_ref() %}
+                <img src="/data/avatars/{{ avatar }}" alt="{{ activity.actor_name }}" />
+                {% else %}
+                <span class="avatar-placeholder">{{ activity.actor_name.chars().next().unwrap_or('?') }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="struct-item-cell struct-item-cell--main">
+            <div class="activity-content">
+                <span class="activity-actor">
+                    <a href="/members/{{ activity.actor_id }}/">{{ activity.actor_name }}</a>
+                </span>
+                <span class="activity-action">{{ activity.activity_type.description() }}</span>
+                {% if let Some(title) = activity.title.as_ref() %}
+                <a href="{{ activity.target_url }}" class="activity-target">{{ title }}</a>
+                {% endif %}
+                {% if let Some(emoji) = activity.reaction_emoji.as_ref() %}
+                <span class="activity-reaction">{{ emoji }}</span>
+                {% endif %}
+            </div>
+            {% if let Some(preview) = activity.content_preview.as_ref() %}
+            <div class="activity-preview">{{ preview }}</div>
+            {% endif %}
+            <div class="activity-meta">
+                <span class="activity-type-icon">{{ activity.activity_type.icon() }}</span>
+                <time datetime="{{ activity.created_at }}">{{ activity.created_at.format("%b %d, %Y at %H:%M") }}</time>
+            </div>
+        </div>
+        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+    </div>
+    {% endfor %}
+
+    {% if let Some(cursor) = next_cursor.as_ref() %}
+    <div class="load-more">
+        <a href="?cursor={{ cursor }}" class="load-more-btn">Load More</a>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="no-content">
+        {% match feed_type %}
+        {% when crate::web::activity::FeedType::Personal %}
+        No activity from users you follow yet. Try following some users to see their activity here.
+        {% when crate::web::activity::FeedType::Global %}
+        No recent activity found.
+        {% when crate::web::activity::FeedType::User %}
+        This user hasn't had any activity yet.
+        {% endmatch %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    h1 {
+        margin-bottom: 5px;
+        color: #333;
+    }
+
+    .feed-description {
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .profile-header {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 8px;
+    }
+
+    .profile-link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .profile-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .profile-avatar--placeholder {
+        background: #0066cc;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4em;
+        font-weight: bold;
+    }
+
+    .profile-name {
+        font-size: 1.2em;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .activity-nav {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .activity-nav-link {
+        padding: 10px 20px;
+        text-decoration: none;
+        color: #666;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s;
+    }
+
+    .activity-nav-link:hover {
+        color: #333;
+        background-color: #f5f5f5;
+    }
+
+    .activity-nav-link.active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        font-weight: 600;
+    }
+
+    .activity-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+    }
+
+    .activity-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        background: #0066cc;
+        color: white;
+        font-weight: bold;
+        font-size: 1.2em;
+    }
+
+    .activity-content {
+        margin-bottom: 5px;
+        line-height: 1.4;
+    }
+
+    .activity-actor a {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .activity-actor a:hover {
+        text-decoration: underline;
+    }
+
+    .activity-action {
+        color: #666;
+    }
+
+    .activity-target {
+        color: #0066cc;
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .activity-target:hover {
+        text-decoration: underline;
+    }
+
+    .activity-reaction {
+        font-size: 1.2em;
+        margin-left: 4px;
+    }
+
+    .activity-preview {
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 6px;
+        font-size: 0.9em;
+        color: #555;
+        margin: 8px 0;
+        border-left: 3px solid #ddd;
+        max-height: 80px;
+        overflow: hidden;
+    }
+
+    .activity-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85em;
+        color: #888;
+    }
+
+    .activity-type-icon {
+        font-size: 1em;
+    }
+
+    .load-more {
+        padding: 20px;
+        text-align: center;
+    }
+
+    .load-more-btn {
+        display: inline-block;
+        padding: 10px 30px;
+        background: #0066cc;
+        color: white;
+        text-decoration: none;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+
+    .load-more-btn:hover {
+        background: #0052a3;
+    }
+
+    .no-content {
+        text-align: center;
+        padding: 40px;
+        color: #999;
+        font-size: 1.1em;
+    }
+
+    @media (max-width: 768px) {
+        .activity-nav-link {
+            padding: 10px 15px;
+            font-size: 0.9em;
+        }
+
+        .activity-avatar {
+            width: 32px;
+            height: 32px;
+        }
+
+        .activity-content {
+            font-size: 0.95em;
+        }
+    }
+</style>
+{% endblock %}

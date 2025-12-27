@@ -384,6 +384,15 @@ pub async fn create_profile_post(
         return Err(error::ErrorForbidden("This user has disabled profile posts"));
     }
 
+    // Get the profile user's name for activity recording
+    let profile_user_name = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(profile_user_id))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .map(|n| n.name)
+        .unwrap_or_else(|| "Unknown".to_string());
+
     // Validate content
     let content = form.content.trim();
     if content.is_empty() {
@@ -423,6 +432,25 @@ pub async fn create_profile_post(
         .insert(db)
         .await
         .map_err(error::ErrorInternalServerError)?;
+
+    // Record activity for the feed (async, non-blocking)
+    let content_preview = if content.len() > 200 {
+        format!("{}...", &content[..197])
+    } else {
+        content.to_string()
+    };
+    actix::spawn(async move {
+        if let Err(e) = crate::activities::record_profile_post_created(
+            author_id,
+            profile_user_id,
+            &profile_user_name,
+            &content_preview,
+        )
+        .await
+        {
+            log::warn!("Failed to record profile post activity: {}", e);
+        }
+    });
 
     // Redirect back to profile
     Ok(HttpResponse::SeeOther()
@@ -517,12 +545,21 @@ pub async fn follow_user(
 
     let db = get_db_pool();
 
-    // Check if target user exists
+    // Check if target user exists and get their name
     let _target_user = users::Entity::find_by_id(following_id)
         .one(db)
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Get the target user's name
+    let target_user_name = user_names::Entity::find()
+        .filter(user_names::Column::UserId.eq(following_id))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .map(|n| n.name)
+        .unwrap_or_else(|| "Unknown".to_string());
 
     // Check if already following
     let existing = user_follows::Entity::find()
@@ -550,6 +587,19 @@ pub async fn follow_user(
         .insert(db)
         .await
         .map_err(error::ErrorInternalServerError)?;
+
+    // Record activity for the feed (async, non-blocking)
+    actix::spawn(async move {
+        if let Err(e) = crate::activities::record_user_followed(
+            follower_id,
+            following_id,
+            &target_user_name,
+        )
+        .await
+        {
+            log::warn!("Failed to record user follow activity: {}", e);
+        }
+    });
 
     // Redirect back to profile
     Ok(HttpResponse::SeeOther()

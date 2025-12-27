@@ -3,7 +3,7 @@
 use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{posts, reaction_types, ugc_reactions};
+use crate::orm::{posts, reaction_types, threads, ugc_reactions};
 use actix_web::{error, get, post, web, Error, HttpResponse};
 use chrono::Utc;
 use sea_orm::{entity::*, query::*, ColumnTrait, EntityTrait, QueryFilter};
@@ -140,6 +140,33 @@ async fn toggle_reaction(
             .insert(db)
             .await
             .map_err(error::ErrorInternalServerError)?;
+
+        // Record activity for the feed (async, non-blocking)
+        if let Some(ref p) = post {
+            let post_id = p.id;
+            let thread_id = p.thread_id;
+            let emoji = reaction_type.emoji.clone();
+
+            actix::spawn(async move {
+                // Get thread info for activity
+                let db = get_db_pool();
+                if let Ok(Some(thread)) = threads::Entity::find_by_id(thread_id).one(db).await {
+                    if let Err(e) = crate::activities::record_reaction_given(
+                        user_id,
+                        post_id,
+                        thread_id,
+                        thread.forum_id,
+                        &emoji,
+                        &thread.title,
+                    )
+                    .await
+                    {
+                        log::warn!("Failed to record reaction activity: {}", e);
+                    }
+                }
+            });
+        }
+
         true
     };
 

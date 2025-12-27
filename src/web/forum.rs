@@ -457,6 +457,22 @@ pub async fn create_thread(
         crate::badges::check_and_award_automatic_badges(user_id).await;
     });
 
+    // Record activity for the feed (async, non-blocking)
+    let thread_id = thread_res.last_insert_id;
+    let title_for_activity = filtered_title.clone();
+    actix::spawn(async move {
+        if let Err(e) = crate::activities::record_thread_created(
+            user_id,
+            thread_id,
+            forum_id,
+            &title_for_activity,
+        )
+        .await
+        {
+            log::warn!("Failed to record thread creation activity: {}", e);
+        }
+    });
+
     Ok(HttpResponse::Found()
         .append_header((
             "Location",

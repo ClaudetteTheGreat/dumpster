@@ -910,6 +910,29 @@ pub async fn create_reply(
         crate::badges::check_and_award_automatic_badges(authenticated_user_id).await;
     });
 
+    // Record activity for the feed (async, non-blocking)
+    let forum_id = our_thread.forum_id;
+    let thread_title = our_thread.title.clone();
+    let content_preview = if content.len() > 200 {
+        format!("{}...", &content[..197])
+    } else {
+        content.clone()
+    };
+    actix::spawn(async move {
+        if let Err(e) = crate::activities::record_post_created(
+            authenticated_user_id,
+            thread_id,
+            post_id,
+            forum_id,
+            &thread_title,
+            &content_preview,
+        )
+        .await
+        {
+            log::warn!("Failed to record post creation activity: {}", e);
+        }
+    });
+
     Ok(HttpResponse::Found()
         .append_header((
             "Location",
