@@ -1,14 +1,15 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    attachments, posts, profile_posts, threads, ugc_revisions, user_names, user_social_links,
-    users,
+    attachments, posts, profile_posts, threads, ugc_revisions, user_follows, user_names,
+    user_social_links, users,
 };
 use crate::ugc::{create_ugc, NewUgcPartial};
 use crate::user::Profile as UserProfile;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::{DateTime, Utc};
+use sea_orm::prelude::DateTimeWithTimeZone;
 use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection, QueryOrder, Set};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +19,11 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_members)
         .service(search_usernames)
         .service(create_profile_post)
-        .service(delete_profile_post);
+        .service(delete_profile_post)
+        .service(follow_user)
+        .service(unfollow_user)
+        .service(view_followers)
+        .service(view_following);
 }
 
 /// User statistics for profile display
@@ -139,9 +144,11 @@ pub async fn view_member(
         pub social_links: Vec<user_social_links::Model>,
         pub profile_posts: Vec<ProfilePostDisplay>,
         pub allow_profile_posts: bool,
+        pub is_following: bool,
     }
 
     let user_id = path.into_inner().0;
+    let current_user_id = client.get_id();
     let db = get_db_pool();
 
     // Use Profile::get_by_id for full user data including allow_profile_posts
@@ -191,6 +198,23 @@ pub async fn view_member(
             error::ErrorInternalServerError("Couldn't load profile posts.")
         })?;
 
+    // Check if current user follows this profile
+    let is_following = if let Some(current_id) = current_user_id {
+        if current_id != user_id {
+            user_follows::Entity::find()
+                .filter(user_follows::Column::FollowerId.eq(current_id))
+                .filter(user_follows::Column::FollowingId.eq(user_id))
+                .one(db)
+                .await
+                .map_err(error::ErrorInternalServerError)?
+                .is_some()
+        } else {
+            false // Can't follow yourself
+        }
+    } else {
+        false
+    };
+
     Ok(MemberTemplate {
         client,
         user,
@@ -199,6 +223,7 @@ pub async fn view_member(
         social_links,
         profile_posts,
         allow_profile_posts,
+        is_following,
     }
     .to_response())
 }
@@ -456,4 +481,301 @@ pub async fn delete_profile_post(
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/members/{}/", profile_user_id)))
         .finish())
+}
+
+// =============================================================================
+// User Follow/Unfollow
+// =============================================================================
+
+#[derive(Deserialize)]
+pub struct FollowForm {
+    csrf_token: String,
+}
+
+/// Follow a user
+#[post("/members/{user_id}/follow")]
+pub async fn follow_user(
+    client: ClientCtx,
+    session: actix_session::Session,
+    path: web::Path<(i32,)>,
+    form: web::Form<FollowForm>,
+) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Require authentication
+    let follower_id = client
+        .get_id()
+        .ok_or_else(|| error::ErrorUnauthorized("Must be logged in to follow users"))?;
+
+    let following_id = path.into_inner().0;
+
+    // Can't follow yourself
+    if follower_id == following_id {
+        return Err(error::ErrorBadRequest("Cannot follow yourself"));
+    }
+
+    let db = get_db_pool();
+
+    // Check if target user exists
+    let _target_user = users::Entity::find_by_id(following_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    // Check if already following
+    let existing = user_follows::Entity::find()
+        .filter(user_follows::Column::FollowerId.eq(follower_id))
+        .filter(user_follows::Column::FollowingId.eq(following_id))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if existing.is_some() {
+        // Already following - just redirect back
+        return Ok(HttpResponse::SeeOther()
+            .append_header(("Location", format!("/members/{}/", following_id)))
+            .finish());
+    }
+
+    // Create follow relationship
+    let follow = user_follows::ActiveModel {
+        follower_id: Set(follower_id),
+        following_id: Set(following_id),
+        ..Default::default()
+    };
+
+    follow
+        .insert(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to profile
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/members/{}/", following_id)))
+        .finish())
+}
+
+/// Unfollow a user
+#[post("/members/{user_id}/unfollow")]
+pub async fn unfollow_user(
+    client: ClientCtx,
+    session: actix_session::Session,
+    path: web::Path<(i32,)>,
+    form: web::Form<FollowForm>,
+) -> Result<impl Responder, Error> {
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Require authentication
+    let follower_id = client
+        .get_id()
+        .ok_or_else(|| error::ErrorUnauthorized("Must be logged in to unfollow users"))?;
+
+    let following_id = path.into_inner().0;
+    let db = get_db_pool();
+
+    // Delete follow relationship if it exists
+    user_follows::Entity::delete_many()
+        .filter(user_follows::Column::FollowerId.eq(follower_id))
+        .filter(user_follows::Column::FollowingId.eq(following_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Redirect back to profile
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/members/{}/", following_id)))
+        .finish())
+}
+
+// =============================================================================
+// Followers/Following Lists
+// =============================================================================
+
+/// Display info for a user in followers/following list
+#[derive(Debug, Clone)]
+pub struct FollowUserDisplay {
+    pub id: i32,
+    pub name: String,
+    pub avatar_filename: Option<String>,
+    pub custom_title: Option<String>,
+    pub followed_at: DateTime<Utc>,
+}
+
+/// Get a user's followers
+async fn get_followers(
+    db: &DatabaseConnection,
+    user_id: i32,
+    limit: u64,
+) -> Result<Vec<FollowUserDisplay>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let sql = r#"
+        SELECT
+            uf.follower_id as id,
+            un.name,
+            a.filename as avatar_filename,
+            u.custom_title,
+            uf.created_at as followed_at
+        FROM user_follows uf
+        JOIN users u ON u.id = uf.follower_id
+        LEFT JOIN user_names un ON un.user_id = u.id
+        LEFT JOIN user_avatars ua ON ua.user_id = u.id
+        LEFT JOIN attachments a ON a.id = ua.attachment_id
+        WHERE uf.following_id = $1
+        ORDER BY uf.created_at DESC
+        LIMIT $2
+    "#;
+
+    let results = db
+        .query_all(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            sql,
+            vec![user_id.into(), (limit as i64).into()],
+        ))
+        .await?;
+
+    Ok(results
+        .iter()
+        .map(|row| {
+            FollowUserDisplay {
+                id: row.try_get::<i32>("", "id").unwrap_or(0),
+                name: row
+                    .try_get::<String>("", "name")
+                    .unwrap_or_else(|_| "Unknown".to_string()),
+                avatar_filename: row.try_get::<Option<String>>("", "avatar_filename").ok().flatten(),
+                custom_title: row.try_get::<Option<String>>("", "custom_title").ok().flatten(),
+                followed_at: row
+                    .try_get::<DateTimeWithTimeZone>("", "followed_at")
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now()),
+            }
+        })
+        .collect())
+}
+
+/// Get users that a user follows
+async fn get_following(
+    db: &DatabaseConnection,
+    user_id: i32,
+    limit: u64,
+) -> Result<Vec<FollowUserDisplay>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let sql = r#"
+        SELECT
+            uf.following_id as id,
+            un.name,
+            a.filename as avatar_filename,
+            u.custom_title,
+            uf.created_at as followed_at
+        FROM user_follows uf
+        JOIN users u ON u.id = uf.following_id
+        LEFT JOIN user_names un ON un.user_id = u.id
+        LEFT JOIN user_avatars ua ON ua.user_id = u.id
+        LEFT JOIN attachments a ON a.id = ua.attachment_id
+        WHERE uf.follower_id = $1
+        ORDER BY uf.created_at DESC
+        LIMIT $2
+    "#;
+
+    let results = db
+        .query_all(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            sql,
+            vec![user_id.into(), (limit as i64).into()],
+        ))
+        .await?;
+
+    Ok(results
+        .iter()
+        .map(|row| {
+            FollowUserDisplay {
+                id: row.try_get::<i32>("", "id").unwrap_or(0),
+                name: row
+                    .try_get::<String>("", "name")
+                    .unwrap_or_else(|_| "Unknown".to_string()),
+                avatar_filename: row.try_get::<Option<String>>("", "avatar_filename").ok().flatten(),
+                custom_title: row.try_get::<Option<String>>("", "custom_title").ok().flatten(),
+                followed_at: row
+                    .try_get::<DateTimeWithTimeZone>("", "followed_at")
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now()),
+            }
+        })
+        .collect())
+}
+
+/// View a user's followers
+#[get("/members/{user_id}/followers")]
+pub async fn view_followers(
+    client: ClientCtx,
+    path: web::Path<(i32,)>,
+) -> Result<impl Responder, Error> {
+    #[derive(Template)]
+    #[template(path = "member_followers.html")]
+    pub struct FollowersTemplate {
+        pub client: ClientCtx,
+        pub user: UserProfile,
+        pub followers: Vec<FollowUserDisplay>,
+        pub list_type: &'static str,
+    }
+
+    let user_id = path.into_inner().0;
+    let db = get_db_pool();
+
+    let user = UserProfile::get_by_id(db, user_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    let followers = get_followers(db, user_id, 100)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(FollowersTemplate {
+        client,
+        user,
+        followers,
+        list_type: "followers",
+    }
+    .to_response())
+}
+
+/// View users that a user follows
+#[get("/members/{user_id}/following")]
+pub async fn view_following(
+    client: ClientCtx,
+    path: web::Path<(i32,)>,
+) -> Result<impl Responder, Error> {
+    #[derive(Template)]
+    #[template(path = "member_followers.html")]
+    pub struct FollowingTemplate {
+        pub client: ClientCtx,
+        pub user: UserProfile,
+        pub followers: Vec<FollowUserDisplay>,
+        pub list_type: &'static str,
+    }
+
+    let user_id = path.into_inner().0;
+    let db = get_db_pool();
+
+    let user = UserProfile::get_by_id(db, user_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+
+    let followers = get_following(db, user_id, 100)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(FollowingTemplate {
+        client,
+        user,
+        followers,
+        list_type: "following",
+    }
+    .to_response())
 }

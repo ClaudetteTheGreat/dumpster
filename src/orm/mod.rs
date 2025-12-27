@@ -53,6 +53,7 @@ pub mod user_2fa;
 pub mod user_avatars;
 pub mod user_badges;
 pub mod user_bans;
+pub mod user_follows;
 pub mod user_social_links;
 pub mod user_groups;
 pub mod user_name_history;

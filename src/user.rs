@@ -77,6 +77,8 @@ pub struct Profile {
     pub show_online: bool,
     pub reputation_score: i32,
     pub allow_profile_posts: bool,
+    pub follower_count: i32,
+    pub following_count: i32,
 }
 
 impl Profile {
@@ -107,14 +109,16 @@ impl Profile {
                 u.custom_title,
                 u.show_online,
                 u.reputation_score,
-                u.allow_profile_posts
+                u.allow_profile_posts,
+                u.follower_count,
+                u.following_count
             FROM users u
             LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
             LEFT JOIN posts p ON p.user_id = u.id
             WHERE u.id = $1
-            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.bio, u.location, u.website_url, u.signature, u.custom_title, u.show_online, u.reputation_score, u.allow_profile_posts
+            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.bio, u.location, u.website_url, u.signature, u.custom_title, u.show_online, u.reputation_score, u.allow_profile_posts, u.follower_count, u.following_count
         "#;
 
         Self::find_by_statement(Statement::from_sql_and_values(
