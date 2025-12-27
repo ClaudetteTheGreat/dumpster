@@ -4,6 +4,7 @@ pub mod prelude;
 
 pub mod attachment_thumbnails;
 pub mod attachments;
+pub mod badges;
 pub mod chat_messages;
 pub mod chat_rooms;
 pub mod conversation_participants;
@@ -49,6 +50,7 @@ pub mod ugc_revisions;
 pub mod unfurl_cache;
 pub mod user_2fa;
 pub mod user_avatars;
+pub mod user_badges;
 pub mod user_bans;
 pub mod user_groups;
 pub mod user_name_history;

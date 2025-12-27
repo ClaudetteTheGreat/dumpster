@@ -905,6 +905,9 @@ pub async fn create_reply(
         {
             log::error!("Failed to send thread reply notifications: {}", e);
         }
+
+        // Check and award any automatic badges the user may have earned
+        crate::badges::check_and_award_automatic_badges(authenticated_user_id).await;
     });
 
     Ok(HttpResponse::Found()

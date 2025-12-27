@@ -452,6 +452,11 @@ pub async fn create_thread(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Check and award any automatic badges the user may have earned (async, non-blocking)
+    actix::spawn(async move {
+        crate::badges::check_and_award_automatic_badges(user_id).await;
+    });
+
     Ok(HttpResponse::Found()
         .append_header((
             "Location",

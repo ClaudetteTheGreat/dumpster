@@ -58,6 +58,7 @@ pub async fn view_member(
         pub client: ClientCtx,
         pub user: UserProfile,
         pub stats: UserStatistics,
+        pub badges: Vec<crate::badges::UserBadge>,
     }
 
     let user_id = path.into_inner().0;
@@ -91,10 +92,19 @@ pub async fn view_member(
             error::ErrorInternalServerError("Couldn't load user statistics.")
         })?;
 
+    // Get user badges
+    let badges = crate::badges::get_user_badges(db, user_id)
+        .await
+        .map_err(|e| {
+            log::error!("error getting user badges: {:?}", e);
+            error::ErrorInternalServerError("Couldn't load user badges.")
+        })?;
+
     Ok(MemberTemplate {
         client,
         user,
         stats,
+        badges,
     }
     .to_response())
 }

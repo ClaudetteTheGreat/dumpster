@@ -5,6 +5,7 @@ extern crate linkify;
 pub mod app_config;
 pub mod attachment;
 pub mod auth_2fa;
+pub mod badges;
 pub mod bbcode;
 pub mod captcha;
 pub mod config;

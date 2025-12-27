@@ -31,6 +31,20 @@
         </dl>
     </div>
 
+    {% if !badges.is_empty() %}
+    <div class="member-badges">
+        <h3>Badges</h3>
+        <div class="badges-list">
+            {% for user_badge in badges %}
+            <div class="badge-item" title="{% match user_badge.badge.description %}{% when Some with (desc) %}{{ desc }}{% when None %}{% endmatch %}">
+                <span class="badge-icon">{{ user_badge.badge.icon }}</span>
+                <span class="badge-name" style="border-color: {% match user_badge.badge.color %}{% when Some with (color) %}{{ color }}{% when None %}#6366f1{% endmatch %}">{{ user_badge.badge.name }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     {% if user.bio.is_some() || user.location.is_some() || user.website_url.is_some() %}
     <div class="member-about">
         <h3>About</h3>
@@ -206,6 +220,77 @@
 .bio-content {
     white-space: pre-wrap;
     line-height: 1.5;
+}
+
+.member-badges {
+    margin-top: 20px;
+    padding: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.member-badges h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.badges-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.badge-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f8f9fa;
+    border-radius: 20px;
+    cursor: default;
+    transition: background-color 0.2s;
+}
+
+.badge-item:hover {
+    background: #e9ecef;
+}
+
+.badge-icon {
+    font-size: 1.2em;
+}
+
+.badge-name {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #333;
+    border-left: 3px solid;
+    padding-left: 8px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .member-badges {
+        background: #2d2d2d;
+        border-color: #404040;
+    }
+
+    .member-badges h3 {
+        color: #e0e0e0;
+    }
+
+    .badge-item {
+        background: #3d3d3d;
+    }
+
+    .badge-item:hover {
+        background: #4d4d4d;
+    }
+
+    .badge-name {
+        color: #e0e0e0;
+    }
 }
 </style>
 {% endblock %}

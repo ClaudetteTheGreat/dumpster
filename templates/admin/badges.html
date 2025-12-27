@@ -1,0 +1,290 @@
+{% extends "container/public.html" %}
+
+{% block title %}Badges - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Badges</h1>
+        <p class="panel-subtitle">Manage user badges and achievements</p>
+        <a href="/admin/badges/new" class="btn btn-primary">Add Badge</a>
+    </div>
+
+    {% if badges.is_empty() %}
+    <div class="empty-state">
+        <p>No badges have been configured yet.</p>
+        <p class="text-muted">Badges are achievements that can be awarded to users manually or automatically based on milestones.</p>
+    </div>
+    {% else %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Icon</th>
+                    <th>Name</th>
+                    <th>Condition</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for badge in badges %}
+                <tr class="{% if badge.is_active %}row-active{% else %}row-disabled{% endif %}">
+                    <td>{{ badge.display_order }}</td>
+                    <td class="emoji-cell" style="color: {% match badge.color %}{% when Some with (c) %}{{ c }}{% when None %}#6366f1{% endmatch %}">{{ badge.icon }}</td>
+                    <td>
+                        <strong>{{ badge.name }}</strong>
+                        <div class="text-muted text-small">{{ badge.slug }}</div>
+                    </td>
+                    <td>
+                        {% match badge.condition_type %}
+                        {% when crate::orm::badges::BadgeConditionType::Manual %}
+                        <span class="badge badge-secondary">Manual</span>
+                        {% when crate::orm::badges::BadgeConditionType::PostCount %}
+                        <span class="badge badge-info">{% match badge.condition_value %}{% when Some with (v) %}{{ v }}{% when None %}?{% endmatch %} posts</span>
+                        {% when crate::orm::badges::BadgeConditionType::ThreadCount %}
+                        <span class="badge badge-info">{% match badge.condition_value %}{% when Some with (v) %}{{ v }}{% when None %}?{% endmatch %} threads</span>
+                        {% when crate::orm::badges::BadgeConditionType::TimeMember %}
+                        <span class="badge badge-info">{% match badge.condition_value %}{% when Some with (v) %}{{ v }}{% when None %}?{% endmatch %} days</span>
+                        {% when crate::orm::badges::BadgeConditionType::Reputation %}
+                        <span class="badge badge-info">{% match badge.condition_value %}{% when Some with (v) %}{{ v }}{% when None %}?{% endmatch %} rep</span>
+                        {% endmatch %}
+                    </td>
+                    <td>
+                        {% if badge.is_active %}
+                        <span class="badge badge-success">Active</span>
+                        {% else %}
+                        <span class="badge badge-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions-cell">
+                        <a href="/admin/badges/{{ badge.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
+                        <a href="/admin/badges/{{ badge.id }}/award" class="btn btn-sm btn-primary">Award</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="help-section">
+        <h3>Badge System</h3>
+        <ul>
+            <li><strong>Manual:</strong> Badges awarded only by administrators.</li>
+            <li><strong>Post Count:</strong> Automatically awarded when user reaches X posts.</li>
+            <li><strong>Thread Count:</strong> Automatically awarded when user creates X threads.</li>
+            <li><strong>Time Member:</strong> Automatically awarded after X days as member.</li>
+            <li><strong>Reputation:</strong> Automatically awarded when user reaches X reputation.</li>
+        </ul>
+        <p>Automatic badges are checked when users post or create threads.</p>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+.panel-header h1 {
+    margin: 0;
+    color: #333;
+    flex-grow: 1;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+    width: 100%;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.row-active {
+    background: #fff;
+}
+
+.row-disabled {
+    opacity: 0.6;
+}
+
+.emoji-cell {
+    font-size: 1.5em;
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.text-small {
+    font-size: 0.85em;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: #28a745;
+    color: #fff;
+}
+
+.badge-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.help-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.help-section h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.help-section ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.help-section li {
+    margin-bottom: 8px;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .admin-panel h3 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .text-muted {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .data-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .data-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .data-table td {
+    border-color: #444;
+}
+
+html.dark .data-table tbody tr:hover {
+    background: #333;
+}
+
+html.dark .help-section {
+    background: #333;
+    color: #ccc;
+}
+</style>
+{% endblock %}

@@ -5,9 +5,9 @@ use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
+    badges, feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
     permission_collections, permission_values, permissions, posts, reaction_types, reports,
-    sessions, settings, threads, user_bans, user_groups, user_names, user_warnings, users,
+    sessions, settings, threads, user_badges, user_bans, user_groups, user_names, user_warnings, users,
     word_filters,
 };
 use crate::group::GroupType;
@@ -80,7 +80,16 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_edit_reaction_type)
         .service(update_reaction_type)
         .service(view_create_reaction_type_form)
-        .service(create_reaction_type);
+        .service(create_reaction_type)
+        // Badge management
+        .service(view_badges)
+        .service(view_create_badge_form)
+        .service(create_badge)
+        .service(view_edit_badge)
+        .service(update_badge)
+        .service(view_award_badge_form)
+        .service(award_badge_to_user)
+        .service(revoke_badge_from_user);
 }
 
 // ============================================================================
@@ -4077,5 +4086,455 @@ async fn update_reaction_type(
 
     Ok(HttpResponse::SeeOther()
         .insert_header(("Location", "/admin/reaction-types"))
+        .finish())
+}
+
+// ============================================================================
+// Badge Management
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/badges.html")]
+struct BadgesTemplate {
+    client: ClientCtx,
+    badges: Vec<badges::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/badge_form.html")]
+struct BadgeFormTemplate {
+    client: ClientCtx,
+    badge: Option<badges::Model>,
+    error: Option<String>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/badge_award.html")]
+struct BadgeAwardTemplate {
+    client: ClientCtx,
+    badge: badges::Model,
+    current_holders: Vec<BadgeHolder>,
+    error: Option<String>,
+    success: Option<String>,
+}
+
+#[derive(Debug)]
+struct BadgeHolder {
+    user_id: i32,
+    username: String,
+    awarded_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Deserialize)]
+struct BadgeForm {
+    csrf_token: String,
+    name: String,
+    slug: String,
+    description: Option<String>,
+    icon: String,
+    color: Option<String>,
+    condition_type: String,
+    condition_value: Option<i32>,
+    display_order: i32,
+    is_active: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct AwardBadgeForm {
+    csrf_token: String,
+    username: String,
+}
+
+#[derive(Deserialize)]
+struct RevokeBadgeForm {
+    csrf_token: String,
+    user_id: i32,
+}
+
+/// GET /admin/badges - List all badges
+#[get("/admin/badges")]
+async fn view_badges(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.badges.manage")?;
+
+    let db = get_db_pool();
+
+    let all_badges = badges::Entity::find()
+        .order_by_asc(badges::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch badges: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(BadgesTemplate {
+        client,
+        badges: all_badges,
+    }
+    .to_response())
+}
+
+/// GET /admin/badges/new - Show form to create new badge
+#[get("/admin/badges/new")]
+async fn view_create_badge_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.badges.manage")?;
+
+    Ok(BadgeFormTemplate {
+        client,
+        badge: None,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/badges - Create a new badge
+#[post("/admin/badges")]
+async fn create_badge(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<BadgeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.badges.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate input
+    if form.name.trim().is_empty() {
+        return Ok(BadgeFormTemplate {
+            client,
+            badge: None,
+            error: Some("Name is required".to_string()),
+        }
+        .to_response());
+    }
+
+    if form.slug.trim().is_empty() {
+        return Ok(BadgeFormTemplate {
+            client,
+            badge: None,
+            error: Some("Slug is required".to_string()),
+        }
+        .to_response());
+    }
+
+    // Parse condition type
+    let condition_type = match form.condition_type.as_str() {
+        "manual" => badges::BadgeConditionType::Manual,
+        "post_count" => badges::BadgeConditionType::PostCount,
+        "thread_count" => badges::BadgeConditionType::ThreadCount,
+        "time_member" => badges::BadgeConditionType::TimeMember,
+        "reputation" => badges::BadgeConditionType::Reputation,
+        _ => badges::BadgeConditionType::Manual,
+    };
+
+    let new_badge = badges::ActiveModel {
+        name: Set(form.name.trim().to_string()),
+        slug: Set(form.slug.trim().to_lowercase().replace(' ', "-")),
+        description: Set(form.description.clone().filter(|s| !s.trim().is_empty())),
+        icon: Set(form.icon.trim().to_string()),
+        color: Set(form.color.clone().filter(|s| !s.trim().is_empty())),
+        condition_type: Set(condition_type),
+        condition_value: Set(form.condition_value),
+        display_order: Set(form.display_order),
+        is_active: Set(form.is_active.is_some()),
+        ..Default::default()
+    };
+
+    new_badge.insert(db).await.map_err(|e| {
+        log::error!("Failed to create badge: {}", e);
+        error::ErrorInternalServerError("Failed to create badge")
+    })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/badges"))
+        .finish())
+}
+
+/// GET /admin/badges/{id}/edit - Show form to edit badge
+#[get("/admin/badges/{id}/edit")]
+async fn view_edit_badge(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.badges.manage")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    let badge = badges::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch badge: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Badge not found"))?;
+
+    Ok(BadgeFormTemplate {
+        client,
+        badge: Some(badge),
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/badges/{id} - Update a badge
+#[post("/admin/badges/{id}")]
+async fn update_badge(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<BadgeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.badges.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    // Fetch existing badge
+    let existing = badges::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch badge: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Badge not found"))?;
+
+    // Validate input
+    if form.name.trim().is_empty() {
+        return Ok(BadgeFormTemplate {
+            client,
+            badge: Some(existing),
+            error: Some("Name is required".to_string()),
+        }
+        .to_response());
+    }
+
+    // Parse condition type
+    let condition_type = match form.condition_type.as_str() {
+        "manual" => badges::BadgeConditionType::Manual,
+        "post_count" => badges::BadgeConditionType::PostCount,
+        "thread_count" => badges::BadgeConditionType::ThreadCount,
+        "time_member" => badges::BadgeConditionType::TimeMember,
+        "reputation" => badges::BadgeConditionType::Reputation,
+        _ => badges::BadgeConditionType::Manual,
+    };
+
+    let mut updated: badges::ActiveModel = existing.into();
+    updated.name = Set(form.name.trim().to_string());
+    updated.slug = Set(form.slug.trim().to_lowercase().replace(' ', "-"));
+    updated.description = Set(form.description.clone().filter(|s| !s.trim().is_empty()));
+    updated.icon = Set(form.icon.trim().to_string());
+    updated.color = Set(form.color.clone().filter(|s| !s.trim().is_empty()));
+    updated.condition_type = Set(condition_type);
+    updated.condition_value = Set(form.condition_value);
+    updated.display_order = Set(form.display_order);
+    updated.is_active = Set(form.is_active.is_some());
+
+    updated.update(db).await.map_err(|e| {
+        log::error!("Failed to update badge: {}", e);
+        error::ErrorInternalServerError("Failed to update badge")
+    })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/badges"))
+        .finish())
+}
+
+/// GET /admin/badges/{id}/award - Show form to award badge to users
+#[get("/admin/badges/{id}/award")]
+async fn view_award_badge_form(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.badges.manage")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    let badge = badges::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch badge: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Badge not found"))?;
+
+    // Get current badge holders
+    let holders = get_badge_holders(db, id).await.map_err(|e| {
+        log::error!("Failed to fetch badge holders: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    Ok(BadgeAwardTemplate {
+        client,
+        badge,
+        current_holders: holders,
+        error: None,
+        success: None,
+    }
+    .to_response())
+}
+
+async fn get_badge_holders(
+    db: &DatabaseConnection,
+    badge_id: i32,
+) -> Result<Vec<BadgeHolder>, sea_orm::DbErr> {
+    use sea_orm::FromQueryResult;
+
+    #[derive(Debug, FromQueryResult)]
+    struct HolderRow {
+        user_id: i32,
+        username: String,
+        awarded_at: chrono::DateTime<chrono::Utc>,
+    }
+
+    let rows = HolderRow::find_by_statement(sea_orm::Statement::from_sql_and_values(
+        sea_orm::DbBackend::Postgres,
+        r#"
+        SELECT ub.user_id, un.name as username, ub.awarded_at
+        FROM user_badges ub
+        JOIN user_names un ON un.user_id = ub.user_id
+        WHERE ub.badge_id = $1
+        ORDER BY ub.awarded_at DESC
+        "#,
+        vec![badge_id.into()],
+    ))
+    .all(db)
+    .await?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| BadgeHolder {
+            user_id: r.user_id,
+            username: r.username,
+            awarded_at: r.awarded_at,
+        })
+        .collect())
+}
+
+/// POST /admin/badges/{id}/award - Award badge to a user
+#[post("/admin/badges/{id}/award")]
+async fn award_badge_to_user(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<AwardBadgeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.badges.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let badge_id = path.into_inner();
+    let db = get_db_pool();
+
+    // Fetch badge
+    let badge = badges::Entity::find_by_id(badge_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch badge: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Badge not found"))?;
+
+    // Look up user by username
+    let user_id = crate::user::get_user_id_from_name(db, &form.username).await;
+
+    let holders = get_badge_holders(db, badge_id).await.map_err(|e| {
+        log::error!("Failed to fetch badge holders: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    let user_id = match user_id {
+        Some(id) => id,
+        None => {
+            return Ok(BadgeAwardTemplate {
+                client,
+                badge,
+                current_holders: holders,
+                error: Some(format!("User '{}' not found", form.username)),
+                success: None,
+            }
+            .to_response());
+        }
+    };
+
+    // Award the badge
+    let awarded_by = client.get_id();
+    match crate::badges::award_badge(db, user_id, badge_id, awarded_by).await {
+        Ok(true) => {
+            // Refresh holders list
+            let holders = get_badge_holders(db, badge_id).await.map_err(|e| {
+                log::error!("Failed to fetch badge holders: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?;
+
+            Ok(BadgeAwardTemplate {
+                client,
+                badge,
+                current_holders: holders,
+                error: None,
+                success: Some(format!("Badge awarded to {}", form.username)),
+            }
+            .to_response())
+        }
+        Ok(false) => Ok(BadgeAwardTemplate {
+            client,
+            badge,
+            current_holders: holders,
+            error: Some(format!("User '{}' already has this badge", form.username)),
+            success: None,
+        }
+        .to_response()),
+        Err(e) => {
+            log::error!("Failed to award badge: {}", e);
+            Ok(BadgeAwardTemplate {
+                client,
+                badge,
+                current_holders: holders,
+                error: Some("Failed to award badge".to_string()),
+                success: None,
+            }
+            .to_response())
+        }
+    }
+}
+
+/// POST /admin/badges/{id}/revoke - Revoke badge from a user
+#[post("/admin/badges/{id}/revoke")]
+async fn revoke_badge_from_user(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<RevokeBadgeForm>,
+) -> Result<impl Responder, Error> {
+    client.require_login()?;
+    client.require_permission("admin.badges.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let badge_id = path.into_inner();
+    let db = get_db_pool();
+
+    // Revoke the badge
+    crate::badges::revoke_badge(db, form.user_id, badge_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to revoke badge: {}", e);
+            error::ErrorInternalServerError("Failed to revoke badge")
+        })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", format!("/admin/badges/{}/award", badge_id)))
         .finish())
 }

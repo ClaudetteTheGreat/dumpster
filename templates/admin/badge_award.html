@@ -1,0 +1,311 @@
+{% extends "container/public.html" %}
+
+{% block title %}Award Badge: {{ badge.name }} - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1><span class="badge-icon" style="color: {% match badge.color %}{% when Some with (c) %}{{ c }}{% when None %}#6366f1{% endmatch %}">{{ badge.icon }}</span> {{ badge.name }}</h1>
+        <p class="panel-subtitle">Award this badge to users or revoke it</p>
+    </div>
+
+    {% if let Some(err) = error %}
+    <div class="alert alert-danger">{{ err }}</div>
+    {% endif %}
+
+    {% if let Some(msg) = success %}
+    <div class="alert alert-success">{{ msg }}</div>
+    {% endif %}
+
+    <div class="award-section">
+        <h3>Award Badge</h3>
+        <form action="/admin/badges/{{ badge.id }}/award" method="post" class="award-form">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+            <div class="form-inline">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" placeholder="Enter username" required />
+                </div>
+                <button type="submit" class="btn btn-primary">Award Badge</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="holders-section">
+        <h3>Current Holders ({{ current_holders.len() }})</h3>
+        {% if current_holders.is_empty() %}
+        <p class="empty-state">No users currently have this badge.</p>
+        {% else %}
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Awarded</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for holder in current_holders %}
+                    <tr>
+                        <td>
+                            <a href="/members/{{ holder.user_id }}/">{{ holder.username }}</a>
+                        </td>
+                        <td>{{ holder.awarded_at.format("%Y-%m-%d %H:%M") }}</td>
+                        <td>
+                            <form action="/admin/badges/{{ badge.id }}/revoke" method="post" class="revoke-form" onsubmit="return confirm('Revoke this badge from {{ holder.username }}?');">
+                                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                                <input type="hidden" name="user_id" value="{{ holder.user_id }}" />
+                                <button type="submit" class="btn btn-sm btn-danger">Revoke</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="form-actions">
+        <a href="/admin/badges" class="btn btn-secondary">Back to Badges</a>
+        <a href="/admin/badges/{{ badge.id }}/edit" class="btn btn-secondary">Edit Badge</a>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.badge-icon {
+    font-size: 1.2em;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.award-section,
+.holders-section {
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+}
+
+.award-section h3,
+.holders-section h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.form-inline {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.form-group {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.empty-state {
+    color: #666;
+    text-align: center;
+    padding: 20px;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+    padding: 10px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.data-table a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.data-table a:hover {
+    text-decoration: underline;
+}
+
+.revoke-form {
+    display: inline;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-sm {
+    padding: 5px 10px;
+    font-size: 0.85em;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .award-section h3,
+html.dark .holders-section h3 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .award-section,
+html.dark .holders-section {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-group input {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .data-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .data-table td {
+    border-color: #444;
+}
+
+html.dark .data-table tbody tr:hover {
+    background: #333;
+}
+
+html.dark .empty-state {
+    color: #aaa;
+}
+
+html.dark .alert-danger {
+    background: #3a2a2a;
+    color: #ff6b6b;
+    border-color: #5a3a3a;
+}
+
+html.dark .alert-success {
+    background: #2a3a2a;
+    color: #6bff6b;
+    border-color: #3a5a3a;
+}
+</style>
+{% endblock %}
