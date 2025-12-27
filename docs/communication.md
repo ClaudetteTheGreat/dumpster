@@ -4,6 +4,15 @@ This document covers the communication features including notifications, private
 
 ## Notification System
 
+### Real-time WebSocket Notifications
+When logged in, users automatically connect to `/notifications.ws` for instant notification delivery:
+
+- **Toast Notifications** - New notifications appear as slide-in toasts in the bottom-right corner
+- **Badge Updates** - Notification count in header updates automatically
+- **Click to Navigate** - Click a toast to go directly to the related content
+- **Multi-tab Support** - Works across multiple browser tabs/devices
+- **Auto-reconnect** - Automatically reconnects if connection is lost
+
 ### In-App Notifications
 - Real-time notifications for user interactions
 - Notification bell in header with unread count
