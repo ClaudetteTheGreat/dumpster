@@ -3,12 +3,53 @@ use atom_syndication::{
     ContentBuilder, EntryBuilder, FeedBuilder as AtomFeedBuilder, LinkBuilder, TextBuilder,
 };
 use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use rss::{ChannelBuilder, GuidBuilder, ItemBuilder};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
+use std::time::{Duration, Instant};
 
 use crate::orm::{forums, posts, threads, ugc, ugc_revisions, user_names};
 
 const FEED_ITEM_LIMIT: u64 = 25;
+const FEED_CACHE_TTL_SECS: u64 = 300; // 5 minutes
+
+/// Cached feed entry with content and timestamp
+struct CachedFeed {
+    content: String,
+    cached_at: Instant,
+}
+
+/// Global feed cache
+static FEED_CACHE: Lazy<DashMap<String, CachedFeed>> = Lazy::new(DashMap::new);
+
+/// Get cached feed if valid, otherwise return None
+fn get_cached_feed(key: &str) -> Option<String> {
+    if let Some(entry) = FEED_CACHE.get(key) {
+        if entry.cached_at.elapsed() < Duration::from_secs(FEED_CACHE_TTL_SECS) {
+            return Some(entry.content.clone());
+        }
+        // Cache expired, will be replaced
+    }
+    None
+}
+
+/// Store feed in cache
+fn cache_feed(key: String, content: String) {
+    FEED_CACHE.insert(
+        key,
+        CachedFeed {
+            content,
+            cached_at: Instant::now(),
+        },
+    );
+}
+
+/// Clear all cached feeds (useful for testing)
+#[allow(dead_code)]
+pub fn clear_feed_cache() {
+    FEED_CACHE.clear();
+}
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(latest_threads_feed)
@@ -22,6 +63,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
 /// RSS feed for latest threads across all forums
 #[get("/feed.rss")]
 pub async fn latest_threads_feed(db: web::Data<DatabaseConnection>) -> impl Responder {
+    let cache_key = "rss:latest".to_string();
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/rss+xml; charset=utf-8")
+            .body(cached);
+    }
+
     let db = db.get_ref();
 
     // Get latest threads with their first post content
@@ -79,16 +129,28 @@ pub async fn latest_threads_feed(db: web::Data<DatabaseConnection>) -> impl Resp
         .items(items)
         .build();
 
+    let content = channel.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/rss+xml; charset=utf-8")
-        .body(channel.to_string())
+        .body(content)
 }
 
 /// RSS feed for threads in a specific forum
 #[get("/forums/{id}/feed.rss")]
 pub async fn forum_feed(db: web::Data<DatabaseConnection>, path: web::Path<i32>) -> impl Responder {
-    let db = db.get_ref();
     let forum_id = path.into_inner();
+    let cache_key = format!("rss:forum:{}", forum_id);
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/rss+xml; charset=utf-8")
+            .body(cached);
+    }
+
+    let db = db.get_ref();
 
     // Get forum info
     let forum = match forums::Entity::find_by_id(forum_id).one(db).await {
@@ -159,14 +221,26 @@ pub async fn forum_feed(db: web::Data<DatabaseConnection>, path: web::Path<i32>)
         .items(items)
         .build();
 
+    let content = channel.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/rss+xml; charset=utf-8")
-        .body(channel.to_string())
+        .body(content)
 }
 
 /// Atom feed for latest threads across all forums
 #[get("/feed.atom")]
 pub async fn latest_threads_atom_feed(db: web::Data<DatabaseConnection>) -> impl Responder {
+    let cache_key = "atom:latest".to_string();
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/atom+xml; charset=utf-8")
+            .body(cached);
+    }
+
     let db = db.get_ref();
 
     let threads = match threads::Entity::find()
@@ -253,9 +327,12 @@ pub async fn latest_threads_atom_feed(db: web::Data<DatabaseConnection>) -> impl
         .entries(entries)
         .build();
 
+    let content = feed.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/atom+xml; charset=utf-8")
-        .body(feed.to_string())
+        .body(content)
 }
 
 /// Atom feed for threads in a specific forum
@@ -264,8 +341,17 @@ pub async fn forum_atom_feed(
     db: web::Data<DatabaseConnection>,
     path: web::Path<i32>,
 ) -> impl Responder {
-    let db = db.get_ref();
     let forum_id = path.into_inner();
+    let cache_key = format!("atom:forum:{}", forum_id);
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/atom+xml; charset=utf-8")
+            .body(cached);
+    }
+
+    let db = db.get_ref();
 
     let forum = match forums::Entity::find_by_id(forum_id).one(db).await {
         Ok(Some(f)) => f,
@@ -371,9 +457,12 @@ pub async fn forum_atom_feed(
         .entries(entries)
         .build();
 
+    let content = feed.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/atom+xml; charset=utf-8")
-        .body(feed.to_string())
+        .body(content)
 }
 
 /// RSS feed for replies in a specific thread
@@ -382,8 +471,17 @@ pub async fn thread_feed(
     db: web::Data<DatabaseConnection>,
     path: web::Path<i32>,
 ) -> impl Responder {
-    let db = db.get_ref();
     let thread_id = path.into_inner();
+    let cache_key = format!("rss:thread:{}", thread_id);
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/rss+xml; charset=utf-8")
+            .body(cached);
+    }
+
+    let db = db.get_ref();
 
     // Get thread info
     let thread = match threads::Entity::find_by_id(thread_id).one(db).await {
@@ -451,9 +549,12 @@ pub async fn thread_feed(
         .items(items)
         .build();
 
+    let content = channel.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/rss+xml; charset=utf-8")
-        .body(channel.to_string())
+        .body(content)
 }
 
 /// Atom feed for replies in a specific thread
@@ -462,8 +563,17 @@ pub async fn thread_atom_feed(
     db: web::Data<DatabaseConnection>,
     path: web::Path<i32>,
 ) -> impl Responder {
-    let db = db.get_ref();
     let thread_id = path.into_inner();
+    let cache_key = format!("atom:thread:{}", thread_id);
+
+    // Check cache first
+    if let Some(cached) = get_cached_feed(&cache_key) {
+        return HttpResponse::Ok()
+            .content_type("application/atom+xml; charset=utf-8")
+            .body(cached);
+    }
+
+    let db = db.get_ref();
 
     // Get thread info
     let thread = match threads::Entity::find_by_id(thread_id).one(db).await {
@@ -571,9 +681,12 @@ pub async fn thread_atom_feed(
         .entries(entries)
         .build();
 
+    let content = feed.to_string();
+    cache_feed(cache_key, content.clone());
+
     HttpResponse::Ok()
         .content_type("application/atom+xml; charset=utf-8")
-        .body(feed.to_string())
+        .body(content)
 }
 
 /// Convert NaiveDateTime to DateTime<FixedOffset> (assuming UTC)
