@@ -1,4 +1,8 @@
 use actix_web::{get, web, HttpResponse, Responder};
+use atom_syndication::{
+    ContentBuilder, EntryBuilder, FeedBuilder as AtomFeedBuilder, LinkBuilder, TextBuilder,
+};
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use rss::{ChannelBuilder, GuidBuilder, ItemBuilder};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
@@ -7,7 +11,10 @@ use crate::orm::{forums, threads, ugc, ugc_revisions};
 const FEED_ITEM_LIMIT: u64 = 25;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(latest_threads_feed).service(forum_feed);
+    cfg.service(latest_threads_feed)
+        .service(forum_feed)
+        .service(latest_threads_atom_feed)
+        .service(forum_atom_feed);
 }
 
 /// RSS feed for latest threads across all forums
@@ -153,6 +160,223 @@ pub async fn forum_feed(db: web::Data<DatabaseConnection>, path: web::Path<i32>)
     HttpResponse::Ok()
         .content_type("application/rss+xml; charset=utf-8")
         .body(channel.to_string())
+}
+
+/// Atom feed for latest threads across all forums
+#[get("/feed.atom")]
+pub async fn latest_threads_atom_feed(db: web::Data<DatabaseConnection>) -> impl Responder {
+    let db = db.get_ref();
+
+    let threads = match threads::Entity::find()
+        .order_by_desc(threads::Column::CreatedAt)
+        .limit(FEED_ITEM_LIMIT)
+        .all(db)
+        .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("Failed to fetch threads for Atom feed: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    let mut entries = Vec::new();
+    let mut latest_updated: Option<DateTime<FixedOffset>> = None;
+
+    for thread in threads {
+        let description = if let Some(post_id) = thread.first_post_id {
+            get_post_content(db, post_id).await.unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        let link = format!("{}/threads/{}", site_url, thread.id);
+        let updated = naive_to_fixed_offset(thread.created_at);
+
+        if latest_updated.is_none() || Some(updated) > latest_updated {
+            latest_updated = Some(updated);
+        }
+
+        let entry = EntryBuilder::default()
+            .id(link.clone())
+            .title(TextBuilder::default().value(thread.title).build())
+            .link(
+                LinkBuilder::default()
+                    .href(link)
+                    .rel("alternate".to_string())
+                    .build(),
+            )
+            .summary(Some(
+                TextBuilder::default()
+                    .value(truncate_content(&description, 500))
+                    .build(),
+            ))
+            .content(Some(
+                ContentBuilder::default()
+                    .content_type(Some("html".to_string()))
+                    .value(Some(description))
+                    .build(),
+            ))
+            .updated(updated)
+            .published(Some(updated))
+            .build();
+
+        entries.push(entry);
+    }
+
+    let feed = AtomFeedBuilder::default()
+        .id(site_url.clone())
+        .title(
+            TextBuilder::default()
+                .value("Forum - Latest Threads")
+                .build(),
+        )
+        .link(
+            LinkBuilder::default()
+                .href(site_url.clone())
+                .rel("alternate".to_string())
+                .build(),
+        )
+        .link(
+            LinkBuilder::default()
+                .href(format!("{}/feed.atom", site_url))
+                .rel("self".to_string())
+                .mime_type(Some("application/atom+xml".to_string()))
+                .build(),
+        )
+        .updated(latest_updated.unwrap_or_else(|| Utc::now().fixed_offset()))
+        .entries(entries)
+        .build();
+
+    HttpResponse::Ok()
+        .content_type("application/atom+xml; charset=utf-8")
+        .body(feed.to_string())
+}
+
+/// Atom feed for threads in a specific forum
+#[get("/forums/{id}/feed.atom")]
+pub async fn forum_atom_feed(
+    db: web::Data<DatabaseConnection>,
+    path: web::Path<i32>,
+) -> impl Responder {
+    let db = db.get_ref();
+    let forum_id = path.into_inner();
+
+    let forum = match forums::Entity::find_by_id(forum_id).one(db).await {
+        Ok(Some(f)) => f,
+        Ok(None) => return HttpResponse::NotFound().body("Forum not found"),
+        Err(e) => {
+            log::error!("Failed to fetch forum: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    let threads = match threads::Entity::find()
+        .filter(threads::Column::ForumId.eq(forum_id))
+        .order_by_desc(threads::Column::CreatedAt)
+        .limit(FEED_ITEM_LIMIT)
+        .all(db)
+        .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            log::error!("Failed to fetch threads for forum Atom feed: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    let mut entries = Vec::new();
+    let mut latest_updated: Option<DateTime<FixedOffset>> = None;
+
+    for thread in threads {
+        let description = if let Some(post_id) = thread.first_post_id {
+            get_post_content(db, post_id).await.unwrap_or_default()
+        } else {
+            String::new()
+        };
+
+        let link = format!("{}/threads/{}", site_url, thread.id);
+        let updated = naive_to_fixed_offset(thread.created_at);
+
+        if latest_updated.is_none() || Some(updated) > latest_updated {
+            latest_updated = Some(updated);
+        }
+
+        let entry = EntryBuilder::default()
+            .id(link.clone())
+            .title(TextBuilder::default().value(thread.title).build())
+            .link(
+                LinkBuilder::default()
+                    .href(link)
+                    .rel("alternate".to_string())
+                    .build(),
+            )
+            .summary(Some(
+                TextBuilder::default()
+                    .value(truncate_content(&description, 500))
+                    .build(),
+            ))
+            .content(Some(
+                ContentBuilder::default()
+                    .content_type(Some("html".to_string()))
+                    .value(Some(description))
+                    .build(),
+            ))
+            .updated(updated)
+            .published(Some(updated))
+            .build();
+
+        entries.push(entry);
+    }
+
+    let forum_url = format!("{}/forums/{}", site_url, forum_id);
+    let feed = AtomFeedBuilder::default()
+        .id(forum_url.clone())
+        .title(
+            TextBuilder::default()
+                .value(format!("{} - Latest Threads", forum.label))
+                .build(),
+        )
+        .subtitle(Some(
+            TextBuilder::default()
+                .value(
+                    forum
+                        .description
+                        .unwrap_or_else(|| format!("Latest threads from {}", forum.label)),
+                )
+                .build(),
+        ))
+        .link(
+            LinkBuilder::default()
+                .href(forum_url)
+                .rel("alternate".to_string())
+                .build(),
+        )
+        .link(
+            LinkBuilder::default()
+                .href(format!("{}/forums/{}/feed.atom", site_url, forum_id))
+                .rel("self".to_string())
+                .mime_type(Some("application/atom+xml".to_string()))
+                .build(),
+        )
+        .updated(latest_updated.unwrap_or_else(|| Utc::now().fixed_offset()))
+        .entries(entries)
+        .build();
+
+    HttpResponse::Ok()
+        .content_type("application/atom+xml; charset=utf-8")
+        .body(feed.to_string())
+}
+
+/// Convert NaiveDateTime to DateTime<FixedOffset> (assuming UTC)
+fn naive_to_fixed_offset(dt: NaiveDateTime) -> DateTime<FixedOffset> {
+    DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).fixed_offset()
 }
 
 /// Get post content from UGC system

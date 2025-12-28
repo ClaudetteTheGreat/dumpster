@@ -1,7 +1,8 @@
 {% extends "container/public.html" %}
 
 {% block feeds %}
-<link rel="alternate" type="application/rss+xml" title="{{ forum.label }} - Latest Threads" href="/forums/{{ forum.id }}/feed.rss" />
+<link rel="alternate" type="application/rss+xml" title="{{ forum.label }} - Latest Threads (RSS)" href="/forums/{{ forum.id }}/feed.rss" />
+<link rel="alternate" type="application/atom+xml" title="{{ forum.label }} - Latest Threads (Atom)" href="/forums/{{ forum.id }}/feed.atom" />
 {% endblock %}
 
 {% block breadcrumbs %}
