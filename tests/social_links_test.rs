@@ -72,30 +72,30 @@ fn test_social_platform_generate_url() {
 }
 
 #[test]
-fn test_social_platform_from_str() {
+fn test_social_platform_parse() {
     use ruforo::orm::user_social_links::SocialPlatform;
 
     assert_eq!(
-        SocialPlatform::from_str("twitter"),
+        SocialPlatform::parse("twitter"),
         Some(SocialPlatform::Twitter)
     );
     assert_eq!(
-        SocialPlatform::from_str("TWITTER"),
+        SocialPlatform::parse("TWITTER"),
         Some(SocialPlatform::Twitter)
     );
     assert_eq!(
-        SocialPlatform::from_str("Twitter"),
+        SocialPlatform::parse("Twitter"),
         Some(SocialPlatform::Twitter)
     );
     assert_eq!(
-        SocialPlatform::from_str("github"),
+        SocialPlatform::parse("github"),
         Some(SocialPlatform::Github)
     );
     assert_eq!(
-        SocialPlatform::from_str("discord"),
+        SocialPlatform::parse("discord"),
         Some(SocialPlatform::Discord)
     );
-    assert_eq!(SocialPlatform::from_str("invalid"), None);
+    assert_eq!(SocialPlatform::parse("invalid"), None);
 }
 
 #[test]
