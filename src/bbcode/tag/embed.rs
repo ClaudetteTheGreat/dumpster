@@ -47,19 +47,31 @@ impl super::Tag {
     pub fn fill_url_tag(mut el: RefMut<Element>, contents: String) -> String {
         let mut url: Option<Url> = None;
         let mut unfurl = false;
+        let mut no_unfurl = false;
+
+        // Check if this is a bare URL (auto-detected, not wrapped in [url] tags)
+        // Bare URLs have raw starting with "http", while [url] tags start with "["
+        let is_bare_url = el.get_raw().starts_with("http");
 
         if let Some(arg) = el.get_argument() {
-            // Check for unfurl attribute in the argument
+            // Check for unfurl/nounfurl attribute in the argument
             // Supports: [url unfurl], [url=http://... unfurl], [url unfurl=true]
+            // Also: [url nounfurl] to explicitly disable unfurl
             let arg_lower = arg.to_lowercase();
-            unfurl = arg_lower.contains(" unfurl")
-                || arg_lower.ends_with(" unfurl")
-                || arg_lower.contains(" unfurl=true")
-                || arg_lower.contains(" unfurl=\"true\"")
-                || arg_lower == " unfurl"
-                || arg_lower == "unfurl";
 
-            // Parse URL from argument (strip unfurl part if present)
+            // Check for nounfurl first (takes precedence)
+            no_unfurl = arg_lower.contains("nounfurl");
+
+            // Check for explicit unfurl request
+            unfurl = !no_unfurl
+                && (arg_lower.contains(" unfurl")
+                    || arg_lower.ends_with(" unfurl")
+                    || arg_lower.contains(" unfurl=true")
+                    || arg_lower.contains(" unfurl=\"true\"")
+                    || arg_lower == " unfurl"
+                    || arg_lower == "unfurl");
+
+            // Parse URL from argument (strip unfurl/nounfurl part if present)
             let url_part = arg.split_whitespace().next().unwrap_or("");
 
             if url_part.starts_with('=') {
@@ -79,10 +91,20 @@ impl super::Tag {
             }
         }
 
+        // Auto-unfurl bare URLs unless explicitly disabled with nounfurl
+        if !unfurl && !no_unfurl && is_bare_url {
+            if let Some(ref u) = url {
+                if u.scheme() == "http" || u.scheme() == "https" {
+                    unfurl = true;
+                }
+            }
+        }
+
         match url {
             Some(url) => {
                 if unfurl {
                     // Render unfurl placeholder that JavaScript will hydrate
+                    // This is a self-contained block, no closing tag needed
                     let url_str = url.as_str();
                     format!(
                         "<div class=\"unfurl-container\" data-url=\"{}\">\
@@ -94,8 +116,9 @@ impl super::Tag {
                         contents
                     )
                 } else {
+                    // Include closing </a> here so close_url_tag can return empty
                     format!(
-                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}",
+                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
                         url.as_str(),
                         contents
                     )
@@ -107,6 +130,11 @@ impl super::Tag {
                 contents
             }
         }
+    }
+
+    /// URL tags are self-closing (fill_url_tag handles both open and close)
+    pub fn close_url_tag() -> String {
+        String::new()
     }
 }
 

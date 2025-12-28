@@ -198,7 +198,7 @@ impl Constructor {
                     Tag::TableHeader => Tag::close_simple_tag("th"),
                     Tag::TableCell => Tag::close_simple_tag("td"),
 
-                    Tag::Link => Tag::close_simple_tag("a"),
+                    Tag::Link => Tag::close_url_tag(),
 
                     // Self-closing tags do not close.
                     _ => String::new(),

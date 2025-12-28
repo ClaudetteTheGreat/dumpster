@@ -164,3 +164,104 @@ html.dark {
         color: #999;
     }
 }
+
+// =====================
+// YouTube embed styles
+// =====================
+.unfurl-youtube {
+    flex-direction: column;
+    max-width: 560px;
+
+    .unfurl-youtube-thumb {
+        position: relative;
+        cursor: pointer;
+        background: #000;
+        aspect-ratio: 16 / 9;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .unfurl-youtube-play {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.1s;
+        }
+
+        &:hover .unfurl-youtube-play {
+            opacity: 0.9;
+        }
+    }
+
+    .unfurl-youtube-iframe {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        border: none;
+    }
+
+    &.unfurl-youtube-playing {
+        .unfurl-youtube-thumb {
+            display: none;
+        }
+    }
+
+    .unfurl-content {
+        padding: 10px 12px;
+    }
+}
+
+// =====================
+// Twitter/X embed styles
+// =====================
+.unfurl-twitter {
+    flex-direction: column;
+    border-left: 3px solid #1da1f2;
+
+    .unfurl-site svg {
+        color: #000;
+    }
+
+    .unfurl-image {
+        width: 100%;
+        max-height: 300px;
+
+        img {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            object-fit: cover;
+        }
+    }
+}
+
+html.dark .unfurl-twitter {
+    border-left-color: #1da1f2;
+
+    .unfurl-site svg {
+        color: #e0e0e0;
+    }
+}
+
+// =====================
+// GitHub embed styles
+// =====================
+.unfurl-github {
+    border-left: 3px solid #238636;
+
+    .unfurl-github-repo {
+        font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+        color: #0969da;
+    }
+}
+
+html.dark .unfurl-github {
+    border-left-color: #238636;
+
+    .unfurl-github-repo {
+        color: #58a6ff;
+    }
+}

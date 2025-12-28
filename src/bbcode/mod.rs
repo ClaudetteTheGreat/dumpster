@@ -313,10 +313,12 @@ mod tests {
     fn linkify() {
         use super::parse;
 
-        assert_eq!(
-            "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>",
-            parse("Welcome, to https://zombo.com/")
-        );
+        // Bare URLs auto-unfurl (new behavior)
+        let bare_url = parse("Welcome, to https://zombo.com/");
+        assert!(bare_url.contains("unfurl-container"));
+        assert!(bare_url.contains("data-url=\"https://zombo.com/\""));
+
+        // Explicit [url] tags render as plain links (no auto-unfurl)
         assert_eq!(
             "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a>!",
             parse("Welcome, to [url]https://zombo.com/[/url]!")
@@ -325,14 +327,29 @@ mod tests {
             "Welcome, to <b><a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">https://zombo.com/</a></b>!",
             parse("Welcome, to [b][url]https://zombo.com/[/url][/b]!")
         );
+
+        // URL with display text - plain link
         assert_eq!(
             "Welcome, to <a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\">Zombo.com</a>!",
             parse("Welcome, to [url=https://zombo.com/]Zombo.com[/url]!")
         );
+
+        // URL with image inside - plain link
         assert_eq!(
             "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"https://zombo.com/\"><img src=\"https://zombo.com/images/zombocom.png\" /></a>",
             parse("[url=https://zombo.com/][img]https://zombo.com/images/zombocom.png[/img][/url]")
         );
+
+        // [url unfurl] explicit unfurl
+        let explicit_unfurl = parse("[url unfurl]https://zombo.com/[/url]");
+        assert!(explicit_unfurl.contains("unfurl-container"));
+
+        // [url nounfurl] disables unfurl
+        let nounfurl = parse("[url nounfurl]https://zombo.com/[/url]");
+        assert!(!nounfurl.contains("unfurl-container"));
+        assert!(nounfurl.contains("<a class=\"bbCode tagUrl\""));
+
+        // Empty/invalid URLs
         assert_eq!(
             "Welcome, to [url][/url]!",
             parse("Welcome, to [url][/url]!")

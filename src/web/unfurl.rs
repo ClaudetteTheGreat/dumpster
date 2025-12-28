@@ -32,6 +32,25 @@ pub struct UnfurlResponse {
     pub favicon_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    /// Site type for special rendering (youtube, twitter, github, or null for generic)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site_type: Option<String>,
+    /// Site-specific embed data
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embed_data: Option<EmbedData>,
+}
+
+/// Site-specific embed data for special rendering
+#[derive(Serialize, Clone, Default)]
+pub struct EmbedData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub video_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tweet_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -77,6 +96,9 @@ async fn get_unfurl(query: web::Query<UnfurlQuery>) -> Result<HttpResponse, Erro
         // Check if cache is still fresh
         let age = Utc::now().naive_utc() - cached.fetched_at;
         if age.num_hours() < CACHE_DURATION_HOURS {
+            // Detect site type from URL (not cached, but fast)
+            let (site_type, embed_data) = detect_site_type(&parsed_url);
+
             // Return cached data
             return Ok(HttpResponse::Ok().json(UnfurlResponse {
                 success: cached.error_message.is_none(),
@@ -87,6 +109,8 @@ async fn get_unfurl(query: web::Query<UnfurlQuery>) -> Result<HttpResponse, Erro
                 site_name: cached.site_name,
                 favicon_url: cached.favicon_url,
                 error: cached.error_message,
+                site_type,
+                embed_data,
             }));
         }
 
@@ -134,6 +158,9 @@ fn compute_url_hash(url: &str) -> String {
 
 /// Fetch URL and extract metadata
 async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse {
+    // Detect site type upfront (used for all responses, including errors)
+    let (site_type, embed_data) = detect_site_type(parsed_url);
+
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(FETCH_TIMEOUT_SECS))
         .user_agent("Mozilla/5.0 (compatible; RuforoBot/1.0)")
@@ -151,6 +178,8 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
                 site_name: None,
                 favicon_url: None,
                 error: Some(format!("Failed to create HTTP client: {}", e)),
+                site_type,
+                embed_data,
             };
         }
     };
@@ -168,6 +197,8 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
                 site_name: None,
                 favicon_url: None,
                 error: Some(format!("Failed to fetch URL: {}", e)),
+                site_type,
+                embed_data,
             };
         }
     };
@@ -189,6 +220,8 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
             site_name: None,
             favicon_url: None,
             error: Some("URL does not return HTML content".to_string()),
+            site_type,
+            embed_data,
         };
     }
 
@@ -205,6 +238,8 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
                     site_name: None,
                     favicon_url: None,
                     error: Some("Response too large".to_string()),
+                    site_type,
+                    embed_data,
                 };
             }
             b
@@ -219,6 +254,8 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
                 site_name: None,
                 favicon_url: None,
                 error: Some(format!("Failed to read response: {}", e)),
+                site_type,
+                embed_data,
             };
         }
     };
@@ -226,11 +263,17 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
     let html = String::from_utf8_lossy(&body);
 
     // Parse HTML and extract metadata
-    extract_metadata(&html, url, parsed_url)
+    extract_metadata(&html, url, parsed_url, site_type, embed_data)
 }
 
 /// Extract Open Graph and meta tags from HTML
-fn extract_metadata(html: &str, url: &str, parsed_url: &url::Url) -> UnfurlResponse {
+fn extract_metadata(
+    html: &str,
+    url: &str,
+    parsed_url: &url::Url,
+    site_type: Option<String>,
+    embed_data: Option<EmbedData>,
+) -> UnfurlResponse {
     use scraper::{Html, Selector};
 
     let document = Html::parse_document(html);
@@ -310,6 +353,8 @@ fn extract_metadata(html: &str, url: &str, parsed_url: &url::Url) -> UnfurlRespo
         site_name,
         favicon_url,
         error: None,
+        site_type,
+        embed_data,
     }
 }
 
@@ -325,4 +370,187 @@ fn truncate_string(s: &str, max_len: usize) -> String {
     } else {
         format!("{}...", &s[..max_len.saturating_sub(3)])
     }
+}
+
+/// Detect site type and extract embed data from URL
+fn detect_site_type(url: &url::Url) -> (Option<String>, Option<EmbedData>) {
+    let host = url.host_str().unwrap_or("");
+
+    // YouTube detection
+    if host == "youtube.com"
+        || host == "www.youtube.com"
+        || host == "m.youtube.com"
+        || host == "youtu.be"
+    {
+        if let Some(video_id) = extract_youtube_id(url) {
+            return (
+                Some("youtube".to_string()),
+                Some(EmbedData {
+                    video_id: Some(video_id),
+                    ..Default::default()
+                }),
+            );
+        }
+    }
+
+    // Twitter/X detection
+    if host == "twitter.com"
+        || host == "www.twitter.com"
+        || host == "x.com"
+        || host == "www.x.com"
+        || host == "mobile.twitter.com"
+        || host == "mobile.x.com"
+    {
+        if let Some(tweet_id) = extract_tweet_id(url) {
+            return (
+                Some("twitter".to_string()),
+                Some(EmbedData {
+                    tweet_id: Some(tweet_id),
+                    ..Default::default()
+                }),
+            );
+        }
+    }
+
+    // GitHub detection
+    if host == "github.com" || host == "www.github.com" {
+        if let Some((owner, repo)) = extract_github_repo(url) {
+            return (
+                Some("github".to_string()),
+                Some(EmbedData {
+                    repo_owner: Some(owner),
+                    repo_name: Some(repo),
+                    ..Default::default()
+                }),
+            );
+        }
+    }
+
+    (None, None)
+}
+
+/// Extract YouTube video ID from various URL formats
+fn extract_youtube_id(url: &url::Url) -> Option<String> {
+    let host = url.host_str()?;
+
+    // youtube.com/watch?v=ID
+    if host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com" {
+        if url.path() == "/watch" {
+            return url
+                .query_pairs()
+                .find(|(k, _)| k == "v")
+                .map(|(_, v)| v.to_string());
+        }
+        // youtube.com/embed/ID
+        if let Some(id) = url.path().strip_prefix("/embed/") {
+            let id = id.split(['?', '/']).next().unwrap_or(id);
+            if is_valid_youtube_id(id) {
+                return Some(id.to_string());
+            }
+        }
+        // youtube.com/v/ID
+        if let Some(id) = url.path().strip_prefix("/v/") {
+            let id = id.split(['?', '/']).next().unwrap_or(id);
+            if is_valid_youtube_id(id) {
+                return Some(id.to_string());
+            }
+        }
+        // youtube.com/shorts/ID
+        if let Some(id) = url.path().strip_prefix("/shorts/") {
+            let id = id.split(['?', '/']).next().unwrap_or(id);
+            if is_valid_youtube_id(id) {
+                return Some(id.to_string());
+            }
+        }
+    }
+
+    // youtu.be/ID (short URLs)
+    if host == "youtu.be" {
+        let path = url.path().strip_prefix('/').unwrap_or(url.path());
+        let id = path.split(['?', '/']).next().unwrap_or(path);
+        if is_valid_youtube_id(id) {
+            return Some(id.to_string());
+        }
+    }
+
+    None
+}
+
+/// Validate YouTube video ID format
+fn is_valid_youtube_id(id: &str) -> bool {
+    !id.is_empty()
+        && id.len() <= 11
+        && id
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+/// Extract tweet ID from Twitter/X URL
+fn extract_tweet_id(url: &url::Url) -> Option<String> {
+    // Pattern: twitter.com/user/status/1234567890
+    // Pattern: x.com/user/status/1234567890
+    let path_segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
+
+    // Looking for: [username, "status", tweet_id]
+    if path_segments.len() >= 3 && path_segments[1] == "status" {
+        let tweet_id = path_segments[2];
+        // Tweet IDs are numeric
+        if tweet_id.chars().all(|c| c.is_ascii_digit()) && !tweet_id.is_empty() {
+            return Some(tweet_id.to_string());
+        }
+    }
+
+    None
+}
+
+/// Extract GitHub repo owner and name from URL
+fn extract_github_repo(url: &url::Url) -> Option<(String, String)> {
+    // Pattern: github.com/owner/repo
+    let path_segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
+
+    if path_segments.len() >= 2 {
+        let owner = path_segments[0];
+        let repo = path_segments[1];
+
+        // Validate: not a reserved path and looks like a valid username/repo
+        let reserved = [
+            "features",
+            "explore",
+            "marketplace",
+            "trending",
+            "collections",
+            "events",
+            "sponsors",
+            "settings",
+            "notifications",
+            "issues",
+            "pulls",
+            "discussions",
+            "codespaces",
+            "orgs",
+            "users",
+            "apps",
+            "login",
+            "signup",
+            "join",
+            "pricing",
+            "enterprise",
+            "about",
+            "security",
+            "site",
+            "new",
+        ];
+
+        if !reserved.contains(&owner.to_lowercase().as_str())
+            && !owner.is_empty()
+            && !repo.is_empty()
+            && owner
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Some((owner.to_string(), repo.to_string()));
+        }
+    }
+
+    None
 }
