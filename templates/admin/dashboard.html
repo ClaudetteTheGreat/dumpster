@@ -11,6 +11,7 @@
 
     <!-- Quick Links -->
     <div class="quick-links">
+        {% if client.can("admin.user.ban") %}
         <a href="/admin/bans" class="quick-link">
             <span class="link-icon">&#128683;</span>
             <span class="link-text">User Bans</span>
@@ -25,6 +26,8 @@
             <span class="badge badge-warning">{{ stats.active_ip_bans }}</span>
             {% endif %}
         </a>
+        {% endif %}
+        {% if client.can("moderate.reports.view") %}
         <a href="/admin/reports" class="quick-link">
             <span class="link-icon">&#128680;</span>
             <span class="link-text">Reports</span>
@@ -32,11 +35,15 @@
             <span class="badge badge-danger">{{ stats.open_reports }}</span>
             {% endif %}
         </a>
+        {% endif %}
+        {% if client.can("admin.word_filters.view") %}
         <a href="/admin/word-filters" class="quick-link">
             <span class="link-icon">&#128221;</span>
             <span class="link-text">Word Filters</span>
             <span class="badge badge-info">{{ stats.word_filters }}</span>
         </a>
+        {% endif %}
+        {% if client.can("admin.settings") %}
         <a href="/admin/settings" class="quick-link">
             <span class="link-icon">&#9881;</span>
             <span class="link-text">Settings</span>
@@ -45,19 +52,26 @@
             <span class="link-icon">&#127987;</span>
             <span class="link-text">Feature Flags</span>
         </a>
+        {% endif %}
+        {% if client.can("admin.user.manage") %}
         <a href="/admin/users" class="quick-link">
             <span class="link-icon">&#128100;</span>
             <span class="link-text">Users</span>
             <span class="badge badge-info">{{ stats.total_users }}</span>
         </a>
+        {% endif %}
+        {% if client.can("moderate.approval.view") %}
         <a href="/admin/approval-queue" class="quick-link">
             <span class="link-icon">&#128203;</span>
             <span class="link-text">Approval Queue</span>
         </a>
+        {% endif %}
+        {% if client.can("admin.permissions.manage") %}
         <a href="/admin/groups" class="quick-link">
             <span class="link-icon">&#128101;</span>
             <span class="link-text">Groups</span>
         </a>
+        {% endif %}
     </div>
 
     <!-- Statistics Grid -->
@@ -90,6 +104,7 @@
     </div>
 
     <div class="dashboard-grid">
+        {% if client.can("admin.user.manage") %}
         <!-- Recent Users -->
         <div class="dashboard-section">
             <h2>Recent Users</h2>
@@ -106,6 +121,7 @@
             </ul>
             {% endif %}
         </div>
+        {% endif %}
 
         <!-- Recent Moderation Actions -->
         <div class="dashboard-section">
@@ -125,6 +141,7 @@
             {% endif %}
         </div>
 
+        {% if client.can("moderate.reports.view") %}
         <!-- Open Reports -->
         <div class="dashboard-section">
             <h2>Open Reports</h2>
@@ -145,7 +162,9 @@
             <a href="/admin/reports" class="view-all-link">View all reports &rarr;</a>
             {% endif %}
         </div>
+        {% endif %}
 
+        {% if client.can("admin.settings") %}
         <!-- System Info -->
         <div class="dashboard-section">
             <h2>System Info</h2>
@@ -158,6 +177,7 @@
                 <dd>{{ server_time }}</dd>
             </dl>
         </div>
+        {% endif %}
     </div>
 </div>
 

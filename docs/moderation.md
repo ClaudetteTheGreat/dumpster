@@ -2,6 +2,40 @@
 
 This document covers the moderation features available to forum staff.
 
+## Admin Dashboard
+
+The admin dashboard (`/admin`) provides a centralized control panel for moderators and administrators. The dashboard is **permission-gated** - users only see features they have access to.
+
+### Navigation Link
+The "Admin" link appears in the top navigation for users with any of these permissions:
+- `admin.settings`
+- `admin.user.manage`
+- `admin.user.ban`
+- `moderate.reports.view`
+- `moderate.approval.view`
+- `admin.word_filters.view`
+
+### Quick Links (Permission-Gated)
+| Link | Required Permission |
+|------|---------------------|
+| User Bans | `admin.user.ban` |
+| IP Bans | `admin.user.ban` |
+| Reports | `moderate.reports.view` |
+| Word Filters | `admin.word_filters.view` |
+| Settings | `admin.settings` |
+| Feature Flags | `admin.settings` |
+| Users | `admin.user.manage` |
+| Approval Queue | `moderate.approval.view` |
+| Groups | `admin.permissions.manage` |
+
+### Dashboard Sections (Permission-Gated)
+| Section | Required Permission |
+|---------|---------------------|
+| Recent Users | `admin.user.manage` |
+| Recent Moderation | (always visible) |
+| Open Reports | `moderate.reports.view` |
+| System Info | `admin.settings` |
+
 ## Thread Moderation
 
 - **Thread Moderation UI** - Lock/Unlock and Pin/Unpin controls for moderators

@@ -65,7 +65,7 @@ sqlx migrate run
 cargo run --bin ruforo
 ```
 
-The forum will be available at http://127.0.0.1:8080
+The forum will be available at http://localhost:8080 (binds to 0.0.0.0:8080)
 
 ### Running Tests
 
