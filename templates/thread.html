@@ -1,5 +1,10 @@
 {% extends "container/public.html" %}
 
+{% block feeds %}
+<link rel="alternate" type="application/rss+xml" title="{{ thread.title }} - Replies (RSS)" href="/threads/{{ thread.id }}/feed.rss" />
+<link rel="alternate" type="application/atom+xml" title="{{ thread.title }} - Replies (Atom)" href="/threads/{{ thread.id }}/feed.atom" />
+{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" %}
 {% endblock %}

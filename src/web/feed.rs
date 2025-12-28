@@ -6,7 +6,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
 use rss::{ChannelBuilder, GuidBuilder, ItemBuilder};
 use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder, QuerySelect};
 
-use crate::orm::{forums, threads, ugc, ugc_revisions};
+use crate::orm::{forums, posts, threads, ugc, ugc_revisions, user_names};
 
 const FEED_ITEM_LIMIT: u64 = 25;
 
@@ -14,7 +14,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(latest_threads_feed)
         .service(forum_feed)
         .service(latest_threads_atom_feed)
-        .service(forum_atom_feed);
+        .service(forum_atom_feed)
+        .service(thread_feed)
+        .service(thread_atom_feed);
 }
 
 /// RSS feed for latest threads across all forums
@@ -374,6 +376,206 @@ pub async fn forum_atom_feed(
         .body(feed.to_string())
 }
 
+/// RSS feed for replies in a specific thread
+#[get("/threads/{id}/feed.rss")]
+pub async fn thread_feed(
+    db: web::Data<DatabaseConnection>,
+    path: web::Path<i32>,
+) -> impl Responder {
+    let db = db.get_ref();
+    let thread_id = path.into_inner();
+
+    // Get thread info
+    let thread = match threads::Entity::find_by_id(thread_id).one(db).await {
+        Ok(Some(t)) => t,
+        Ok(None) => return HttpResponse::NotFound().body("Thread not found"),
+        Err(e) => {
+            log::error!("Failed to fetch thread: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    // Get latest posts in this thread (excluding the first post which is the OP)
+    let thread_posts = match posts::Entity::find()
+        .filter(posts::Column::ThreadId.eq(thread_id))
+        .filter(posts::Column::Position.gt(1)) // Exclude OP (position 1)
+        .order_by_desc(posts::Column::CreatedAt)
+        .limit(FEED_ITEM_LIMIT)
+        .all(db)
+        .await
+    {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to fetch posts for thread feed: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    let mut items = Vec::new();
+    for post in thread_posts {
+        let content = get_post_content(db, post.id).await.unwrap_or_default();
+        let author = get_post_author(db, post.user_id).await;
+
+        let link = format!("{}/threads/{}#post-{}", site_url, thread_id, post.id);
+        let guid = GuidBuilder::default()
+            .value(format!("post-{}", post.id))
+            .permalink(false)
+            .build();
+
+        let mut item_builder = ItemBuilder::default();
+        item_builder
+            .title(Some(format!("Reply #{}", post.position)))
+            .link(Some(link))
+            .description(Some(truncate_content(&content, 500)))
+            .pub_date(Some(
+                post.created_at
+                    .format("%a, %d %b %Y %H:%M:%S GMT")
+                    .to_string(),
+            ))
+            .guid(Some(guid));
+
+        if let Some(author_name) = author {
+            item_builder.author(Some(author_name));
+        }
+
+        items.push(item_builder.build());
+    }
+
+    let channel = ChannelBuilder::default()
+        .title(format!("{} - Replies", thread.title))
+        .link(format!("{}/threads/{}", site_url, thread_id))
+        .description(format!("Latest replies to: {}", thread.title))
+        .items(items)
+        .build();
+
+    HttpResponse::Ok()
+        .content_type("application/rss+xml; charset=utf-8")
+        .body(channel.to_string())
+}
+
+/// Atom feed for replies in a specific thread
+#[get("/threads/{id}/feed.atom")]
+pub async fn thread_atom_feed(
+    db: web::Data<DatabaseConnection>,
+    path: web::Path<i32>,
+) -> impl Responder {
+    let db = db.get_ref();
+    let thread_id = path.into_inner();
+
+    // Get thread info
+    let thread = match threads::Entity::find_by_id(thread_id).one(db).await {
+        Ok(Some(t)) => t,
+        Ok(None) => return HttpResponse::NotFound().body("Thread not found"),
+        Err(e) => {
+            log::error!("Failed to fetch thread: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    // Get latest posts in this thread (excluding the first post which is the OP)
+    let thread_posts = match posts::Entity::find()
+        .filter(posts::Column::ThreadId.eq(thread_id))
+        .filter(posts::Column::Position.gt(1)) // Exclude OP (position 1)
+        .order_by_desc(posts::Column::CreatedAt)
+        .limit(FEED_ITEM_LIMIT)
+        .all(db)
+        .await
+    {
+        Ok(p) => p,
+        Err(e) => {
+            log::error!("Failed to fetch posts for thread Atom feed: {}", e);
+            return HttpResponse::InternalServerError().body("Failed to generate feed");
+        }
+    };
+
+    let site_url =
+        std::env::var("SITE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string());
+
+    let mut entries = Vec::new();
+    let mut latest_updated: Option<DateTime<FixedOffset>> = None;
+
+    for post in thread_posts {
+        let content = get_post_content(db, post.id).await.unwrap_or_default();
+        let author = get_post_author(db, post.user_id).await;
+
+        let link = format!("{}/threads/{}#post-{}", site_url, thread_id, post.id);
+        let updated = naive_to_fixed_offset(post.created_at);
+
+        if latest_updated.is_none() || Some(updated) > latest_updated {
+            latest_updated = Some(updated);
+        }
+
+        let mut entry_builder = EntryBuilder::default();
+        entry_builder
+            .id(format!("post-{}", post.id))
+            .title(TextBuilder::default().value(format!("Reply #{}", post.position)).build())
+            .link(
+                LinkBuilder::default()
+                    .href(link)
+                    .rel("alternate".to_string())
+                    .build(),
+            )
+            .summary(Some(
+                TextBuilder::default()
+                    .value(truncate_content(&content, 500))
+                    .build(),
+            ))
+            .content(Some(
+                ContentBuilder::default()
+                    .content_type(Some("html".to_string()))
+                    .value(Some(content))
+                    .build(),
+            ))
+            .updated(updated)
+            .published(Some(updated));
+
+        if let Some(author_name) = author {
+            entry_builder.authors(vec![atom_syndication::PersonBuilder::default()
+                .name(author_name)
+                .build()]);
+        }
+
+        entries.push(entry_builder.build());
+    }
+
+    let thread_url = format!("{}/threads/{}", site_url, thread_id);
+    let feed = AtomFeedBuilder::default()
+        .id(thread_url.clone())
+        .title(
+            TextBuilder::default()
+                .value(format!("{} - Replies", thread.title))
+                .build(),
+        )
+        .subtitle(Some(
+            TextBuilder::default()
+                .value(format!("Latest replies to: {}", thread.title))
+                .build(),
+        ))
+        .link(
+            LinkBuilder::default()
+                .href(thread_url)
+                .rel("alternate".to_string())
+                .build(),
+        )
+        .link(
+            LinkBuilder::default()
+                .href(format!("{}/threads/{}/feed.atom", site_url, thread_id))
+                .rel("self".to_string())
+                .mime_type(Some("application/atom+xml".to_string()))
+                .build(),
+        )
+        .updated(latest_updated.unwrap_or_else(|| Utc::now().fixed_offset()))
+        .entries(entries)
+        .build();
+
+    HttpResponse::Ok()
+        .content_type("application/atom+xml; charset=utf-8")
+        .body(feed.to_string())
+}
+
 /// Convert NaiveDateTime to DateTime<FixedOffset> (assuming UTC)
 fn naive_to_fixed_offset(dt: NaiveDateTime) -> DateTime<FixedOffset> {
     DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc).fixed_offset()
@@ -393,6 +595,19 @@ async fn get_post_content(db: &DatabaseConnection, post_id: i32) -> Option<Strin
         .ok()??;
 
     Some(revision.content)
+}
+
+/// Get post author name from user_names table
+async fn get_post_author(db: &DatabaseConnection, user_id: Option<i32>) -> Option<String> {
+    let user_id = user_id?;
+
+    // Get the username for this user
+    let user_name = user_names::Entity::find_by_id(user_id)
+        .one(db)
+        .await
+        .ok()??;
+
+    Some(user_name.name)
 }
 
 /// Truncate content to a maximum length, adding ellipsis if truncated

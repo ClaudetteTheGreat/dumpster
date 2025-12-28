@@ -442,3 +442,49 @@ pub async fn create_test_forum_and_thread(
 
     Ok((forum_model, thread_model))
 }
+
+/// Create a test post in a thread
+pub async fn create_test_post(
+    db: &DatabaseConnection,
+    thread_id: i32,
+    user_id: i32,
+    content: &str,
+    position: i32,
+) -> Result<ruforo::orm::posts::Model, DbErr> {
+    use ruforo::orm::{posts, ugc, ugc_revisions};
+
+    // Create UGC entry
+    let ugc_entry = ugc::ActiveModel {
+        ugc_revision_id: Set(None),
+        reaction_count: Set(0),
+        ..Default::default()
+    };
+    let ugc_model = ugc_entry.insert(db).await?;
+
+    // Create UGC revision with content
+    let revision = ugc_revisions::ActiveModel {
+        ugc_id: Set(ugc_model.id),
+        user_id: Set(Some(user_id)),
+        ip_id: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        content: Set(content.to_string()),
+        ..Default::default()
+    };
+    let revision_model = revision.insert(db).await?;
+
+    // Update UGC to point to the revision
+    let mut ugc_update: ugc::ActiveModel = ugc_model.into();
+    ugc_update.ugc_revision_id = Set(Some(revision_model.id));
+    let ugc_model = ugc_update.update(db).await?;
+
+    // Create the post
+    let post = posts::ActiveModel {
+        thread_id: Set(thread_id),
+        position: Set(position),
+        ugc_id: Set(ugc_model.id),
+        user_id: Set(Some(user_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    post.insert(db).await
+}

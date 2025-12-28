@@ -393,3 +393,252 @@ async fn test_atom_feed_entries_have_required_elements() {
     assert!(body_str.contains("<updated>"));
     assert!(body_str.contains("<summary>"));
 }
+
+// ============================================================================
+// Thread Feed Tests (Per-Thread Replies)
+// ============================================================================
+
+#[actix_rt::test]
+#[serial]
+async fn test_thread_rss_feed_returns_rss() {
+    let db = common::database::setup_test_database()
+        .await
+        .expect("Failed to setup test database");
+    common::database::cleanup_test_data(&db)
+        .await
+        .expect("Failed to cleanup test data");
+
+    // Create a test user and thread with replies
+    let user = common::fixtures::create_test_user(&db, "threadfeeduser", "password123")
+        .await
+        .expect("Failed to create test user");
+
+    let (_forum, thread) =
+        common::fixtures::create_test_forum_and_thread(&db, user.id, "Thread with Replies")
+            .await
+            .expect("Failed to create test thread");
+
+    // Create some replies (position > 1 to be replies, not the OP)
+    common::fixtures::create_test_post(&db, thread.id, user.id, "First reply content", 2)
+        .await
+        .expect("Failed to create first reply");
+    common::fixtures::create_test_post(&db, thread.id, user.id, "Second reply content", 3)
+        .await
+        .expect("Failed to create second reply");
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db))
+            .configure(ruforo::web::feed::configure),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/threads/{}/feed.rss", thread.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert!(resp.status().is_success());
+    assert_eq!(
+        resp.headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "application/rss+xml; charset=utf-8"
+    );
+
+    let body = test::read_body(resp).await;
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_str.contains("<rss"));
+    assert!(body_str.contains("<channel>"));
+    assert!(body_str.contains("Thread with Replies"));
+    assert!(body_str.contains("First reply content"));
+    assert!(body_str.contains("Second reply content"));
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_thread_atom_feed_returns_atom() {
+    let db = common::database::setup_test_database()
+        .await
+        .expect("Failed to setup test database");
+    common::database::cleanup_test_data(&db)
+        .await
+        .expect("Failed to cleanup test data");
+
+    // Create a test user and thread with replies
+    let user = common::fixtures::create_test_user(&db, "threadatomuser", "password123")
+        .await
+        .expect("Failed to create test user");
+
+    let (_forum, thread) =
+        common::fixtures::create_test_forum_and_thread(&db, user.id, "Thread Atom Replies")
+            .await
+            .expect("Failed to create test thread");
+
+    // Create some replies
+    common::fixtures::create_test_post(&db, thread.id, user.id, "Atom reply content", 2)
+        .await
+        .expect("Failed to create reply");
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db))
+            .configure(ruforo::web::feed::configure),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/threads/{}/feed.atom", thread.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert!(resp.status().is_success());
+    assert_eq!(
+        resp.headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap(),
+        "application/atom+xml; charset=utf-8"
+    );
+
+    let body = test::read_body(resp).await;
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+    assert!(body_str.contains("<feed"));
+    assert!(body_str.contains("xmlns=\"http://www.w3.org/2005/Atom\""));
+    assert!(body_str.contains("Thread Atom Replies"));
+    assert!(body_str.contains("Atom reply content"));
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_thread_feed_404_for_nonexistent_thread() {
+    let db = common::database::setup_test_database()
+        .await
+        .expect("Failed to setup test database");
+    common::database::cleanup_test_data(&db)
+        .await
+        .expect("Failed to cleanup test data");
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db))
+            .configure(ruforo::web::feed::configure),
+    )
+    .await;
+
+    // Test RSS
+    let req = test::TestRequest::get()
+        .uri("/threads/99999/feed.rss")
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 404);
+
+    // Test Atom
+    let req = test::TestRequest::get()
+        .uri("/threads/99999/feed.atom")
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+    assert_eq!(resp.status(), 404);
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_thread_feed_excludes_first_post() {
+    let db = common::database::setup_test_database()
+        .await
+        .expect("Failed to setup test database");
+    common::database::cleanup_test_data(&db)
+        .await
+        .expect("Failed to cleanup test data");
+
+    // Create a test user and thread
+    let user = common::fixtures::create_test_user(&db, "threadopuser", "password123")
+        .await
+        .expect("Failed to create test user");
+
+    let (_forum, thread) =
+        common::fixtures::create_test_forum_and_thread(&db, user.id, "Thread OP Test")
+            .await
+            .expect("Failed to create test thread");
+
+    // Create the original post (position 1) - should NOT appear in feed
+    common::fixtures::create_test_post(&db, thread.id, user.id, "Original post content", 1)
+        .await
+        .expect("Failed to create OP");
+
+    // Create a reply (position 2) - should appear in feed
+    common::fixtures::create_test_post(&db, thread.id, user.id, "Reply content here", 2)
+        .await
+        .expect("Failed to create reply");
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db))
+            .configure(ruforo::web::feed::configure),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/threads/{}/feed.rss", thread.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert!(resp.status().is_success());
+
+    let body = test::read_body(resp).await;
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+
+    // Reply should be in the feed
+    assert!(body_str.contains("Reply content here"));
+    // Original post should NOT be in the feed
+    assert!(!body_str.contains("Original post content"));
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_thread_feed_includes_author_name() {
+    let db = common::database::setup_test_database()
+        .await
+        .expect("Failed to setup test database");
+    common::database::cleanup_test_data(&db)
+        .await
+        .expect("Failed to cleanup test data");
+
+    // Create a test user with a specific username
+    let user = common::fixtures::create_test_user(&db, "ReplyAuthor123", "password123")
+        .await
+        .expect("Failed to create test user");
+
+    let (_forum, thread) =
+        common::fixtures::create_test_forum_and_thread(&db, user.id, "Author Test Thread")
+            .await
+            .expect("Failed to create test thread");
+
+    // Create a reply
+    common::fixtures::create_test_post(&db, thread.id, user.id, "Test reply with author", 2)
+        .await
+        .expect("Failed to create reply");
+
+    let app = test::init_service(
+        App::new()
+            .app_data(web::Data::new(db))
+            .configure(ruforo::web::feed::configure),
+    )
+    .await;
+
+    let req = test::TestRequest::get()
+        .uri(&format!("/threads/{}/feed.rss", thread.id))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    assert!(resp.status().is_success());
+
+    let body = test::read_body(resp).await;
+    let body_str = String::from_utf8(body.to_vec()).unwrap();
+
+    // Author name should be in the feed
+    assert!(body_str.contains("ReplyAuthor123"));
+}
