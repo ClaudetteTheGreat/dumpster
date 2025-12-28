@@ -269,6 +269,13 @@ pub async fn view_members(client: ClientCtx) -> impl Responder {
         .column(users::Column::Location)
         .column(users::Column::WebsiteUrl)
         .column(users::Column::Signature)
+        .column_as(
+            Expr::cust_with_values(
+                "(SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id)",
+                std::iter::empty::<sea_orm::Value>(),
+            ),
+            "post_count",
+        )
         .into_model::<UserProfile>()
         .all(get_db_pool())
         .await

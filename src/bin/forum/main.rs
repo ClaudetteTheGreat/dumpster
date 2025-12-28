@@ -122,7 +122,7 @@ async fn main() -> std::io::Result<()> {
     // PATCH  update_ (apply edit)
     // GET    view_ (read/view/render entity)
     // Note: PUT and PATCH were added, removed, and re-added(?) to the HTML5 spec for <form method="">
-    .bind("127.0.0.1:8080")?
+    .bind("0.0.0.0:8080")?
     .run()
     .await
 }
