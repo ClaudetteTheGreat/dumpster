@@ -43,6 +43,7 @@ impl FilterResult {
 
 /// Compiled word filter for efficient matching
 #[derive(Debug)]
+#[allow(dead_code)]
 struct CompiledFilter {
     id: i32,
     pattern: String,
@@ -307,10 +308,7 @@ fn match_case(original: &str, replacement: &str) -> String {
 
 /// Check if content would be blocked by filters (without applying replacements)
 pub fn would_block(content: &str) -> Option<String> {
-    let cache = match FILTER_CACHE.get() {
-        Some(c) => c,
-        None => return None,
-    };
+    let cache = FILTER_CACHE.get()?;
 
     let filters = match cache.read() {
         Ok(f) => f,

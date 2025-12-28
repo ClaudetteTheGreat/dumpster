@@ -257,16 +257,16 @@ pub async fn check_and_award_automatic_badges(user_id: i32) {
         // Check if condition is met
         let condition_met = match badge.condition_type.as_str() {
             "post_count" => {
-                badge.condition_value.map_or(false, |v| stats.post_count >= v as i64)
+                badge.condition_value.is_some_and(|v| stats.post_count >= v as i64)
             }
             "thread_count" => {
-                badge.condition_value.map_or(false, |v| stats.thread_count >= v as i64)
+                badge.condition_value.is_some_and(|v| stats.thread_count >= v as i64)
             }
             "time_member" => {
-                badge.condition_value.map_or(false, |v| stats.days_member >= v as i64)
+                badge.condition_value.is_some_and(|v| stats.days_member >= v as i64)
             }
             "reputation" => {
-                badge.condition_value.map_or(false, |v| stats.reputation_score >= v)
+                badge.condition_value.is_some_and(|v| stats.reputation_score >= v)
             }
             _ => false, // Skip manual badges
         };

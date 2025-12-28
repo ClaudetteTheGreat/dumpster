@@ -11,9 +11,11 @@ use serde::{Deserialize, Serialize};
 /// Deletion type enum matching PostgreSQL deletion_type
 #[derive(Clone, Debug, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "deletion_type")]
+#[derive(Default)]
 pub enum DeletionType {
     /// Soft delete - visible to moderators, can be restored
     #[sea_orm(string_value = "normal")]
+    #[default]
     Normal,
     /// Permanent delete - content purged, audit trail kept (for spam)
     #[sea_orm(string_value = "permanent")]
@@ -23,11 +25,6 @@ pub enum DeletionType {
     LegalHold,
 }
 
-impl Default for DeletionType {
-    fn default() -> Self {
-        Self::Normal
-    }
-}
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "ugc_deletions")]

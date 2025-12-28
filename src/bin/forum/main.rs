@@ -23,12 +23,12 @@ async fn main() -> std::io::Result<()> {
     // Load configuration from database
     let config = create_config();
     config
-        .load_from_database(&get_db_pool())
+        .load_from_database(get_db_pool())
         .await
         .expect("Failed to load configuration from database");
 
     // Initialize word filters from database
-    ruforo::word_filter::init_filters(&get_db_pool())
+    ruforo::word_filter::init_filters(get_db_pool())
         .await
         .expect("Failed to load word filters from database");
 

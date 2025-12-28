@@ -365,7 +365,7 @@ async fn update_social_links(
     let platform_str = form
         .get("platform")
         .ok_or_else(|| error::ErrorBadRequest("Platform is required"))?;
-    let platform = SocialPlatform::from_str(platform_str)
+    let platform = SocialPlatform::parse(platform_str)
         .ok_or_else(|| error::ErrorBadRequest("Invalid platform"))?;
 
     let username = form
@@ -422,7 +422,7 @@ async fn update_social_links(
         let mut link: user_social_links::ActiveModel = existing_link.into();
         link.username = Set(username);
         link.url = Set(url);
-        link.updated_at = Set(Utc::now().into());
+        link.updated_at = Set(Utc::now());
         link.update(db)
             .await
             .map_err(error::ErrorInternalServerError)?;
@@ -445,8 +445,8 @@ async fn update_social_links(
             url: Set(url),
             display_order: Set(next_order),
             is_visible: Set(true),
-            created_at: Set(Utc::now().into()),
-            updated_at: Set(Utc::now().into()),
+            created_at: Set(Utc::now()),
+            updated_at: Set(Utc::now()),
             ..Default::default()
         };
         new_link
@@ -480,7 +480,7 @@ async fn delete_social_link(
     let platform_str = form
         .get("platform")
         .ok_or_else(|| error::ErrorBadRequest("Platform is required"))?;
-    let platform = SocialPlatform::from_str(platform_str)
+    let platform = SocialPlatform::parse(platform_str)
         .ok_or_else(|| error::ErrorBadRequest("Invalid platform"))?;
 
     // Delete the link (only if it belongs to this user)

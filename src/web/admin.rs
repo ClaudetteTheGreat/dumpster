@@ -7,7 +7,7 @@ use crate::middleware::ClientCtx;
 use crate::orm::{
     badges, feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
     permission_collections, permission_values, permissions, posts, reaction_types, reports,
-    sessions, settings, threads, user_badges, user_bans, user_groups, user_names, user_warnings, users,
+    sessions, settings, threads, user_bans, user_groups, user_names, user_warnings, users,
     word_filters,
 };
 use crate::group::GroupType;
@@ -163,42 +163,42 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
 
     // Gather statistics
     let total_users = users::Entity::find()
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let total_threads = threads::Entity::find()
         .filter(threads::Column::DeletedAt.is_null())
         .filter(threads::Column::MergedIntoId.is_null())
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let total_posts = posts::Entity::find()
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let total_forums = forums::Entity::find()
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let new_users_today = users::Entity::find()
         .filter(users::Column::CreatedAt.gte(today_start))
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let new_threads_today = threads::Entity::find()
         .filter(threads::Column::CreatedAt.gte(today_start))
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let new_posts_today = posts::Entity::find()
         .filter(posts::Column::CreatedAt.gte(today_start))
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
@@ -208,7 +208,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
                 .is_null()
                 .or(user_bans::Column::ExpiresAt.gt(now)),
         )
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
@@ -218,24 +218,24 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
                 .is_null()
                 .or(ip_bans::Column::ExpiresAt.gt(now)),
         )
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let open_reports_count = reports::Entity::find()
         .filter(reports::Column::Status.eq("open"))
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let word_filter_count = word_filters::Entity::find()
         .filter(word_filters::Column::IsEnabled.eq(true))
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
     let active_sessions = sessions::Entity::find()
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i64;
 
@@ -262,7 +262,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
     let recent_user_models = users::Entity::find()
         .order_by_desc(users::Column::CreatedAt)
         .limit(10)
-        .all(&*db)
+        .all(db)
         .await
         .unwrap_or_default();
 
@@ -270,7 +270,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
     for user in recent_user_models {
         let username = user_names::Entity::find()
             .filter(user_names::Column::UserId.eq(user.id))
-            .one(&*db)
+            .one(db)
             .await
             .ok()
             .flatten()
@@ -288,7 +288,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
     let recent_mod_models = mod_log::Entity::find()
         .order_by_desc(mod_log::Column::CreatedAt)
         .limit(10)
-        .all(&*db)
+        .all(db)
         .await
         .unwrap_or_default();
 
@@ -307,7 +307,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         .filter(reports::Column::Status.eq("open"))
         .order_by_desc(reports::Column::CreatedAt)
         .limit(5)
-        .all(&*db)
+        .all(db)
         .await
         .unwrap_or_default();
 
@@ -1082,6 +1082,7 @@ async fn lift_ban(
 struct SettingsTemplate {
     client: ClientCtx,
     categories: Vec<(String, Vec<settings::Model>)>,
+    #[allow(dead_code)]
     success_message: Option<String>,
 }
 
@@ -1980,7 +1981,7 @@ async fn view_users(
     // Get total count for pagination
     let total_count = user_query
         .clone()
-        .count(&*db)
+        .count(db)
         .await
         .unwrap_or(0) as i32;
 
@@ -1991,7 +1992,7 @@ async fn view_users(
         .order_by_desc(users::Column::CreatedAt)
         .offset(offset)
         .limit(per_page as u64)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch users: {}", e);
@@ -2007,7 +2008,7 @@ async fn view_users(
         // Get username
         let username = user_names::Entity::find()
             .filter(user_names::Column::UserId.eq(user.id))
-            .one(&*db)
+            .one(db)
             .await
             .ok()
             .flatten()
@@ -2029,7 +2030,7 @@ async fn view_users(
                 user_bans::Column::IsPermanent.eq(true)
                     .or(user_bans::Column::ExpiresAt.gt(now))
             )
-            .one(&*db)
+            .one(db)
             .await
             .ok()
             .flatten()
@@ -2072,7 +2073,7 @@ async fn view_edit_user(
 
     // Find user
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2083,7 +2084,7 @@ async fn view_edit_user(
     // Get username
     let username = user_names::Entity::find()
         .filter(user_names::Column::UserId.eq(user_id))
-        .one(&*db)
+        .one(db)
         .await
         .ok()
         .flatten()
@@ -2093,7 +2094,7 @@ async fn view_edit_user(
     // Get all groups
     let all_groups = groups::Entity::find()
         .order_by_asc(groups::Column::Label)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch groups: {}", e);
@@ -2103,7 +2104,7 @@ async fn view_edit_user(
     // Get user's current groups
     let user_group_ids: Vec<i32> = user_groups::Entity::find()
         .filter(user_groups::Column::UserId.eq(user_id))
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user groups: {}", e);
@@ -2159,7 +2160,7 @@ async fn update_user(
 
     // Find user
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2179,7 +2180,7 @@ async fn update_user(
     // Get current username
     let current_username = user_names::Entity::find()
         .filter(user_names::Column::UserId.eq(user_id))
-        .one(&*db)
+        .one(db)
         .await
         .ok()
         .flatten()
@@ -2192,7 +2193,7 @@ async fn update_user(
         let existing = user_names::Entity::find()
             .filter(user_names::Column::Name.eq(new_username))
             .filter(user_names::Column::UserId.ne(user_id))
-            .one(&*db)
+            .one(db)
             .await
             .map_err(|e| {
                 log::error!("Failed to check username: {}", e);
@@ -2208,7 +2209,7 @@ async fn update_user(
             user_id: Set(user_id),
             name: Set(new_username.to_string()),
         };
-        active_username.update(&*db).await.map_err(|e| {
+        active_username.update(db).await.map_err(|e| {
             log::error!("Failed to update username: {}", e);
             error::ErrorInternalServerError("Failed to update username")
         })?;
@@ -2293,7 +2294,7 @@ async fn update_user(
     }
 
     // Save user changes
-    active_user.update(&*db).await.map_err(|e| {
+    active_user.update(db).await.map_err(|e| {
         log::error!("Failed to update user: {}", e);
         error::ErrorInternalServerError("Failed to update user")
     })?;
@@ -2302,7 +2303,7 @@ async fn update_user(
     // First, delete all existing group memberships
     user_groups::Entity::delete_many()
         .filter(user_groups::Column::UserId.eq(user_id))
-        .exec(&*db)
+        .exec(db)
         .await
         .map_err(|e| {
             log::error!("Failed to delete user groups: {}", e);
@@ -2315,7 +2316,7 @@ async fn update_user(
             user_id: Set(user_id),
             group_id: Set(*group_id),
         };
-        membership.insert(&*db).await.map_err(|e| {
+        membership.insert(db).await.map_err(|e| {
             log::error!("Failed to add user to group: {}", e);
             error::ErrorInternalServerError("Failed to update groups")
         })?;
@@ -2323,7 +2324,7 @@ async fn update_user(
 
     // Log the moderation action
     log_moderation_action(
-        &*db,
+        db,
         admin_id,
         "edit_user",
         "user",
@@ -2344,6 +2345,7 @@ async fn update_user(
 // =============================================================================
 
 /// Note display for templates
+#[allow(dead_code)]
 struct NoteDisplay {
     id: i32,
     author_id: Option<i32>,
@@ -2382,7 +2384,7 @@ async fn view_user_notes(
     // Get username
     let username = user_names::Entity::find()
         .filter(user_names::Column::UserId.eq(user_id))
-        .one(&*db)
+        .one(db)
         .await
         .ok()
         .flatten()
@@ -2396,7 +2398,7 @@ async fn view_user_notes(
     let note_models = moderator_notes::Entity::find()
         .filter(moderator_notes::Column::UserId.eq(user_id))
         .order_by_desc(moderator_notes::Column::CreatedAt)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch notes: {}", e);
@@ -2409,7 +2411,7 @@ async fn view_user_notes(
         let author_name = if let Some(author_id) = note.author_id {
             user_names::Entity::find()
                 .filter(user_names::Column::UserId.eq(author_id))
-                .one(&*db)
+                .one(db)
                 .await
                 .ok()
                 .flatten()
@@ -2465,7 +2467,7 @@ async fn create_user_note(
 
     // Verify user exists
     users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2484,7 +2486,7 @@ async fn create_user_note(
         ..Default::default()
     };
 
-    note.insert(&*db).await.map_err(|e| {
+    note.insert(db).await.map_err(|e| {
         log::error!("Failed to create note: {}", e);
         error::ErrorInternalServerError("Failed to create note")
     })?;
@@ -2518,7 +2520,7 @@ async fn delete_user_note(
 
     // Find the note to get user_id for redirect
     let note = moderator_notes::Entity::find_by_id(note_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch note: {}", e);
@@ -2530,7 +2532,7 @@ async fn delete_user_note(
 
     // Delete the note
     moderator_notes::Entity::delete_by_id(note_id)
-        .exec(&*db)
+        .exec(db)
         .await
         .map_err(|e| {
             log::error!("Failed to delete note: {}", e);
@@ -2553,6 +2555,7 @@ async fn delete_user_note(
 // =============================================================================
 
 /// Warning display for templates
+#[allow(dead_code)]
 struct WarningDisplay {
     id: i32,
     issued_by_id: Option<i32>,
@@ -2608,7 +2611,7 @@ async fn view_user_warnings(
 
     // Get user
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2619,7 +2622,7 @@ async fn view_user_warnings(
     // Get username
     let username = user_names::Entity::find()
         .filter(user_names::Column::UserId.eq(user_id))
-        .one(&*db)
+        .one(db)
         .await
         .ok()
         .flatten()
@@ -2634,7 +2637,7 @@ async fn view_user_warnings(
     let warning_models = user_warnings::Entity::find()
         .filter(user_warnings::Column::UserId.eq(user_id))
         .order_by_desc(user_warnings::Column::CreatedAt)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch warnings: {}", e);
@@ -2647,7 +2650,7 @@ async fn view_user_warnings(
         let issued_by_name = if let Some(issuer_id) = warning.issued_by {
             user_names::Entity::find()
                 .filter(user_names::Column::UserId.eq(issuer_id))
-                .one(&*db)
+                .one(db)
                 .await
                 .ok()
                 .flatten()
@@ -2697,7 +2700,7 @@ async fn view_issue_warning_form(
 
     // Verify user exists
     users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2708,7 +2711,7 @@ async fn view_issue_warning_form(
     // Get username
     let username = user_names::Entity::find()
         .filter(user_names::Column::UserId.eq(user_id))
-        .one(&*db)
+        .one(db)
         .await
         .ok()
         .flatten()
@@ -2761,7 +2764,7 @@ async fn issue_warning(
 
     // Verify user exists
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2780,7 +2783,7 @@ async fn issue_warning(
         ..Default::default()
     };
 
-    warning.insert(&*db).await.map_err(|e| {
+    warning.insert(db).await.map_err(|e| {
         log::error!("Failed to create warning: {}", e);
         error::ErrorInternalServerError("Failed to create warning")
     })?;
@@ -2790,14 +2793,14 @@ async fn issue_warning(
     let mut active_user: users::ActiveModel = user.into();
     active_user.warning_points = Set(new_points);
     active_user.last_warning_at = Set(Some(now));
-    active_user.update(&*db).await.map_err(|e| {
+    active_user.update(db).await.map_err(|e| {
         log::error!("Failed to update user warning points: {}", e);
         error::ErrorInternalServerError("Failed to update user")
     })?;
 
     // Log moderation action
     log_moderation_action(
-        &*db,
+        db,
         moderator_id,
         "issue_warning",
         "user",
@@ -2835,13 +2838,13 @@ async fn issue_warning(
             ..Default::default()
         };
 
-        ban.insert(&*db).await.map_err(|e| {
+        ban.insert(db).await.map_err(|e| {
             log::error!("Failed to create auto-ban: {}", e);
             error::ErrorInternalServerError("Failed to create ban")
         })?;
 
         log_moderation_action(
-            &*db,
+            db,
             moderator_id,
             "auto_ban_warning_threshold",
             "user",
@@ -2881,7 +2884,7 @@ async fn delete_warning(
 
     // Find the warning
     let warning = user_warnings::Entity::find_by_id(warning_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch warning: {}", e);
@@ -2894,7 +2897,7 @@ async fn delete_warning(
 
     // Get user to subtract points
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -2904,7 +2907,7 @@ async fn delete_warning(
 
     // Delete the warning
     user_warnings::Entity::delete_by_id(warning_id)
-        .exec(&*db)
+        .exec(db)
         .await
         .map_err(|e| {
             log::error!("Failed to delete warning: {}", e);
@@ -2916,14 +2919,14 @@ async fn delete_warning(
     let new_points = (old_points - points).max(0);
     let mut active_user: users::ActiveModel = user.into();
     active_user.warning_points = Set(new_points);
-    active_user.update(&*db).await.map_err(|e| {
+    active_user.update(db).await.map_err(|e| {
         log::error!("Failed to update user warning points: {}", e);
         error::ErrorInternalServerError("Failed to update user")
     })?;
 
     // Log moderation action
     log_moderation_action(
-        &*db,
+        db,
         moderator_id,
         "delete_warning",
         "warning",
@@ -2984,7 +2987,7 @@ async fn view_approval_queue(client: ClientCtx) -> Result<impl Responder, Error>
     let pending = users::Entity::find()
         .filter(users::Column::ApprovalStatus.eq(users::ApprovalStatus::Pending))
         .order_by_asc(users::Column::CreatedAt)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch pending users: {}", e);
@@ -2996,7 +2999,7 @@ async fn view_approval_queue(client: ClientCtx) -> Result<impl Responder, Error>
     for user in pending {
         let username = user_names::Entity::find()
             .filter(user_names::Column::UserId.eq(user.id))
-            .one(&*db)
+            .one(db)
             .await
             .ok()
             .flatten()
@@ -3038,7 +3041,7 @@ async fn approve_user(
 
     // Find the user
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -3056,13 +3059,13 @@ async fn approve_user(
     active_user.approval_status = Set(users::ApprovalStatus::Approved);
     active_user.approved_at = Set(Some(now));
     active_user.approved_by = Set(Some(moderator_id));
-    active_user.update(&*db).await.map_err(|e| {
+    active_user.update(db).await.map_err(|e| {
         log::error!("Failed to approve user: {}", e);
         error::ErrorInternalServerError("Failed to approve user")
     })?;
 
     // Log moderation action
-    log_moderation_action(&*db, moderator_id, "approve_user", "user", user_id, None).await?;
+    log_moderation_action(db, moderator_id, "approve_user", "user", user_id, None).await?;
 
     log::info!("User {} approved by moderator {}", user_id, moderator_id);
 
@@ -3089,7 +3092,7 @@ async fn reject_user(
 
     // Find the user
     let user = users::Entity::find_by_id(user_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch user: {}", e);
@@ -3106,14 +3109,14 @@ async fn reject_user(
     let mut active_user: users::ActiveModel = user.into();
     active_user.approval_status = Set(users::ApprovalStatus::Rejected);
     active_user.rejection_reason = Set(form.reason.clone());
-    active_user.update(&*db).await.map_err(|e| {
+    active_user.update(db).await.map_err(|e| {
         log::error!("Failed to reject user: {}", e);
         error::ErrorInternalServerError("Failed to reject user")
     })?;
 
     // Log moderation action
     log_moderation_action(
-        &*db,
+        db,
         moderator_id,
         "reject_user",
         "user",
@@ -3188,7 +3191,7 @@ async fn mass_user_action(
                             .eq(true)
                             .or(user_bans::Column::ExpiresAt.gt(now)),
                     )
-                    .one(&*db)
+                    .one(db)
                     .await
                     .ok()
                     .flatten();
@@ -3207,11 +3210,11 @@ async fn mass_user_action(
                     created_at: Set(now),
                     ..Default::default()
                 };
-                let _ = ban.insert(&*db).await;
+                let _ = ban.insert(db).await;
 
                 // Log action
                 let _ = log_moderation_action(
-                    &*db,
+                    db,
                     moderator_id,
                     "mass_ban",
                     "user",
@@ -3238,7 +3241,7 @@ async fn mass_user_action(
                             .eq(true)
                             .or(user_bans::Column::ExpiresAt.gt(now)),
                     )
-                    .all(&*db)
+                    .all(db)
                     .await
                     .unwrap_or_default();
 
@@ -3246,12 +3249,12 @@ async fn mass_user_action(
                     let mut active_ban: user_bans::ActiveModel = ban.into();
                     active_ban.expires_at = Set(Some(now));
                     active_ban.is_permanent = Set(false);
-                    let _ = active_ban.update(&*db).await;
+                    let _ = active_ban.update(db).await;
                 }
 
                 // Log action
                 let _ = log_moderation_action(
-                    &*db,
+                    db,
                     moderator_id,
                     "mass_unban",
                     "user",
@@ -3271,7 +3274,7 @@ async fn mass_user_action(
             // Mass verify email
             for user_id in &form.user_ids {
                 let user = users::Entity::find_by_id(*user_id)
-                    .one(&*db)
+                    .one(db)
                     .await
                     .ok()
                     .flatten();
@@ -3280,10 +3283,10 @@ async fn mass_user_action(
                     if !user.email_verified {
                         let mut active_user: users::ActiveModel = user.into();
                         active_user.email_verified = Set(true);
-                        let _ = active_user.update(&*db).await;
+                        let _ = active_user.update(db).await;
 
                         let _ = log_moderation_action(
-                            &*db,
+                            db,
                             moderator_id,
                             "mass_verify_email",
                             "user",
@@ -3305,7 +3308,7 @@ async fn mass_user_action(
             // Mass approve pending users
             for user_id in &form.user_ids {
                 let user = users::Entity::find_by_id(*user_id)
-                    .one(&*db)
+                    .one(db)
                     .await
                     .ok()
                     .flatten();
@@ -3316,10 +3319,10 @@ async fn mass_user_action(
                         active_user.approval_status = Set(users::ApprovalStatus::Approved);
                         active_user.approved_at = Set(Some(now));
                         active_user.approved_by = Set(Some(moderator_id));
-                        let _ = active_user.update(&*db).await;
+                        let _ = active_user.update(db).await;
 
                         let _ = log_moderation_action(
-                            &*db,
+                            db,
                             moderator_id,
                             "mass_approve",
                             "user",
@@ -3347,10 +3350,10 @@ async fn mass_user_action(
                     continue;
                 }
 
-                let _ = users::Entity::delete_by_id(*user_id).exec(&*db).await;
+                let _ = users::Entity::delete_by_id(*user_id).exec(db).await;
 
                 let _ = log_moderation_action(
-                    &*db,
+                    db,
                     moderator_id,
                     "mass_delete",
                     "user",
@@ -3405,6 +3408,7 @@ struct PermissionDisplay {
 }
 
 /// Category with permissions
+#[allow(dead_code)]
 struct CategoryDisplay {
     id: i32,
     label: String,
@@ -3441,7 +3445,7 @@ async fn view_groups(client: ClientCtx) -> Result<impl Responder, Error> {
     // Get all groups with member counts
     let all_groups = groups::Entity::find()
         .order_by_asc(groups::Column::Id)
-        .all(&*db)
+        .all(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch groups: {}", e);
@@ -3453,7 +3457,7 @@ async fn view_groups(client: ClientCtx) -> Result<impl Responder, Error> {
         // Count members in this group
         let member_count = user_groups::Entity::find()
             .filter(user_groups::Column::GroupId.eq(group.id))
-            .count(&*db)
+            .count(db)
             .await
             .unwrap_or(0) as i64;
 
@@ -3483,7 +3487,7 @@ async fn view_create_group_form(client: ClientCtx) -> Result<impl Responder, Err
     let db = get_db_pool();
 
     // Get all permission categories with their permissions
-    let categories = load_permission_categories(&*db).await?;
+    let categories = load_permission_categories(db).await?;
 
     Ok(GroupFormTemplate {
         client,
@@ -3522,7 +3526,7 @@ async fn create_group(
         ..Default::default()
     };
 
-    let group = new_group.insert(&*db).await.map_err(|e| {
+    let group = new_group.insert(db).await.map_err(|e| {
         log::error!("Failed to create group: {}", e);
         error::ErrorInternalServerError("Failed to create group")
     })?;
@@ -3534,16 +3538,16 @@ async fn create_group(
         ..Default::default()
     };
 
-    let collection = collection.insert(&*db).await.map_err(|e| {
+    let collection = collection.insert(db).await.map_err(|e| {
         log::error!("Failed to create permission collection: {}", e);
         error::ErrorInternalServerError("Failed to create permission collection")
     })?;
 
     // Save permissions
-    save_group_permissions(&*db, collection.id, &form.permissions).await?;
+    save_group_permissions(db, collection.id, &form.permissions).await?;
 
     // Log moderation action
-    log_moderation_action(&*db, moderator_id, "create_group", "group", group.id, Some(label))
+    log_moderation_action(db, moderator_id, "create_group", "group", group.id, Some(label))
         .await?;
 
     log::info!("Group {} created by user {}", group.id, moderator_id);
@@ -3566,7 +3570,7 @@ async fn view_edit_group(
 
     // Find the group
     let group = groups::Entity::find_by_id(group_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch group: {}", e);
@@ -3579,7 +3583,7 @@ async fn view_edit_group(
     // Get the permission collection for this group
     let collection = permission_collections::Entity::find()
         .filter(permission_collections::Column::GroupId.eq(group_id))
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch permission collection: {}", e);
@@ -3587,7 +3591,7 @@ async fn view_edit_group(
         })?;
 
     // Load categories with current permission values
-    let categories = load_permission_categories_with_values(&*db, collection.map(|c| c.id)).await?;
+    let categories = load_permission_categories_with_values(db, collection.map(|c| c.id)).await?;
 
     Ok(GroupFormTemplate {
         client,
@@ -3617,7 +3621,7 @@ async fn update_group(
 
     // Find the group
     let group = groups::Entity::find_by_id(group_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch group: {}", e);
@@ -3631,7 +3635,7 @@ async fn update_group(
         if !label.is_empty() {
             let mut active_group: groups::ActiveModel = group.into();
             active_group.label = Set(label.to_string());
-            active_group.update(&*db).await.map_err(|e| {
+            active_group.update(db).await.map_err(|e| {
                 log::error!("Failed to update group: {}", e);
                 error::ErrorInternalServerError("Failed to update group")
             })?;
@@ -3641,7 +3645,7 @@ async fn update_group(
     // Get or create permission collection
     let collection = permission_collections::Entity::find()
         .filter(permission_collections::Column::GroupId.eq(group_id))
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch permission collection: {}", e);
@@ -3657,7 +3661,7 @@ async fn update_group(
                 user_id: Set(None),
                 ..Default::default()
             };
-            let c = new_collection.insert(&*db).await.map_err(|e| {
+            let c = new_collection.insert(db).await.map_err(|e| {
                 log::error!("Failed to create permission collection: {}", e);
                 error::ErrorInternalServerError("Failed to create permission collection")
             })?;
@@ -3666,11 +3670,11 @@ async fn update_group(
     };
 
     // Save permissions
-    save_group_permissions(&*db, collection_id, &form.permissions).await?;
+    save_group_permissions(db, collection_id, &form.permissions).await?;
 
     // Log moderation action
     log_moderation_action(
-        &*db,
+        db,
         moderator_id,
         "update_group",
         "group",
@@ -3710,7 +3714,7 @@ async fn delete_group(
 
     // Find the group
     let group = groups::Entity::find_by_id(group_id)
-        .one(&*db)
+        .one(db)
         .await
         .map_err(|e| {
             log::error!("Failed to fetch group: {}", e);
@@ -3727,7 +3731,7 @@ async fn delete_group(
 
     // Delete the group (cascades to user_groups and permission_collections)
     groups::Entity::delete_by_id(group_id)
-        .exec(&*db)
+        .exec(db)
         .await
         .map_err(|e| {
             log::error!("Failed to delete group: {}", e);
@@ -3736,7 +3740,7 @@ async fn delete_group(
 
     // Log moderation action
     log_moderation_action(
-        &*db,
+        db,
         moderator_id,
         "delete_group",
         "group",

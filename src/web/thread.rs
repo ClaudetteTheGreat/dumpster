@@ -229,7 +229,7 @@ pub async fn get_poll_for_thread(
     };
 
     // Check if poll is closed
-    let is_closed = poll.closes_at.map_or(false, |closes_at| {
+    let is_closed = poll.closes_at.is_some_and(|closes_at| {
         closes_at < chrono::Utc::now().naive_utc()
     });
 
@@ -364,7 +364,7 @@ pub async fn get_tags_for_threads(
         if let Some(tag) = tags_by_id.get(&tt.tag_id) {
             result
                 .entry(tt.thread_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(tag.clone());
         }
     }

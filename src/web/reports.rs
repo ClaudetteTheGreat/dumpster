@@ -209,6 +209,7 @@ struct ReportsListTemplate {
     filter_status: String,
 }
 
+#[allow(dead_code)]
 struct ReportView {
     id: i32,
     reporter_name: String,
@@ -341,6 +342,7 @@ struct ReportDetailTemplate {
     report: ReportDetailView,
 }
 
+#[allow(dead_code)]
 struct ReportDetailView {
     id: i32,
     reporter_name: String,

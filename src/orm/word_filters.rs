@@ -10,8 +10,10 @@ use sea_orm::entity::prelude::*;
 /// Word filter action type
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum)]
 #[sea_orm(rs_type = "String", db_type = "String(Some(20))")]
+#[derive(Default)]
 pub enum FilterAction {
     #[sea_orm(string_value = "replace")]
+    #[default]
     Replace,
     #[sea_orm(string_value = "block")]
     Block,
@@ -19,11 +21,6 @@ pub enum FilterAction {
     Flag,
 }
 
-impl Default for FilterAction {
-    fn default() -> Self {
-        FilterAction::Replace
-    }
-}
 
 impl FilterAction {
     /// Returns true if this is the Replace action
