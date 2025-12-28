@@ -1,6 +1,8 @@
 //! Activity feed routes
 
-use crate::activities::{get_global_feed, get_personal_feed, get_user_feed, ActivityCursor, ActivityDisplay};
+use crate::activities::{
+    get_global_feed, get_personal_feed, get_user_feed, ActivityCursor, ActivityDisplay,
+};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::user::Profile as UserProfile;
@@ -154,10 +156,13 @@ fn paginate_activities(
     }
 
     let next_cursor = if has_more {
-        activities.last().map(|a| ActivityCursor {
-            created_at: a.created_at,
-            id: a.id,
-        }.to_string())
+        activities.last().map(|a| {
+            ActivityCursor {
+                created_at: a.created_at,
+                id: a.id,
+            }
+            .to_string()
+        })
     } else {
         None
     };

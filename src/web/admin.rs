@@ -3,14 +3,14 @@
 /// This module provides endpoints for moderators and administrators.
 use crate::config::{Config, SettingValue};
 use crate::db::get_db_pool;
+use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    badges, feature_flags, forums, groups, ip_bans, mod_log, moderator_notes, permission_categories,
-    permission_collections, permission_values, permissions, posts, reaction_types, reports,
-    sessions, settings, threads, user_bans, user_groups, user_names, user_warnings, users,
-    word_filters,
+    badges, feature_flags, forums, groups, ip_bans, mod_log, moderator_notes,
+    permission_categories, permission_collections, permission_values, permissions, posts,
+    reaction_types, reports, sessions, settings, threads, user_bans, user_groups, user_names,
+    user_warnings, users, word_filters,
 };
-use crate::group::GroupType;
 use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama::Template;
@@ -162,10 +162,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
     let today_start = now.date().and_hms_opt(0, 0, 0).unwrap();
 
     // Gather statistics
-    let total_users = users::Entity::find()
-        .count(db)
-        .await
-        .unwrap_or(0) as i64;
+    let total_users = users::Entity::find().count(db).await.unwrap_or(0) as i64;
 
     let total_threads = threads::Entity::find()
         .filter(threads::Column::DeletedAt.is_null())
@@ -174,15 +171,9 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         .await
         .unwrap_or(0) as i64;
 
-    let total_posts = posts::Entity::find()
-        .count(db)
-        .await
-        .unwrap_or(0) as i64;
+    let total_posts = posts::Entity::find().count(db).await.unwrap_or(0) as i64;
 
-    let total_forums = forums::Entity::find()
-        .count(db)
-        .await
-        .unwrap_or(0) as i64;
+    let total_forums = forums::Entity::find().count(db).await.unwrap_or(0) as i64;
 
     let new_users_today = users::Entity::find()
         .filter(users::Column::CreatedAt.gte(today_start))
@@ -234,10 +225,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         .await
         .unwrap_or(0) as i64;
 
-    let active_sessions = sessions::Entity::find()
-        .count(db)
-        .await
-        .unwrap_or(0) as i64;
+    let active_sessions = sessions::Entity::find().count(db).await.unwrap_or(0) as i64;
 
     // Database size would require raw query - simplified for now
     let db_size = "N/A".to_string();
@@ -1701,7 +1689,10 @@ async fn create_word_filter(
     let is_regex = form.is_regex.is_some();
     if is_regex {
         if let Err(e) = regex::Regex::new(&form.pattern) {
-            return Err(error::ErrorBadRequest(format!("Invalid regex pattern: {}", e)));
+            return Err(error::ErrorBadRequest(format!(
+                "Invalid regex pattern: {}",
+                e
+            )));
         }
     }
 
@@ -1727,7 +1718,11 @@ async fn create_word_filter(
     // Reload filters in cache
     crate::word_filter::reload_filters(db).await.ok();
 
-    log::info!("Word filter '{}' created by user {}", form.pattern.trim(), user_id);
+    log::info!(
+        "Word filter '{}' created by user {}",
+        form.pattern.trim(),
+        user_id
+    );
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/word-filters"))
@@ -1807,7 +1802,10 @@ async fn update_word_filter(
     let is_regex = form.is_regex.is_some();
     if is_regex {
         if let Err(e) = regex::Regex::new(&form.pattern) {
-            return Err(error::ErrorBadRequest(format!("Invalid regex pattern: {}", e)));
+            return Err(error::ErrorBadRequest(format!(
+                "Invalid regex pattern: {}",
+                e
+            )));
         }
     }
 
@@ -1876,7 +1874,12 @@ async fn delete_word_filter(
     // Reload filters in cache
     crate::word_filter::reload_filters(db).await.ok();
 
-    log::info!("Word filter '{}' (id: {}) deleted by user {}", pattern, filter_id, user_id);
+    log::info!(
+        "Word filter '{}' (id: {}) deleted by user {}",
+        pattern,
+        filter_id,
+        user_id
+    );
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/word-filters"))
@@ -1972,18 +1975,11 @@ async fn view_users(
         // We need to join with user_names for username search
         // For simplicity, we'll search by email only in the users table
         // and then filter by username after fetching
-        user_query = user_query.filter(
-            users::Column::Email
-                .contains(&search_query)
-        );
+        user_query = user_query.filter(users::Column::Email.contains(&search_query));
     }
 
     // Get total count for pagination
-    let total_count = user_query
-        .clone()
-        .count(db)
-        .await
-        .unwrap_or(0) as i32;
+    let total_count = user_query.clone().count(db).await.unwrap_or(0) as i32;
 
     let total_pages = (total_count + per_page - 1) / per_page;
 
@@ -2017,8 +2013,14 @@ async fn view_users(
 
         // If searching and username doesn't match, skip
         if !search_query.is_empty()
-            && !username.to_lowercase().contains(&search_query.to_lowercase())
-            && !user.email.as_ref().map(|e| e.to_lowercase().contains(&search_query.to_lowercase())).unwrap_or(false)
+            && !username
+                .to_lowercase()
+                .contains(&search_query.to_lowercase())
+            && !user
+                .email
+                .as_ref()
+                .map(|e| e.to_lowercase().contains(&search_query.to_lowercase()))
+                .unwrap_or(false)
         {
             continue;
         }
@@ -2027,8 +2029,9 @@ async fn view_users(
         let is_banned = user_bans::Entity::find()
             .filter(user_bans::Column::UserId.eq(user.id))
             .filter(
-                user_bans::Column::IsPermanent.eq(true)
-                    .or(user_bans::Column::ExpiresAt.gt(now))
+                user_bans::Column::IsPermanent
+                    .eq(true)
+                    .or(user_bans::Column::ExpiresAt.gt(now)),
             )
             .one(db)
             .await
@@ -2214,15 +2217,22 @@ async fn update_user(
             error::ErrorInternalServerError("Failed to update username")
         })?;
 
-        log::info!("Username changed for user {} from '{}' to '{}' by admin {}",
-            user_id, current_username, new_username, admin_id);
+        log::info!(
+            "Username changed for user {} from '{}' to '{}' by admin {}",
+            user_id,
+            current_username,
+            new_username,
+            admin_id
+        );
     }
 
     // Update user record
     let mut active_user: users::ActiveModel = user.into();
 
     // Update email
-    let email = form.email.as_ref()
+    let email = form
+        .email
+        .as_ref()
         .map(|e| e.trim())
         .filter(|e| !e.is_empty())
         .map(|e| e.to_string());
@@ -2232,27 +2242,37 @@ async fn update_user(
     active_user.email_verified = Set(form.email_verified.is_some());
 
     // Update profile fields
-    active_user.custom_title = Set(form.custom_title.as_ref()
+    active_user.custom_title = Set(form
+        .custom_title
+        .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()));
 
-    active_user.bio = Set(form.bio.as_ref()
+    active_user.bio = Set(form
+        .bio
+        .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()));
 
-    active_user.location = Set(form.location.as_ref()
+    active_user.location = Set(form
+        .location
+        .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()));
 
-    active_user.website_url = Set(form.website_url.as_ref()
+    active_user.website_url = Set(form
+        .website_url
+        .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()));
 
-    active_user.signature = Set(form.signature.as_ref()
+    active_user.signature = Set(form
+        .signature
+        .as_ref()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string()));
@@ -2261,7 +2281,11 @@ async fn update_user(
     if form.reset_lockout.is_some() {
         active_user.failed_login_attempts = Set(0);
         active_user.locked_until = Set(None);
-        log::info!("Account lockout reset for user {} by admin {}", user_id, admin_id);
+        log::info!(
+            "Account lockout reset for user {} by admin {}",
+            user_id,
+            admin_id
+        );
     }
 
     // Update password if provided
@@ -2269,11 +2293,13 @@ async fn update_user(
         let new_password = new_password.trim();
         if !new_password.is_empty() {
             if new_password.len() < 8 {
-                return Err(error::ErrorBadRequest("Password must be at least 8 characters"));
+                return Err(error::ErrorBadRequest(
+                    "Password must be at least 8 characters",
+                ));
             }
 
             // Hash the new password
-            use argon2::{Argon2, PasswordHasher, password_hash::SaltString};
+            use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
             use rand::rngs::OsRng;
 
             let salt = SaltString::generate(&mut OsRng);
@@ -2323,20 +2349,15 @@ async fn update_user(
     }
 
     // Log the moderation action
-    log_moderation_action(
-        db,
-        admin_id,
-        "edit_user",
-        "user",
-        user_id,
-        None,
-    )
-    .await?;
+    log_moderation_action(db, admin_id, "edit_user", "user", user_id, None).await?;
 
     log::info!("User {} updated by admin {}", user_id, admin_id);
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/admin/users/{}/edit?success=1", user_id)))
+        .append_header((
+            "Location",
+            format!("/admin/users/{}/edit?success=1", user_id),
+        ))
         .finish())
 }
 
@@ -2831,7 +2852,10 @@ async fn issue_warning(
         let ban = user_bans::ActiveModel {
             user_id: Set(user_id),
             banned_by: Set(Some(moderator_id)),
-            reason: Set(format!("Auto-ban: Warning points threshold ({}) reached", threshold)),
+            reason: Set(format!(
+                "Auto-ban: Warning points threshold ({}) reached",
+                threshold
+            )),
             expires_at: Set(expires_at),
             is_permanent: Set(is_permanent),
             created_at: Set(now),
@@ -2849,7 +2873,10 @@ async fn issue_warning(
             "auto_ban_warning_threshold",
             "user",
             user_id,
-            Some(&format!("Warning points reached threshold: {} >= {}", new_points, threshold)),
+            Some(&format!(
+                "Warning points reached threshold: {} >= {}",
+                new_points, threshold
+            )),
         )
         .await?;
 
@@ -3204,7 +3231,10 @@ async fn mass_user_action(
                 let ban = user_bans::ActiveModel {
                     user_id: Set(*user_id),
                     banned_by: Set(Some(moderator_id)),
-                    reason: Set(form.reason.clone().unwrap_or_else(|| "Mass ban".to_string())),
+                    reason: Set(form
+                        .reason
+                        .clone()
+                        .unwrap_or_else(|| "Mass ban".to_string())),
                     is_permanent: Set(is_permanent),
                     expires_at: Set(expires_at),
                     created_at: Set(now),
@@ -3253,15 +3283,9 @@ async fn mass_user_action(
                 }
 
                 // Log action
-                let _ = log_moderation_action(
-                    db,
-                    moderator_id,
-                    "mass_unban",
-                    "user",
-                    *user_id,
-                    None,
-                )
-                .await;
+                let _ =
+                    log_moderation_action(db, moderator_id, "mass_unban", "user", *user_id, None)
+                        .await;
             }
 
             log::info!(
@@ -3547,8 +3571,15 @@ async fn create_group(
     save_group_permissions(db, collection.id, &form.permissions).await?;
 
     // Log moderation action
-    log_moderation_action(db, moderator_id, "create_group", "group", group.id, Some(label))
-        .await?;
+    log_moderation_action(
+        db,
+        moderator_id,
+        "create_group",
+        "group",
+        group.id,
+        Some(label),
+    )
+    .await?;
 
     log::info!("Group {} created by user {}", group.id, moderator_id);
 
@@ -4259,10 +4290,7 @@ async fn create_badge(
 
 /// GET /admin/badges/{id}/edit - Show form to edit badge
 #[get("/admin/badges/{id}/edit")]
-async fn view_edit_badge(
-    client: ClientCtx,
-    path: web::Path<i32>,
-) -> Result<impl Responder, Error> {
+async fn view_edit_badge(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     client.require_permission("admin.badges.manage")?;
 
     let id = path.into_inner();

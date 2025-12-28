@@ -54,7 +54,10 @@ pub async fn get_all_badges(db: &DatabaseConnection) -> Result<Vec<BadgeInfo>, D
 }
 
 /// Get a badge by slug
-pub async fn get_badge_by_slug(db: &DatabaseConnection, slug: &str) -> Result<Option<BadgeInfo>, DbErr> {
+pub async fn get_badge_by_slug(
+    db: &DatabaseConnection,
+    slug: &str,
+) -> Result<Option<BadgeInfo>, DbErr> {
     BadgeInfo::find_by_statement(sea_orm::Statement::from_sql_and_values(
         sea_orm::DbBackend::Postgres,
         r#"
@@ -86,7 +89,10 @@ pub async fn get_badge_by_id(db: &DatabaseConnection, id: i32) -> Result<Option<
 }
 
 /// Get all badges for a user
-pub async fn get_user_badges(db: &DatabaseConnection, user_id: i32) -> Result<Vec<UserBadge>, DbErr> {
+pub async fn get_user_badges(
+    db: &DatabaseConnection,
+    user_id: i32,
+) -> Result<Vec<UserBadge>, DbErr> {
     #[derive(Debug, FromQueryResult)]
     struct UserBadgeRow {
         id: i32,
@@ -139,7 +145,11 @@ pub async fn get_user_badges(db: &DatabaseConnection, user_id: i32) -> Result<Ve
 }
 
 /// Check if a user has a specific badge
-pub async fn user_has_badge(db: &DatabaseConnection, user_id: i32, badge_id: i32) -> Result<bool, DbErr> {
+pub async fn user_has_badge(
+    db: &DatabaseConnection,
+    user_id: i32,
+    badge_id: i32,
+) -> Result<bool, DbErr> {
     let result = user_badges::Entity::find()
         .filter(user_badges::Column::UserId.eq(user_id))
         .filter(user_badges::Column::BadgeId.eq(badge_id))
@@ -192,7 +202,11 @@ pub async fn award_badge(
 }
 
 /// Revoke a badge from a user
-pub async fn revoke_badge(db: &DatabaseConnection, user_id: i32, badge_id: i32) -> Result<bool, DbErr> {
+pub async fn revoke_badge(
+    db: &DatabaseConnection,
+    user_id: i32,
+    badge_id: i32,
+) -> Result<bool, DbErr> {
     let result = user_badges::Entity::delete_many()
         .filter(user_badges::Column::UserId.eq(user_id))
         .filter(user_badges::Column::BadgeId.eq(badge_id))
@@ -256,18 +270,18 @@ pub async fn check_and_award_automatic_badges(user_id: i32) {
     for badge in badges {
         // Check if condition is met
         let condition_met = match badge.condition_type.as_str() {
-            "post_count" => {
-                badge.condition_value.is_some_and(|v| stats.post_count >= v as i64)
-            }
-            "thread_count" => {
-                badge.condition_value.is_some_and(|v| stats.thread_count >= v as i64)
-            }
-            "time_member" => {
-                badge.condition_value.is_some_and(|v| stats.days_member >= v as i64)
-            }
-            "reputation" => {
-                badge.condition_value.is_some_and(|v| stats.reputation_score >= v)
-            }
+            "post_count" => badge
+                .condition_value
+                .is_some_and(|v| stats.post_count >= v as i64),
+            "thread_count" => badge
+                .condition_value
+                .is_some_and(|v| stats.thread_count >= v as i64),
+            "time_member" => badge
+                .condition_value
+                .is_some_and(|v| stats.days_member >= v as i64),
+            "reputation" => badge
+                .condition_value
+                .is_some_and(|v| stats.reputation_score >= v),
             _ => false, // Skip manual badges
         };
 

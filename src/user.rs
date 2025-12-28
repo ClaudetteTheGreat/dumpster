@@ -180,7 +180,8 @@ pub async fn update_last_activity(user_id: i32) {
     {
         let cache = ACTIVITY_UPDATE_CACHE.read().unwrap();
         if let Some(last_update) = cache.get(&user_id) {
-            if now.signed_duration_since(*last_update) < Duration::seconds(ACTIVITY_UPDATE_INTERVAL_SECS)
+            if now.signed_duration_since(*last_update)
+                < Duration::seconds(ACTIVITY_UPDATE_INTERVAL_SECS)
             {
                 return; // Too soon, skip update
             }

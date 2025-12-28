@@ -35,7 +35,10 @@ async fn test_create_thread_activity() {
         title: Set(Some("Test Thread Title".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Verify activity was created
     assert!(activity_model.id > 0);
@@ -77,7 +80,10 @@ async fn test_create_post_activity() {
         content_preview: Set(Some("This is a preview of the post content...".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Verify activity was created
     assert!(activity_model.id > 0);
@@ -115,7 +121,10 @@ async fn test_create_follow_activity() {
         title: Set(Some("following_activity".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Verify activity was created
     assert!(activity_model.id > 0);
@@ -154,13 +163,19 @@ async fn test_create_profile_post_activity() {
         content_preview: Set(Some("This is a profile post content...".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Verify activity was created
     assert!(activity_model.id > 0);
     assert_eq!(activity_model.user_id, author.id);
     assert_eq!(activity_model.target_user_id, Some(profile_user.id));
-    assert_eq!(activity_model.activity_type, ActivityType::ProfilePostCreated);
+    assert_eq!(
+        activity_model.activity_type,
+        ActivityType::ProfilePostCreated
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -194,7 +209,10 @@ async fn test_create_reaction_activity() {
         title: Set(Some("Thread for Reaction".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Verify activity was created
     assert!(activity_model.id > 0);
@@ -210,10 +228,19 @@ async fn test_create_reaction_activity() {
 async fn test_activity_type_descriptions() {
     // Test activity type descriptions
     assert_eq!(ActivityType::PostCreated.description(), "posted a reply");
-    assert_eq!(ActivityType::ThreadCreated.description(), "started a new thread");
-    assert_eq!(ActivityType::ProfilePostCreated.description(), "posted on a profile");
+    assert_eq!(
+        ActivityType::ThreadCreated.description(),
+        "started a new thread"
+    );
+    assert_eq!(
+        ActivityType::ProfilePostCreated.description(),
+        "posted on a profile"
+    );
     assert_eq!(ActivityType::UserFollowed.description(), "followed");
-    assert_eq!(ActivityType::ReactionGiven.description(), "reacted to a post");
+    assert_eq!(
+        ActivityType::ReactionGiven.description(),
+        "reacted to a post"
+    );
 }
 
 #[actix_rt::test]
@@ -278,7 +305,10 @@ async fn test_multiple_activities_for_user() {
             title: Set(Some(format!("Activity {}", i))),
             ..Default::default()
         };
-        activity.insert(&db).await.expect("Failed to create activity");
+        activity
+            .insert(&db)
+            .await
+            .expect("Failed to create activity");
     }
 
     // Query all activities for user
@@ -305,7 +335,7 @@ async fn test_activity_cascade_delete_on_user_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_names, users, ugc_revisions};
+    use ruforo::orm::{ugc_revisions, user_names, users};
     use sea_orm::ColumnTrait;
     use sea_orm::QueryFilter;
 
@@ -323,11 +353,17 @@ async fn test_activity_cascade_delete_on_user_delete() {
         title: Set(Some("Test Activity".to_string())),
         ..Default::default()
     };
-    let activity_model = activity.insert(&db).await.expect("Failed to create activity");
+    let activity_model = activity
+        .insert(&db)
+        .await
+        .expect("Failed to create activity");
 
     // Update any ugc_revisions to not reference this user before deletion
     ugc_revisions::Entity::update_many()
-        .col_expr(ugc_revisions::Column::UserId, sea_orm::sea_query::Expr::value(Option::<i32>::None))
+        .col_expr(
+            ugc_revisions::Column::UserId,
+            sea_orm::sea_query::Expr::value(Option::<i32>::None),
+        )
         .filter(ugc_revisions::Column::UserId.eq(user.id))
         .exec(&db)
         .await
@@ -380,7 +416,10 @@ async fn test_activity_ordering() {
             title: Set(Some(format!("Activity {}", i))),
             ..Default::default()
         };
-        activity.insert(&db).await.expect("Failed to create activity");
+        activity
+            .insert(&db)
+            .await
+            .expect("Failed to create activity");
     }
 
     // Query activities ordered by created_at DESC

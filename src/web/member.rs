@@ -191,12 +191,10 @@ pub async fn view_member(
         })?;
 
     // Get profile wall posts
-    let profile_posts = get_profile_posts(db, user_id, 20)
-        .await
-        .map_err(|e| {
-            log::error!("error getting profile posts: {:?}", e);
-            error::ErrorInternalServerError("Couldn't load profile posts.")
-        })?;
+    let profile_posts = get_profile_posts(db, user_id, 20).await.map_err(|e| {
+        log::error!("error getting profile posts: {:?}", e);
+        error::ErrorInternalServerError("Couldn't load profile posts.")
+    })?;
 
     // Check if current user follows this profile
     let is_following = if let Some(current_id) = current_user_id {
@@ -381,7 +379,9 @@ pub async fn create_profile_post(
         .ok_or_else(|| error::ErrorNotFound("User not found"))?;
 
     if !profile_user.allow_profile_posts {
-        return Err(error::ErrorForbidden("This user has disabled profile posts"));
+        return Err(error::ErrorForbidden(
+            "This user has disabled profile posts",
+        ));
     }
 
     // Get the profile user's name for activity recording
@@ -399,12 +399,17 @@ pub async fn create_profile_post(
         return Err(error::ErrorBadRequest("Post content cannot be empty"));
     }
     if content.len() > 10000 {
-        return Err(error::ErrorBadRequest("Post content too long (max 10000 characters)"));
+        return Err(error::ErrorBadRequest(
+            "Post content too long (max 10000 characters)",
+        ));
     }
 
     // Get IP address for moderation
     let ip_id = if let Some(ip_addr) = crate::ip::extract_client_ip(&req) {
-        crate::ip::get_or_create_ip_id(&ip_addr).await.ok().flatten()
+        crate::ip::get_or_create_ip_id(&ip_addr)
+            .await
+            .ok()
+            .flatten()
     } else {
         None
     };
@@ -590,12 +595,9 @@ pub async fn follow_user(
 
     // Record activity for the feed (async, non-blocking)
     actix::spawn(async move {
-        if let Err(e) = crate::activities::record_user_followed(
-            follower_id,
-            following_id,
-            &target_user_name,
-        )
-        .await
+        if let Err(e) =
+            crate::activities::record_user_followed(follower_id, following_id, &target_user_name)
+                .await
         {
             log::warn!("Failed to record user follow activity: {}", e);
         }
@@ -689,19 +691,23 @@ async fn get_followers(
 
     Ok(results
         .iter()
-        .map(|row| {
-            FollowUserDisplay {
-                id: row.try_get::<i32>("", "id").unwrap_or(0),
-                name: row
-                    .try_get::<String>("", "name")
-                    .unwrap_or_else(|_| "Unknown".to_string()),
-                avatar_filename: row.try_get::<Option<String>>("", "avatar_filename").ok().flatten(),
-                custom_title: row.try_get::<Option<String>>("", "custom_title").ok().flatten(),
-                followed_at: row
-                    .try_get::<DateTimeWithTimeZone>("", "followed_at")
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-            }
+        .map(|row| FollowUserDisplay {
+            id: row.try_get::<i32>("", "id").unwrap_or(0),
+            name: row
+                .try_get::<String>("", "name")
+                .unwrap_or_else(|_| "Unknown".to_string()),
+            avatar_filename: row
+                .try_get::<Option<String>>("", "avatar_filename")
+                .ok()
+                .flatten(),
+            custom_title: row
+                .try_get::<Option<String>>("", "custom_title")
+                .ok()
+                .flatten(),
+            followed_at: row
+                .try_get::<DateTimeWithTimeZone>("", "followed_at")
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
         })
         .collect())
 }
@@ -741,19 +747,23 @@ async fn get_following(
 
     Ok(results
         .iter()
-        .map(|row| {
-            FollowUserDisplay {
-                id: row.try_get::<i32>("", "id").unwrap_or(0),
-                name: row
-                    .try_get::<String>("", "name")
-                    .unwrap_or_else(|_| "Unknown".to_string()),
-                avatar_filename: row.try_get::<Option<String>>("", "avatar_filename").ok().flatten(),
-                custom_title: row.try_get::<Option<String>>("", "custom_title").ok().flatten(),
-                followed_at: row
-                    .try_get::<DateTimeWithTimeZone>("", "followed_at")
-                    .map(|dt| dt.with_timezone(&Utc))
-                    .unwrap_or_else(|_| Utc::now()),
-            }
+        .map(|row| FollowUserDisplay {
+            id: row.try_get::<i32>("", "id").unwrap_or(0),
+            name: row
+                .try_get::<String>("", "name")
+                .unwrap_or_else(|_| "Unknown".to_string()),
+            avatar_filename: row
+                .try_get::<Option<String>>("", "avatar_filename")
+                .ok()
+                .flatten(),
+            custom_title: row
+                .try_get::<Option<String>>("", "custom_title")
+                .ok()
+                .flatten(),
+            followed_at: row
+                .try_get::<DateTimeWithTimeZone>("", "followed_at")
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now()),
         })
         .collect())
 }

@@ -53,7 +53,10 @@ fn test_social_platform_generate_url() {
 
     // Twitter URL generation
     let twitter_url = SocialPlatform::Twitter.generate_url("testuser");
-    assert_eq!(twitter_url, Some("https://twitter.com/testuser".to_string()));
+    assert_eq!(
+        twitter_url,
+        Some("https://twitter.com/testuser".to_string())
+    );
 
     // GitHub URL generation
     let github_url = SocialPlatform::Github.generate_url("octocat");
@@ -72,11 +75,26 @@ fn test_social_platform_generate_url() {
 fn test_social_platform_from_str() {
     use ruforo::orm::user_social_links::SocialPlatform;
 
-    assert_eq!(SocialPlatform::from_str("twitter"), Some(SocialPlatform::Twitter));
-    assert_eq!(SocialPlatform::from_str("TWITTER"), Some(SocialPlatform::Twitter));
-    assert_eq!(SocialPlatform::from_str("Twitter"), Some(SocialPlatform::Twitter));
-    assert_eq!(SocialPlatform::from_str("github"), Some(SocialPlatform::Github));
-    assert_eq!(SocialPlatform::from_str("discord"), Some(SocialPlatform::Discord));
+    assert_eq!(
+        SocialPlatform::from_str("twitter"),
+        Some(SocialPlatform::Twitter)
+    );
+    assert_eq!(
+        SocialPlatform::from_str("TWITTER"),
+        Some(SocialPlatform::Twitter)
+    );
+    assert_eq!(
+        SocialPlatform::from_str("Twitter"),
+        Some(SocialPlatform::Twitter)
+    );
+    assert_eq!(
+        SocialPlatform::from_str("github"),
+        Some(SocialPlatform::Github)
+    );
+    assert_eq!(
+        SocialPlatform::from_str("discord"),
+        Some(SocialPlatform::Discord)
+    );
     assert_eq!(SocialPlatform::from_str("invalid"), None);
 }
 
@@ -129,7 +147,10 @@ async fn test_create_social_link() {
         updated_at: Set(Utc::now().into()),
         ..Default::default()
     };
-    let inserted = link.insert(&db).await.expect("Failed to insert social link");
+    let inserted = link
+        .insert(&db)
+        .await
+        .expect("Failed to insert social link");
 
     assert_eq!(inserted.user_id, user.id);
     assert_eq!(inserted.platform, SocialPlatform::Twitter);
@@ -167,7 +188,10 @@ async fn test_unique_platform_per_user() {
         updated_at: Set(Utc::now().into()),
         ..Default::default()
     };
-    link1.insert(&db).await.expect("Failed to insert first link");
+    link1
+        .insert(&db)
+        .await
+        .expect("Failed to insert first link");
 
     // Try to create duplicate Twitter link (should fail)
     let link2 = user_social_links::ActiveModel {
@@ -183,7 +207,10 @@ async fn test_unique_platform_per_user() {
     };
     let result = link2.insert(&db).await;
 
-    assert!(result.is_err(), "Duplicate platform for same user should fail");
+    assert!(
+        result.is_err(),
+        "Duplicate platform for same user should fail"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -285,7 +312,10 @@ async fn test_delete_social_link() {
         .await
         .expect("Failed to fetch links");
 
-    assert!(links.is_empty(), "User should have no social links after deletion");
+    assert!(
+        links.is_empty(),
+        "User should have no social links after deletion"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -526,7 +556,11 @@ async fn test_social_links_deleted_with_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_names, user_social_links::{self, SocialPlatform}, users};
+    use ruforo::orm::{
+        user_names,
+        user_social_links::{self, SocialPlatform},
+        users,
+    };
 
     // Create a test user
     let user = create_test_user(&db, "social_user9", "password123")
@@ -574,7 +608,10 @@ async fn test_social_links_deleted_with_user() {
         .all(&db)
         .await
         .expect("Failed to fetch links");
-    assert!(links_after.is_empty(), "Social links should be deleted with user");
+    assert!(
+        links_after.is_empty(),
+        "Social links should be deleted with user"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }

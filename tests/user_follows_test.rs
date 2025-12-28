@@ -211,7 +211,10 @@ async fn test_cannot_follow_twice() {
         following_id: Set(following.id),
         ..Default::default()
     };
-    follow1.insert(&db).await.expect("Failed to create first follow");
+    follow1
+        .insert(&db)
+        .await
+        .expect("Failed to create first follow");
 
     // Try to follow again - should fail due to unique constraint
     let follow2 = user_follows::ActiveModel {
@@ -236,7 +239,7 @@ async fn test_follow_cascade_delete_on_follower_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_follows, users, ugc_revisions, user_names};
+    use ruforo::orm::{ugc_revisions, user_follows, user_names, users};
 
     // Create two users
     let follower = create_test_user(&db, "cascade_follower", "password123")
@@ -257,7 +260,10 @@ async fn test_follow_cascade_delete_on_follower_delete() {
 
     // Update any ugc_revisions to not reference this user before deletion
     ugc_revisions::Entity::update_many()
-        .col_expr(ugc_revisions::Column::UserId, sea_orm::sea_query::Expr::value(Option::<i32>::None))
+        .col_expr(
+            ugc_revisions::Column::UserId,
+            sea_orm::sea_query::Expr::value(Option::<i32>::None),
+        )
         .filter(ugc_revisions::Column::UserId.eq(follower.id))
         .exec(&db)
         .await
@@ -387,7 +393,10 @@ async fn test_mutual_follow() {
         following_id: Set(user2.id),
         ..Default::default()
     };
-    follow1.insert(&db).await.expect("Failed to create follow 1");
+    follow1
+        .insert(&db)
+        .await
+        .expect("Failed to create follow 1");
 
     // User 2 follows User 1
     let follow2 = user_follows::ActiveModel {
@@ -395,7 +404,10 @@ async fn test_mutual_follow() {
         following_id: Set(user1.id),
         ..Default::default()
     };
-    follow2.insert(&db).await.expect("Failed to create follow 2");
+    follow2
+        .insert(&db)
+        .await
+        .expect("Failed to create follow 2");
 
     // Both users should have 1 follower and 1 following
     let user1_after = users::Entity::find_by_id(user1.id)

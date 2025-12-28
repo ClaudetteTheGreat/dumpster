@@ -29,9 +29,7 @@ async fn test_word_filter_replace_basic() {
         .expect("Failed to create filter");
 
     // Reload filters from database
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Test replacement
     let result = apply_filters("I love Solana cryptocurrency");
@@ -62,9 +60,7 @@ async fn test_word_filter_replace_case_insensitive() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Test lowercase match
     let result = apply_filters("Check out solana today");
@@ -96,9 +92,7 @@ async fn test_word_filter_replace_case_sensitive() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Exact case should match
     let result = apply_filters("I love Solana");
@@ -127,9 +121,7 @@ async fn test_word_filter_whole_word() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Whole word should match
     let result = apply_filters("The cat sat on the mat");
@@ -161,9 +153,7 @@ async fn test_word_filter_partial_match() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Should match even within words
     let result = apply_filters("This is badword and verybad");
@@ -188,13 +178,14 @@ async fn test_word_filter_block() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Content with blocked word should be blocked
     let result = apply_filters("Buy cheap spam pills");
-    assert!(result.blocked, "Content with blocked word should be blocked");
+    assert!(
+        result.blocked,
+        "Content with blocked word should be blocked"
+    );
     assert!(
         result.block_reason.is_some(),
         "Block reason should be provided"
@@ -224,9 +215,7 @@ async fn test_word_filter_flag() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Content with flagged word should be flagged but not blocked
     let result = apply_filters("This is suspicious content");
@@ -261,9 +250,7 @@ async fn test_word_filter_regex() {
     .await
     .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Email addresses should be replaced
     let result = apply_filters("Contact me at test@example.com for info");
@@ -288,9 +275,7 @@ async fn test_word_filter_multiple_matches() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Multiple occurrences should all be replaced
     let result = apply_filters("foo and foo and foo");
@@ -318,9 +303,7 @@ async fn test_word_filter_priority_block_over_replace() {
         .await
         .expect("Failed to create block filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Content with blocked word should be blocked (not just replaced)
     let result = apply_filters("This is bad but worse is here");
@@ -346,9 +329,7 @@ async fn test_word_filter_no_filters() {
     cleanup_filters(&db).await;
 
     // Reload with no filters
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Content should pass through unchanged
     let result = apply_filters("Any content is fine");
@@ -374,9 +355,7 @@ async fn test_word_filter_empty_content() {
         .await
         .expect("Failed to create filter");
 
-    reload_filters(&db)
-        .await
-        .expect("Failed to reload filters");
+    reload_filters(&db).await.expect("Failed to reload filters");
 
     // Empty content should pass
     let result = apply_filters("");

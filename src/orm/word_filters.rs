@@ -21,7 +21,6 @@ pub enum FilterAction {
     Flag,
 }
 
-
 impl FilterAction {
     /// Returns true if this is the Replace action
     pub fn is_replace(&self) -> bool {

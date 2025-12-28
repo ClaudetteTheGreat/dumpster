@@ -290,10 +290,18 @@ pub fn apply_filters(content: &str) -> FilterResult {
 
 /// Match the case pattern of the original text in the replacement
 fn match_case(original: &str, replacement: &str) -> String {
-    if original.chars().all(|c| c.is_uppercase() || !c.is_alphabetic()) {
+    if original
+        .chars()
+        .all(|c| c.is_uppercase() || !c.is_alphabetic())
+    {
         // All uppercase
         replacement.to_uppercase()
-    } else if original.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+    } else if original
+        .chars()
+        .next()
+        .map(|c| c.is_uppercase())
+        .unwrap_or(false)
+    {
         // Title case (first letter uppercase)
         let mut chars = replacement.chars();
         match chars.next() {

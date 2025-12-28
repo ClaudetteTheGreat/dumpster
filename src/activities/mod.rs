@@ -3,8 +3,8 @@
 use crate::db::get_db_pool;
 use crate::orm::activities::{self, ActivityType};
 use chrono::{DateTime, Utc};
-use sea_orm::{entity::*, query::*, DbErr, Set};
 use sea_orm::prelude::DateTimeWithTimeZone;
+use sea_orm::{entity::*, query::*, DbErr, Set};
 
 pub use crate::orm::activities::ActivityType as Type;
 
@@ -213,10 +213,7 @@ pub async fn get_personal_feed(
                 c.id.into(),
             ],
         ),
-        None => (
-            "",
-            vec![user_id.into(), (limit as i64).into()],
-        ),
+        None => ("", vec![user_id.into(), (limit as i64).into()]),
     };
 
     let sql = format!(
@@ -248,7 +245,11 @@ pub async fn get_personal_feed(
     );
 
     let results = db
-        .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
+        .query_all(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            &sql,
+            values,
+        ))
         .await?;
 
     Ok(results.iter().map(parse_activity_row).collect())
@@ -274,10 +275,7 @@ pub async fn get_user_feed(
                 c.id.into(),
             ],
         ),
-        None => (
-            "",
-            vec![profile_user_id.into(), (limit as i64).into()],
-        ),
+        None => ("", vec![profile_user_id.into(), (limit as i64).into()]),
     };
 
     let sql = format!(
@@ -308,7 +306,11 @@ pub async fn get_user_feed(
     );
 
     let results = db
-        .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
+        .query_all(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            &sql,
+            values,
+        ))
         .await?;
 
     Ok(results.iter().map(parse_activity_row).collect())
@@ -326,16 +328,9 @@ pub async fn get_global_feed(
     let (cursor_clause, values) = match &cursor {
         Some(c) => (
             "AND (a.created_at, a.id) < ($2, $3)",
-            vec![
-                (limit as i64).into(),
-                c.created_at.into(),
-                c.id.into(),
-            ],
+            vec![(limit as i64).into(), c.created_at.into(), c.id.into()],
         ),
-        None => (
-            "",
-            vec![(limit as i64).into()],
-        ),
+        None => ("", vec![(limit as i64).into()]),
     };
 
     let sql = format!(
@@ -367,7 +362,11 @@ pub async fn get_global_feed(
     );
 
     let results = db
-        .query_all(Statement::from_sql_and_values(DbBackend::Postgres, &sql, values))
+        .query_all(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            &sql,
+            values,
+        ))
         .await?;
 
     Ok(results.iter().map(parse_activity_row).collect())
@@ -427,10 +426,19 @@ fn parse_activity_row(row: &sea_orm::QueryResult) -> ActivityDisplay {
         actor_name: row
             .try_get::<String>("", "actor_name")
             .unwrap_or_else(|_| "Unknown".to_string()),
-        actor_avatar: row.try_get::<Option<String>>("", "actor_avatar").ok().flatten(),
+        actor_avatar: row
+            .try_get::<Option<String>>("", "actor_avatar")
+            .ok()
+            .flatten(),
         title: row.try_get::<Option<String>>("", "title").ok().flatten(),
-        content_preview: row.try_get::<Option<String>>("", "content_preview").ok().flatten(),
+        content_preview: row
+            .try_get::<Option<String>>("", "content_preview")
+            .ok()
+            .flatten(),
         target_url,
-        reaction_emoji: row.try_get::<Option<String>>("", "reaction_emoji").ok().flatten(),
+        reaction_emoji: row
+            .try_get::<Option<String>>("", "reaction_emoji")
+            .ok()
+            .flatten(),
     }
 }

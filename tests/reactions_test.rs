@@ -467,7 +467,7 @@ async fn test_reputation_increases_on_positive_reaction() {
         ugc_id: Set(ugc_model.id),
         position: Set(1),
         created_at: Set(Utc::now().naive_utc()),
-        
+
         ..Default::default()
     };
     post.insert(&db).await.expect("Failed to create post");
@@ -554,7 +554,7 @@ async fn test_reputation_decreases_on_negative_reaction() {
         ugc_id: Set(ugc_model.id),
         position: Set(1),
         created_at: Set(Utc::now().naive_utc()),
-        
+
         ..Default::default()
     };
     post.insert(&db).await.expect("Failed to create post");
@@ -648,7 +648,7 @@ async fn test_reputation_restored_when_reaction_removed() {
         ugc_id: Set(ugc_model.id),
         position: Set(1),
         created_at: Set(Utc::now().naive_utc()),
-        
+
         ..Default::default()
     };
     post.insert(&db).await.expect("Failed to create post");
@@ -732,10 +732,7 @@ async fn test_min_posts_to_vote_setting_exists() {
         .await
         .expect("Failed to fetch setting");
 
-    assert!(
-        setting.is_some(),
-        "min_posts_to_vote setting should exist"
-    );
+    assert!(setting.is_some(), "min_posts_to_vote setting should exist");
 
     let setting = setting.unwrap();
     assert_eq!(setting.value, "5", "Default min_posts_to_vote should be 5");

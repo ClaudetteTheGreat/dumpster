@@ -240,8 +240,9 @@ async fn test_count_online_users() {
         .unwrap()
         .unwrap()
         .into();
-    active_offline.last_activity_at =
-        Set(Some((Utc::now() - Duration::minutes(ONLINE_THRESHOLD_MINUTES + 10)).fixed_offset()));
+    active_offline.last_activity_at = Set(Some(
+        (Utc::now() - Duration::minutes(ONLINE_THRESHOLD_MINUTES + 10)).fixed_offset(),
+    ));
     active_offline.show_online = Set(true);
     active_offline.update(&db).await.unwrap();
 
@@ -299,9 +300,7 @@ async fn test_get_online_users_list() {
     let online_users = ruforo::user::get_online_users(10).await.unwrap();
 
     // Should contain our user
-    let found = online_users
-        .iter()
-        .any(|u| u.name == "list_online_user");
+    let found = online_users.iter().any(|u| u.name == "list_online_user");
     assert!(
         found,
         "Online user should appear in get_online_users list. Found: {:?}",
@@ -343,9 +342,7 @@ async fn test_hidden_user_not_in_online_list() {
     let online_users = ruforo::user::get_online_users(10).await.unwrap();
 
     // Should NOT contain our hidden user
-    let found = online_users
-        .iter()
-        .any(|u| u.name == "hidden_online_user");
+    let found = online_users.iter().any(|u| u.name == "hidden_online_user");
     assert!(
         !found,
         "Hidden user should NOT appear in get_online_users list"

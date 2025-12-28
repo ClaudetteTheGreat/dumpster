@@ -194,14 +194,21 @@ pub async fn destroy_post(
     if post.deleted_at.is_some() {
         // Post already deleted - update the deletion record
         let mut update = ugc_deletions::Entity::update_many()
-            .col_expr(ugc_deletions::Column::DeletedById, Expr::value(client.get_id()))
-            .col_expr(ugc_deletions::Column::DeletionType, Expr::value(deletion_type.clone()));
+            .col_expr(
+                ugc_deletions::Column::DeletedById,
+                Expr::value(client.get_id()),
+            )
+            .col_expr(
+                ugc_deletions::Column::DeletionType,
+                Expr::value(deletion_type.clone()),
+            );
 
         if let Some(ref reason) = form.reason {
             update = update.col_expr(ugc_deletions::Column::Reason, Expr::value(reason.clone()));
         }
 
-        update.filter(ugc_deletions::Column::Id.eq(post.ugc_id))
+        update
+            .filter(ugc_deletions::Column::Id.eq(post.ugc_id))
             .exec(db)
             .await
             .map_err(error::ErrorInternalServerError)?;
@@ -247,7 +254,10 @@ pub async fn destroy_post(
     // For permanent deletion, also clear the content
     if deletion_type == ugc_deletions::DeletionType::Permanent {
         ugc_revisions::Entity::update_many()
-            .col_expr(ugc_revisions::Column::Content, Expr::value("[Content permanently removed]".to_string()))
+            .col_expr(
+                ugc_revisions::Column::Content,
+                Expr::value("[Content permanently removed]".to_string()),
+            )
             .filter(ugc_revisions::Column::UgcId.eq(post.ugc_id))
             .exec(db)
             .await
@@ -363,10 +373,19 @@ pub async fn legal_hold_post(
     if post.deleted_at.is_some() {
         // Post already deleted - update to legal hold
         ugc_deletions::Entity::update_many()
-            .col_expr(ugc_deletions::Column::DeletionType, Expr::value(ugc_deletions::DeletionType::LegalHold))
+            .col_expr(
+                ugc_deletions::Column::DeletionType,
+                Expr::value(ugc_deletions::DeletionType::LegalHold),
+            )
             .col_expr(ugc_deletions::Column::LegalHoldAt, Expr::value(now))
-            .col_expr(ugc_deletions::Column::LegalHoldBy, Expr::value(client.get_id()))
-            .col_expr(ugc_deletions::Column::LegalHoldReason, Expr::value(form.reason.clone()))
+            .col_expr(
+                ugc_deletions::Column::LegalHoldBy,
+                Expr::value(client.get_id()),
+            )
+            .col_expr(
+                ugc_deletions::Column::LegalHoldReason,
+                Expr::value(form.reason.clone()),
+            )
             .filter(ugc_deletions::Column::Id.eq(post.ugc_id))
             .exec(db)
             .await
@@ -424,10 +443,22 @@ pub async fn remove_legal_hold_post(
 
     // Change to normal deletion (still deleted, but can now be restored)
     ugc_deletions::Entity::update_many()
-        .col_expr(ugc_deletions::Column::DeletionType, Expr::value(ugc_deletions::DeletionType::Normal))
-        .col_expr(ugc_deletions::Column::LegalHoldAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
-        .col_expr(ugc_deletions::Column::LegalHoldBy, Expr::value(Option::<i32>::None))
-        .col_expr(ugc_deletions::Column::LegalHoldReason, Expr::value(Option::<String>::None))
+        .col_expr(
+            ugc_deletions::Column::DeletionType,
+            Expr::value(ugc_deletions::DeletionType::Normal),
+        )
+        .col_expr(
+            ugc_deletions::Column::LegalHoldAt,
+            Expr::value(Option::<chrono::NaiveDateTime>::None),
+        )
+        .col_expr(
+            ugc_deletions::Column::LegalHoldBy,
+            Expr::value(Option::<i32>::None),
+        )
+        .col_expr(
+            ugc_deletions::Column::LegalHoldReason,
+            Expr::value(Option::<String>::None),
+        )
         .filter(ugc_deletions::Column::Id.eq(post.ugc_id))
         .exec(db)
         .await

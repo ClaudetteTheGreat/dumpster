@@ -28,14 +28,29 @@ async fn test_default_badges_exist() {
         .expect("Failed to fetch badges");
 
     // Should have the default badges from migration
-    assert!(active_badges.len() >= 10, "Should have at least 10 default badges");
+    assert!(
+        active_badges.len() >= 10,
+        "Should have at least 10 default badges"
+    );
 
     // Check for expected badges
     let slugs: Vec<String> = active_badges.iter().map(|b| b.slug.clone()).collect();
-    assert!(slugs.contains(&"newcomer".to_string()), "Should have 'newcomer' badge");
-    assert!(slugs.contains(&"first-post".to_string()), "Should have 'first-post' badge");
-    assert!(slugs.contains(&"prolific".to_string()), "Should have 'prolific' badge");
-    assert!(slugs.contains(&"veteran".to_string()), "Should have 'veteran' badge");
+    assert!(
+        slugs.contains(&"newcomer".to_string()),
+        "Should have 'newcomer' badge"
+    );
+    assert!(
+        slugs.contains(&"first-post".to_string()),
+        "Should have 'first-post' badge"
+    );
+    assert!(
+        slugs.contains(&"prolific".to_string()),
+        "Should have 'prolific' badge"
+    );
+    assert!(
+        slugs.contains(&"veteran".to_string()),
+        "Should have 'veteran' badge"
+    );
 }
 
 #[actix_rt::test]
@@ -53,18 +68,41 @@ async fn test_badge_condition_types() {
         .expect("Failed to fetch badges");
 
     // Verify different condition types exist
-    let condition_types: Vec<_> = all_badges.iter().map(|b| b.condition_type.clone()).collect();
+    let condition_types: Vec<_> = all_badges
+        .iter()
+        .map(|b| b.condition_type.clone())
+        .collect();
 
-    assert!(condition_types.iter().any(|t| t == &badges::BadgeConditionType::Manual),
-            "Should have manual badges");
-    assert!(condition_types.iter().any(|t| t == &badges::BadgeConditionType::PostCount),
-            "Should have post_count badges");
-    assert!(condition_types.iter().any(|t| t == &badges::BadgeConditionType::ThreadCount),
-            "Should have thread_count badges");
-    assert!(condition_types.iter().any(|t| t == &badges::BadgeConditionType::TimeMember),
-            "Should have time_member badges");
-    assert!(condition_types.iter().any(|t| t == &badges::BadgeConditionType::Reputation),
-            "Should have reputation badges");
+    assert!(
+        condition_types
+            .iter()
+            .any(|t| t == &badges::BadgeConditionType::Manual),
+        "Should have manual badges"
+    );
+    assert!(
+        condition_types
+            .iter()
+            .any(|t| t == &badges::BadgeConditionType::PostCount),
+        "Should have post_count badges"
+    );
+    assert!(
+        condition_types
+            .iter()
+            .any(|t| t == &badges::BadgeConditionType::ThreadCount),
+        "Should have thread_count badges"
+    );
+    assert!(
+        condition_types
+            .iter()
+            .any(|t| t == &badges::BadgeConditionType::TimeMember),
+        "Should have time_member badges"
+    );
+    assert!(
+        condition_types
+            .iter()
+            .any(|t| t == &badges::BadgeConditionType::Reputation),
+        "Should have reputation badges"
+    );
 }
 
 // ============================================================================
@@ -148,7 +186,10 @@ async fn test_cannot_award_duplicate_badge() {
         .await
         .expect("Failed to check duplicate award");
 
-    assert!(!second_award, "Second award should return false (already has badge)");
+    assert!(
+        !second_award,
+        "Second award should return false (already has badge)"
+    );
 
     // User should still only have one badge
     let badge_count = ruforo::badges::count_user_badges(&db, user.id)
@@ -190,7 +231,9 @@ async fn test_revoke_badge_from_user() {
         .expect("Failed to award badge");
 
     // Verify user has it
-    assert!(ruforo::badges::user_has_badge(&db, user.id, newcomer.id).await.unwrap());
+    assert!(ruforo::badges::user_has_badge(&db, user.id, newcomer.id)
+        .await
+        .unwrap());
 
     // Revoke the badge
     let revoked = ruforo::badges::revoke_badge(&db, user.id, newcomer.id)
@@ -292,9 +335,18 @@ async fn test_get_user_badges() {
 
     assert_eq!(user_badges.len(), 2, "User should have 2 badges");
 
-    let badge_slugs: Vec<&str> = user_badges.iter().map(|ub| ub.badge.slug.as_str()).collect();
-    assert!(badge_slugs.contains(&"newcomer"), "Should have newcomer badge");
-    assert!(badge_slugs.contains(&"first-post"), "Should have first-post badge");
+    let badge_slugs: Vec<&str> = user_badges
+        .iter()
+        .map(|ub| ub.badge.slug.as_str())
+        .collect();
+    assert!(
+        badge_slugs.contains(&"newcomer"),
+        "Should have newcomer badge"
+    );
+    assert!(
+        badge_slugs.contains(&"first-post"),
+        "Should have first-post badge"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -314,7 +366,10 @@ async fn test_get_badge_by_slug() {
     assert!(badge.is_some(), "Should find 'veteran' badge");
     let badge = badge.unwrap();
     assert_eq!(badge.name, "Veteran", "Badge name should be 'Veteran'");
-    assert_eq!(badge.condition_type, "time_member", "Should be time_member type");
+    assert_eq!(
+        badge.condition_type, "time_member",
+        "Should be time_member type"
+    );
 
     // Try non-existent badge
     let missing = ruforo::badges::get_badge_by_slug(&db, "nonexistent")
@@ -410,8 +465,11 @@ async fn test_badge_awarded_by_tracking() {
         .expect("Failed to get user badges");
 
     assert_eq!(user_badges.len(), 1, "Should have 1 badge");
-    assert_eq!(user_badges[0].awarded_by, Some(admin.id),
-               "Badge should show admin as awarder");
+    assert_eq!(
+        user_badges[0].awarded_by,
+        Some(admin.id),
+        "Badge should show admin as awarder"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -456,8 +514,14 @@ async fn test_badge_awarded_at_timestamp() {
     assert_eq!(user_badges.len(), 1, "Should have 1 badge");
 
     let awarded_at = user_badges[0].awarded_at;
-    assert!(awarded_at >= before_award, "Award time should be >= test start");
-    assert!(awarded_at <= after_award, "Award time should be <= test end");
+    assert!(
+        awarded_at >= before_award,
+        "Award time should be >= test start"
+    );
+    assert!(
+        awarded_at <= after_award,
+        "Award time should be <= test end"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }
@@ -507,8 +571,10 @@ async fn test_user_badges_sorted_by_display_order() {
     // Verify they're sorted correctly
     let mut prev_order = i32::MIN;
     for ub in &user_badges {
-        assert!(ub.badge.display_order >= prev_order,
-                "Badges should be sorted by display_order ascending");
+        assert!(
+            ub.badge.display_order >= prev_order,
+            "Badges should be sorted by display_order ascending"
+        );
         prev_order = ub.badge.display_order;
     }
 

@@ -229,9 +229,9 @@ pub async fn get_poll_for_thread(
     };
 
     // Check if poll is closed
-    let is_closed = poll.closes_at.is_some_and(|closes_at| {
-        closes_at < chrono::Utc::now().naive_utc()
-    });
+    let is_closed = poll
+        .closes_at
+        .is_some_and(|closes_at| closes_at < chrono::Utc::now().naive_utc());
 
     // Build options with percentages
     let options_for_template: Vec<PollOptionForTemplate> = options
@@ -362,10 +362,7 @@ pub async fn get_tags_for_threads(
 
     for tt in thread_tag_records {
         if let Some(tag) = tags_by_id.get(&tt.tag_id) {
-            result
-                .entry(tt.thread_id)
-                .or_default()
-                .push(tag.clone());
+            result.entry(tt.thread_id).or_default().push(tag.clone());
         }
     }
 
@@ -1287,8 +1284,14 @@ pub async fn delete_thread(
     Thread::update_many()
         .col_expr(threads::Column::DeletedAt, Expr::value(now))
         .col_expr(threads::Column::DeletedBy, Expr::value(client.get_id()))
-        .col_expr(threads::Column::DeletionType, Expr::value(deletion_type.clone()))
-        .col_expr(threads::Column::DeletionReason, Expr::value(form.reason.clone()))
+        .col_expr(
+            threads::Column::DeletionType,
+            Expr::value(deletion_type.clone()),
+        )
+        .col_expr(
+            threads::Column::DeletionReason,
+            Expr::value(form.reason.clone()),
+        )
         .filter(threads::Column::Id.eq(thread_id))
         .exec(db)
         .await
@@ -1311,7 +1314,10 @@ pub async fn delete_thread(
         // Clear content from all revisions
         if !post_ugc_ids.is_empty() {
             ugc_revisions::Entity::update_many()
-                .col_expr(ugc_revisions::Column::Content, Expr::value("[Content permanently removed]".to_string()))
+                .col_expr(
+                    ugc_revisions::Column::Content,
+                    Expr::value("[Content permanently removed]".to_string()),
+                )
                 .filter(ugc_revisions::Column::UgcId.is_in(post_ugc_ids))
                 .exec(db)
                 .await
@@ -1372,10 +1378,19 @@ pub async fn restore_thread(
 
     // Clear deletion fields
     Thread::update_many()
-        .col_expr(threads::Column::DeletedAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
+        .col_expr(
+            threads::Column::DeletedAt,
+            Expr::value(Option::<chrono::NaiveDateTime>::None),
+        )
         .col_expr(threads::Column::DeletedBy, Expr::value(Option::<i32>::None))
-        .col_expr(threads::Column::DeletionType, Expr::value(Option::<DeletionType>::None))
-        .col_expr(threads::Column::DeletionReason, Expr::value(Option::<String>::None))
+        .col_expr(
+            threads::Column::DeletionType,
+            Expr::value(Option::<DeletionType>::None),
+        )
+        .col_expr(
+            threads::Column::DeletionReason,
+            Expr::value(Option::<String>::None),
+        )
         .filter(threads::Column::Id.eq(thread_id))
         .exec(db)
         .await
@@ -1419,11 +1434,20 @@ pub async fn legal_hold_thread(
     Thread::update_many()
         .col_expr(threads::Column::DeletedAt, Expr::value(now))
         .col_expr(threads::Column::DeletedBy, Expr::value(client.get_id()))
-        .col_expr(threads::Column::DeletionType, Expr::value(DeletionType::LegalHold))
-        .col_expr(threads::Column::DeletionReason, Expr::value(Some("Legal hold".to_string())))
+        .col_expr(
+            threads::Column::DeletionType,
+            Expr::value(DeletionType::LegalHold),
+        )
+        .col_expr(
+            threads::Column::DeletionReason,
+            Expr::value(Some("Legal hold".to_string())),
+        )
         .col_expr(threads::Column::LegalHoldAt, Expr::value(now))
         .col_expr(threads::Column::LegalHoldBy, Expr::value(client.get_id()))
-        .col_expr(threads::Column::LegalHoldReason, Expr::value(form.reason.clone()))
+        .col_expr(
+            threads::Column::LegalHoldReason,
+            Expr::value(form.reason.clone()),
+        )
         .filter(threads::Column::Id.eq(thread_id))
         .exec(db)
         .await
@@ -1468,10 +1492,22 @@ pub async fn remove_legal_hold_thread(
 
     // Change to normal deletion (still deleted, but can now be restored)
     Thread::update_many()
-        .col_expr(threads::Column::DeletionType, Expr::value(DeletionType::Normal))
-        .col_expr(threads::Column::LegalHoldAt, Expr::value(Option::<chrono::NaiveDateTime>::None))
-        .col_expr(threads::Column::LegalHoldBy, Expr::value(Option::<i32>::None))
-        .col_expr(threads::Column::LegalHoldReason, Expr::value(Option::<String>::None))
+        .col_expr(
+            threads::Column::DeletionType,
+            Expr::value(DeletionType::Normal),
+        )
+        .col_expr(
+            threads::Column::LegalHoldAt,
+            Expr::value(Option::<chrono::NaiveDateTime>::None),
+        )
+        .col_expr(
+            threads::Column::LegalHoldBy,
+            Expr::value(Option::<i32>::None),
+        )
+        .col_expr(
+            threads::Column::LegalHoldReason,
+            Expr::value(Option::<String>::None),
+        )
         .filter(threads::Column::Id.eq(thread_id))
         .exec(db)
         .await
@@ -1599,7 +1635,10 @@ pub async fn merge_threads(
 
     // Update target thread's post count
     Thread::update_many()
-        .col_expr(threads::Column::PostCount, Expr::col(threads::Column::PostCount).add(source_thread.post_count))
+        .col_expr(
+            threads::Column::PostCount,
+            Expr::col(threads::Column::PostCount).add(source_thread.post_count),
+        )
         .filter(threads::Column::Id.eq(target_thread_id))
         .exec(db)
         .await
@@ -1635,8 +1674,14 @@ pub async fn merge_threads(
     Thread::update_many()
         .col_expr(threads::Column::MergedIntoId, Expr::value(target_thread_id))
         .col_expr(threads::Column::PostCount, Expr::value(0))
-        .col_expr(threads::Column::FirstPostId, Expr::value(Option::<i32>::None))
-        .col_expr(threads::Column::LastPostId, Expr::value(Option::<i32>::None))
+        .col_expr(
+            threads::Column::FirstPostId,
+            Expr::value(Option::<i32>::None),
+        )
+        .col_expr(
+            threads::Column::LastPostId,
+            Expr::value(Option::<i32>::None),
+        )
         .filter(threads::Column::Id.eq(source_thread_id))
         .exec(db)
         .await

@@ -334,7 +334,10 @@ async fn test_thread_deletion_fields() {
     thread_active.deletion_type = Set(Some(DeletionType::Normal));
     thread_active.deletion_reason = Set(Some("Test deletion".to_string()));
 
-    let updated = thread_active.update(&db).await.expect("Should update thread");
+    let updated = thread_active
+        .update(&db)
+        .await
+        .expect("Should update thread");
 
     assert!(updated.deleted_at.is_some());
     assert_eq!(updated.deleted_by, Some(user.id));

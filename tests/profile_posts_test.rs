@@ -45,7 +45,10 @@ async fn test_create_profile_post() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    let revision_model = revision.insert(&db).await.expect("Failed to create revision");
+    let revision_model = revision
+        .insert(&db)
+        .await
+        .expect("Failed to create revision");
 
     // Update UGC with revision
     use sea_orm::sea_query::Expr;
@@ -116,7 +119,10 @@ async fn test_fetch_profile_posts_ordered_by_date() {
             created_at: Set(Utc::now().naive_utc()),
             ..Default::default()
         };
-        let revision_model = revision.insert(&db).await.expect("Failed to create revision");
+        let revision_model = revision
+            .insert(&db)
+            .await
+            .expect("Failed to create revision");
 
         use sea_orm::sea_query::Expr;
         ugc::Entity::update_many()
@@ -193,7 +199,10 @@ async fn test_delete_profile_post() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    revision.insert(&db).await.expect("Failed to create revision");
+    revision
+        .insert(&db)
+        .await
+        .expect("Failed to create revision");
 
     let profile_post = profile_posts::ActiveModel {
         profile_user_id: Set(profile_owner.id),
@@ -262,7 +271,10 @@ async fn test_profile_post_author_set_null_on_user_delete() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    revision.insert(&db).await.expect("Failed to create revision");
+    revision
+        .insert(&db)
+        .await
+        .expect("Failed to create revision");
 
     let profile_post = profile_posts::ActiveModel {
         profile_user_id: Set(profile_owner.id),
@@ -352,7 +364,10 @@ async fn test_profile_posts_cascade_on_profile_owner_delete() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    revision.insert(&db).await.expect("Failed to create revision");
+    revision
+        .insert(&db)
+        .await
+        .expect("Failed to create revision");
 
     let profile_post = profile_posts::ActiveModel {
         profile_user_id: Set(profile_owner.id),
@@ -484,7 +499,10 @@ async fn test_profile_post_content_stored_in_ugc() {
         created_at: Set(Utc::now().naive_utc()),
         ..Default::default()
     };
-    let revision_model = revision.insert(&db).await.expect("Failed to create revision");
+    let revision_model = revision
+        .insert(&db)
+        .await
+        .expect("Failed to create revision");
 
     use sea_orm::sea_query::Expr;
     ugc::Entity::update_many()
@@ -570,7 +588,10 @@ async fn test_multiple_users_can_post_on_same_profile() {
             created_at: Set(Utc::now().naive_utc()),
             ..Default::default()
         };
-        revision.insert(&db).await.expect("Failed to create revision");
+        revision
+            .insert(&db)
+            .await
+            .expect("Failed to create revision");
 
         let profile_post = profile_posts::ActiveModel {
             profile_user_id: Set(profile_owner.id),

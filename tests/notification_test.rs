@@ -551,10 +551,8 @@ async fn test_quote_detection() {
 And here's my response."#;
 
     ruforo::notifications::dispatcher::detect_and_notify_quotes(
-        content,
-        1, // post_id
-        thread.id,
-        author.id,
+        content, 1, // post_id
+        thread.id, author.id,
     )
     .await
     .expect("Failed to detect quotes");
@@ -619,10 +617,8 @@ async fn test_quote_detection_multiple_quotes() {
 And my response."#;
 
     ruforo::notifications::dispatcher::detect_and_notify_quotes(
-        content,
-        1, // post_id
-        thread.id,
-        author.id,
+        content, 1, // post_id
+        thread.id, author.id,
     )
     .await
     .expect("Failed to detect quotes");
@@ -669,10 +665,8 @@ async fn test_quote_detection_no_self_notification() {
 Quoting myself."#;
 
     ruforo::notifications::dispatcher::detect_and_notify_quotes(
-        content,
-        1, // post_id
-        thread.id,
-        user.id,
+        content, 1, // post_id
+        thread.id, user.id,
     )
     .await
     .expect("Failed to detect quotes");
@@ -704,10 +698,9 @@ async fn test_quote_detection_duplicate_quotes_same_user() {
         .await
         .expect("Failed to create author");
 
-    let quoted_user =
-        create_test_user_with_email(&db, "dupquoted", "dupquoted@example.com", true)
-            .await
-            .expect("Failed to create quoted user");
+    let quoted_user = create_test_user_with_email(&db, "dupquoted", "dupquoted@example.com", true)
+        .await
+        .expect("Failed to create quoted user");
 
     // Create notification preferences
     create_notification_preferences(&db, quoted_user.id, "quote", true, false)
@@ -725,10 +718,8 @@ async fn test_quote_detection_duplicate_quotes_same_user() {
 My response."#;
 
     ruforo::notifications::dispatcher::detect_and_notify_quotes(
-        content,
-        1, // post_id
-        thread.id,
-        author.id,
+        content, 1, // post_id
+        thread.id, author.id,
     )
     .await
     .expect("Failed to detect quotes");
@@ -760,10 +751,9 @@ async fn test_quote_detection_case_insensitive() {
         .await
         .expect("Failed to create author");
 
-    let quoted_user =
-        create_test_user_with_email(&db, "caseuser", "caseuser@example.com", true)
-            .await
-            .expect("Failed to create quoted user");
+    let quoted_user = create_test_user_with_email(&db, "caseuser", "caseuser@example.com", true)
+        .await
+        .expect("Failed to create quoted user");
 
     // Create notification preferences
     create_notification_preferences(&db, quoted_user.id, "quote", true, false)
@@ -780,10 +770,8 @@ async fn test_quote_detection_case_insensitive() {
 My response."#;
 
     ruforo::notifications::dispatcher::detect_and_notify_quotes(
-        content,
-        1, // post_id
-        thread.id,
-        author.id,
+        content, 1, // post_id
+        thread.id, author.id,
     )
     .await
     .expect("Failed to detect quotes");

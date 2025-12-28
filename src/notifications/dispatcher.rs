@@ -4,7 +4,9 @@ use crate::db::get_db_pool;
 use crate::notifications::{create_notification, get_user_preferences, NotificationType};
 use crate::orm::{threads, ugc, ugc_revisions, user_names, users, watched_threads};
 use crate::user::Profile;
-use crate::web::notifications_ws::{get_notification_server, BroadcastNotification, NotificationData};
+use crate::web::notifications_ws::{
+    get_notification_server, BroadcastNotification, NotificationData,
+};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
@@ -203,10 +205,7 @@ pub async fn detect_and_notify_quotes(
     for username in quoted_usernames {
         // Find user by username (case-insensitive search)
         let user_name = user_names::Entity::find()
-            .filter(
-                sea_orm::Condition::all()
-                    .add(user_names::Column::Name.eq(username.clone())),
-            )
+            .filter(sea_orm::Condition::all().add(user_names::Column::Name.eq(username.clone())))
             .one(db)
             .await?;
 

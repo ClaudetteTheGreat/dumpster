@@ -23,7 +23,11 @@ pub struct Model {
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "badge_condition_type")]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "Enum",
+    enum_name = "badge_condition_type"
+)]
 pub enum BadgeConditionType {
     #[sea_orm(string_value = "manual")]
     Manual,

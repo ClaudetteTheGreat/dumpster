@@ -111,7 +111,10 @@ async fn test_thread_move_updates_forum_id() {
         .await
         .expect("Failed to create thread");
 
-    assert_eq!(thread.forum_id, source_forum.id, "Thread should start in source forum");
+    assert_eq!(
+        thread.forum_id, source_forum.id,
+        "Thread should start in source forum"
+    );
 
     // Move the thread by updating forum_id
     let mut active_thread: threads::ActiveModel = thread.clone().into();
@@ -239,7 +242,10 @@ async fn test_thread_merge_moves_posts() {
 
     // Move posts from source to target
     posts::Entity::update_many()
-        .col_expr(posts::Column::ThreadId, sea_orm::sea_query::Expr::value(target_thread.id))
+        .col_expr(
+            posts::Column::ThreadId,
+            sea_orm::sea_query::Expr::value(target_thread.id),
+        )
         .filter(posts::Column::ThreadId.eq(source_thread.id))
         .exec(&db)
         .await
@@ -305,7 +311,10 @@ async fn test_merged_thread_marked_as_merged() {
         Some(target_thread.id),
         "Source thread should reference target"
     );
-    assert_eq!(merged_thread.post_count, 0, "Merged thread should have 0 posts");
+    assert_eq!(
+        merged_thread.post_count, 0,
+        "Merged thread should have 0 posts"
+    );
 
     // Verify from database
     let fetched_thread = threads::Entity::find_by_id(source_thread.id)
@@ -498,7 +507,11 @@ async fn test_exclude_merged_threads_from_listing() {
         .await
         .expect("Failed to fetch threads");
 
-    assert_eq!(visible_threads.len(), 2, "Should only see 2 non-merged threads");
+    assert_eq!(
+        visible_threads.len(),
+        2,
+        "Should only see 2 non-merged threads"
+    );
 
     // Verify merged thread is excluded
     let thread_ids: Vec<i32> = visible_threads.iter().map(|t| t.id).collect();

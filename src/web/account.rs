@@ -207,7 +207,10 @@ async fn update_preferences(
     }
 
     // Get show_online preference (checkbox, so may not be present if unchecked)
-    let show_online = form.get("show_online").map(|v| v == "true").unwrap_or(false);
+    let show_online = form
+        .get("show_online")
+        .map(|v| v == "true")
+        .unwrap_or(false);
 
     // Update the user's preferences
     let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
@@ -390,12 +393,13 @@ async fn update_social_links(
     // Validate URL if provided
     if let Some(ref url_str) = url {
         if url_str.len() > 500 {
-            return Err(error::ErrorBadRequest(
-                "URL must be 500 characters or less",
-            ));
+            return Err(error::ErrorBadRequest("URL must be 500 characters or less"));
         }
         // Validate URL format for platforms that need custom URLs
-        if matches!(platform, SocialPlatform::Website | SocialPlatform::Discord | SocialPlatform::Other) {
+        if matches!(
+            platform,
+            SocialPlatform::Website | SocialPlatform::Discord | SocialPlatform::Other
+        ) {
             match url::Url::parse(url_str) {
                 Ok(parsed) => {
                     if parsed.scheme() != "http" && parsed.scheme() != "https" {
