@@ -95,6 +95,8 @@ TEST_DATABASE_URL="$TEST_DATABASE_URL" cargo test
 - Thread watching with email notifications
 - Real-time WebSocket chat
 - Dark mode and user preferences
+- Activity feeds (personal, global, per-user)
+- User following system
 
 ### Moderation
 - Thread lock/pin/move/merge operations
