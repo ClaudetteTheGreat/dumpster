@@ -70,12 +70,13 @@ pub struct NewThreadFormData {
     pub subtitle: Option<String>,
     pub content: String,
     pub csrf_token: String,
-    // Tags (comma-separated or multiple inputs)
+    // Tags (comma-separated string from form input)
     #[serde(default)]
-    pub tags: Vec<String>,
+    pub tags: String,
     // Poll fields (all optional - only create poll if question is provided)
     pub poll_question: Option<String>,
-    #[serde(default)]
+    // Poll options - can be a comma-separated string or multiple form inputs
+    #[serde(default, deserialize_with = "deserialize_string_or_vec")]
     pub poll_options: Vec<String>,
     #[serde(default = "default_max_choices")]
     pub poll_max_choices: i32,
@@ -86,8 +87,73 @@ pub struct NewThreadFormData {
     pub poll_closes_at: Option<String>,
 }
 
+/// Custom deserializer that handles both String and Vec<String> for form inputs
+fn deserialize_string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::{self, Visitor};
+    use std::fmt;
+
+    struct StringOrVec;
+
+    impl<'de> Visitor<'de> for StringOrVec {
+        type Value = Vec<String>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string or a sequence of strings")
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Vec<String>, E>
+        where
+            E: de::Error,
+        {
+            if value.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![value.to_string()])
+            }
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Vec<String>, E>
+        where
+            E: de::Error,
+        {
+            if value.is_empty() {
+                Ok(Vec::new())
+            } else {
+                Ok(vec![value])
+            }
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Vec<String>, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            let mut result = Vec::new();
+            while let Some(value) = seq.next_element::<String>()? {
+                if !value.is_empty() {
+                    result.push(value);
+                }
+            }
+            Ok(result)
+        }
+    }
+
+    deserializer.deserialize_any(StringOrVec)
+}
+
 fn default_max_choices() -> i32 {
     1
+}
+
+/// Validated thread form data ready for processing
+#[derive(Debug, Clone)]
+pub struct ValidatedThreadForm {
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub content: String,
+    pub tags: Vec<String>,
 }
 
 /// Validated poll data ready for insertion
@@ -1004,7 +1070,7 @@ pub async fn view_thread_page(
 
 pub fn validate_thread_form(
     form: web::Form<NewThreadFormData>,
-) -> Result<(NewThreadFormData, Option<ValidatedPoll>), Error> {
+) -> Result<(ValidatedThreadForm, Option<ValidatedPoll>), Error> {
     let title = form.title.trim().to_owned();
     let subtitle = form.subtitle.to_owned().filter(|x| !x.is_empty());
 
@@ -1024,11 +1090,10 @@ pub fn validate_thread_form(
         )));
     }
 
-    // Validate and normalize tags
+    // Validate and normalize tags (from comma-separated string)
     let tags: Vec<String> = form
         .tags
-        .iter()
-        .flat_map(|t| t.split(','))
+        .split(',')
         .map(|t| t.trim().to_lowercase())
         .filter(|t| !t.is_empty() && t.len() <= 50)
         .collect::<std::collections::HashSet<_>>()
@@ -1110,18 +1175,11 @@ pub fn validate_thread_form(
     };
 
     Ok((
-        NewThreadFormData {
+        ValidatedThreadForm {
             title,
             subtitle,
             content: form.content.to_owned(),
-            csrf_token: form.csrf_token.to_owned(),
             tags,
-            poll_question: form.poll_question.clone(),
-            poll_options: form.poll_options.clone(),
-            poll_max_choices: form.poll_max_choices,
-            poll_allow_change_vote: form.poll_allow_change_vote,
-            poll_show_results_before_vote: form.poll_show_results_before_vote,
-            poll_closes_at: form.poll_closes_at.clone(),
         },
         validated_poll,
     ))
