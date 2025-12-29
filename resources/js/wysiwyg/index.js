@@ -27,7 +27,7 @@ export class WysiwygEditor {
   constructor(textarea, options = {}) {
     this.textarea = textarea;
     this.options = {
-      mode: 'raw', // Start in raw mode, switch to rich after first toggle
+      mode: 'rich', // Start in rich mode by default
       onModeChange: null,
       onContentChange: null,
       ...options

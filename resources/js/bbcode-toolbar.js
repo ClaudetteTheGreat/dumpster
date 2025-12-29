@@ -19,9 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!textarea || !toolbar) return;
 
-        // Initialize WYSIWYG editor instance (starts in raw mode)
+        // Initialize WYSIWYG editor instance (starts in rich mode by default)
         const wysiwygEditor = new WysiwygEditor(textarea, {
-            mode: 'raw',
+            mode: 'rich',
             onModeChange: (mode) => updateModeButton(toolbar, mode),
             onContentChange: () => {
                 // Trigger input event for character counter
