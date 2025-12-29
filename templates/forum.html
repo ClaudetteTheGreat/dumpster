@@ -179,9 +179,10 @@
         <summary>Add Poll (optional)</summary>
         <div class="poll-form">
             <input type="text" name="poll_question" placeholder="Poll question" maxlength="500" />
+            <input type="hidden" name="poll_options" id="poll-options-hidden" value="" />
             <div class="poll-options-container" id="poll-options">
-                <input type="text" name="poll_options" placeholder="Option 1" maxlength="200" />
-                <input type="text" name="poll_options" placeholder="Option 2" maxlength="200" />
+                <input type="text" class="poll-option-input" placeholder="Option 1" maxlength="200" />
+                <input type="text" class="poll-option-input" placeholder="Option 2" maxlength="200" />
             </div>
             <button type="button" class="add-poll-option" onclick="addPollOption()">+ Add Option</button>
             <div class="poll-settings">
@@ -210,18 +211,26 @@
 <script>
 function addPollOption() {
     const container = document.getElementById('poll-options');
-    const count = container.querySelectorAll('input').length;
+    const count = container.querySelectorAll('.poll-option-input').length;
     if (count >= 20) {
         alert('Maximum 20 options allowed');
         return;
     }
     const input = document.createElement('input');
     input.type = 'text';
-    input.name = 'poll_options';
+    input.className = 'poll-option-input';
     input.placeholder = 'Option ' + (count + 1);
     input.maxLength = 200;
     container.appendChild(input);
 }
+
+// Combine poll options into hidden field before form submission
+document.querySelector('form[action*="post-thread"]').addEventListener('submit', function(e) {
+    const options = Array.from(document.querySelectorAll('.poll-option-input'))
+        .map(input => input.value.trim())
+        .filter(val => val.length > 0);
+    document.getElementById('poll-options-hidden').value = options.join('|||');
+});
 </script>
 {% endif %}
 

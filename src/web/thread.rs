@@ -64,6 +64,8 @@ pub struct ThreadForTemplate {
     pub username: Option<String>,
 }
 
+/// Form data for new thread - uses String types for form compatibility
+/// Empty strings are handled during validation
 #[derive(Deserialize)]
 pub struct NewThreadFormData {
     pub title: String,
@@ -75,9 +77,9 @@ pub struct NewThreadFormData {
     pub tags: String,
     // Poll fields (all optional - only create poll if question is provided)
     pub poll_question: Option<String>,
-    // Poll options - can be a comma-separated string or multiple form inputs
-    #[serde(default, deserialize_with = "deserialize_string_or_vec")]
-    pub poll_options: Vec<String>,
+    // Poll options - delimited string (|||) from hidden form field
+    #[serde(default)]
+    pub poll_options: String,
     #[serde(default = "default_max_choices")]
     pub poll_max_choices: i32,
     #[serde(default)]
@@ -85,62 +87,6 @@ pub struct NewThreadFormData {
     #[serde(default)]
     pub poll_show_results_before_vote: bool,
     pub poll_closes_at: Option<String>,
-}
-
-/// Custom deserializer that handles both String and Vec<String> for form inputs
-fn deserialize_string_or_vec<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::de::{self, Visitor};
-    use std::fmt;
-
-    struct StringOrVec;
-
-    impl<'de> Visitor<'de> for StringOrVec {
-        type Value = Vec<String>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a string or a sequence of strings")
-        }
-
-        fn visit_str<E>(self, value: &str) -> Result<Vec<String>, E>
-        where
-            E: de::Error,
-        {
-            if value.is_empty() {
-                Ok(Vec::new())
-            } else {
-                Ok(vec![value.to_string()])
-            }
-        }
-
-        fn visit_string<E>(self, value: String) -> Result<Vec<String>, E>
-        where
-            E: de::Error,
-        {
-            if value.is_empty() {
-                Ok(Vec::new())
-            } else {
-                Ok(vec![value])
-            }
-        }
-
-        fn visit_seq<A>(self, mut seq: A) -> Result<Vec<String>, A::Error>
-        where
-            A: de::SeqAccess<'de>,
-        {
-            let mut result = Vec::new();
-            while let Some(value) = seq.next_element::<String>()? {
-                if !value.is_empty() {
-                    result.push(value);
-                }
-            }
-            Ok(result)
-        }
-    }
-
-    deserializer.deserialize_any(StringOrVec)
 }
 
 fn default_max_choices() -> i32 {
@@ -1112,10 +1058,10 @@ pub fn validate_thread_form(
                 ));
             }
 
-            // Filter out empty options and validate
+            // Parse poll options from delimited string (||| separator)
             let options: Vec<String> = form
                 .poll_options
-                .iter()
+                .split("|||")
                 .map(|o| o.trim().to_owned())
                 .filter(|o| !o.is_empty())
                 .collect();
