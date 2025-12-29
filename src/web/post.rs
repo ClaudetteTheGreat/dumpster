@@ -631,7 +631,8 @@ pub async fn get_post_and_author_for_template(
             .column_as(ugc_deletions::Column::UserId, "deleted_by")
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
             .column_as(ugc_deletions::Column::Reason, "deleted_reason")
-            .column_as(ugc_deletions::Column::DeletionType, "deletion_type"),
+            // Cast enum to text for String field
+            .column_as(Expr::cust("ugc_deletions.deletion_type::TEXT"), "deletion_type"),
         posts::Column::UserId,
     )
     .into_model::<PostForTemplate, UserProfile>()
@@ -656,7 +657,8 @@ pub async fn get_replies_and_author_for_template(
             .column_as(ugc_deletions::Column::UserId, "deleted_by")
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
             .column_as(ugc_deletions::Column::Reason, "deleted_reason")
-            .column_as(ugc_deletions::Column::DeletionType, "deletion_type"),
+            // Cast enum to text for String field
+            .column_as(Expr::cust("ugc_deletions.deletion_type::TEXT"), "deletion_type"),
         posts::Column::UserId,
     )
     .filter(posts::Column::ThreadId.eq(id))
