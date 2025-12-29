@@ -1,11 +1,17 @@
 import { MicroModal } from 'micromodal';
 
 document.addEventListener("DOMContentLoaded", function () {
+    let scrollEl = document.getElementById('chat-scroller');
+
+    // Only run chat code if we're on the chat page
+    if (!scrollEl) {
+        return;
+    }
+
     let ws = null;
     let room = null;
     let messageHoverEl = null;
     let userHover = null;
-    let scrollEl = document.getElementById('chat-scroller');
     let lastScrollPos = 0;
     let userActivityData = {};
 
