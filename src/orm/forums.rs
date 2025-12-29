@@ -17,6 +17,14 @@ pub struct Model {
     pub rules: Option<String>,
     pub parent_id: Option<i32>,
     pub display_order: i32,
+    /// Default icon/emoji for the forum
+    pub icon: String,
+    /// Icon shown when forum has unread content
+    pub icon_new: String,
+    /// Custom image/SVG for default forum icon
+    pub icon_attachment_id: Option<i32>,
+    /// Custom image/SVG for forum icon when new content exists
+    pub icon_new_attachment_id: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -45,6 +53,22 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Parent,
+    #[sea_orm(
+        belongs_to = "super::attachments::Entity",
+        from = "Column::IconAttachmentId",
+        to = "super::attachments::Column::Id",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    IconAttachment,
+    #[sea_orm(
+        belongs_to = "super::attachments::Entity",
+        from = "Column::IconNewAttachmentId",
+        to = "super::attachments::Column::Id",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    IconNewAttachment,
 }
 
 impl Related<super::posts::Entity> for Entity {

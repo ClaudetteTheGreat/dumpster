@@ -90,6 +90,10 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_award_badge_form)
         .service(award_badge_to_user)
         .service(revoke_badge_from_user)
+        // Forum management
+        .service(view_forums_admin)
+        .service(view_edit_forum)
+        .service(update_forum)
         // Forum permissions management
         .service(view_forum_permissions)
         .service(save_forum_permissions);
@@ -4790,6 +4794,394 @@ async fn revoke_badge_from_user(
 
     Ok(HttpResponse::SeeOther()
         .insert_header(("Location", format!("/admin/badges/{}/award", badge_id)))
+        .finish())
+}
+
+// ============================================================================
+// Forum Management
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/forums.html")]
+struct ForumsAdminTemplate {
+    client: ClientCtx,
+    forums: Vec<forums::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/forum_form.html")]
+struct ForumFormTemplate {
+    client: ClientCtx,
+    forum: forums::Model,
+    all_forums: Vec<forums::Model>,
+    selected_parent_id: i32,
+    icon_attachment: Option<attachments::Model>,
+    icon_new_attachment: Option<attachments::Model>,
+    error: Option<String>,
+}
+
+/// GET /admin/forums - List all forums
+#[get("/admin/forums")]
+async fn view_forums_admin(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let forums_list = forums::Entity::find()
+        .order_by_asc(forums::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(ForumsAdminTemplate {
+        client,
+        forums: forums_list,
+    }
+    .to_response())
+}
+
+/// GET /admin/forums/{id}/edit - Show form to edit forum
+#[get("/admin/forums/{id}/edit")]
+async fn view_edit_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    let forum = forums::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    let all_forums = forums::Entity::find()
+        .order_by_asc(forums::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Load attachments for icon images
+    let icon_attachment = if let Some(att_id) = forum.icon_attachment_id {
+        attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+    } else {
+        None
+    };
+
+    let icon_new_attachment = if let Some(att_id) = forum.icon_new_attachment_id {
+        attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+    } else {
+        None
+    };
+
+    let selected_parent_id = forum.parent_id.unwrap_or(0);
+    Ok(ForumFormTemplate {
+        client,
+        forum,
+        all_forums,
+        selected_parent_id,
+        icon_attachment,
+        icon_new_attachment,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/forums/{id} - Update a forum
+#[post("/admin/forums/{id}")]
+async fn update_forum(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    mut multipart: actix_multipart::Multipart,
+) -> Result<impl Responder, Error> {
+    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use futures::{StreamExt, TryStreamExt};
+
+    client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    // Fetch existing forum
+    let existing = forums::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Store selected_parent_id before any moves
+    let selected_parent_id = existing.parent_id.unwrap_or(0);
+
+    // Parse multipart form
+    let mut csrf_token: Option<String> = None;
+    let mut label: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut icon = existing.icon.clone();
+    let mut icon_new = existing.icon_new.clone();
+    let mut display_order: i32 = existing.display_order;
+    let mut parent_id: Option<i32> = existing.parent_id;
+    let mut new_icon_attachment_id: Option<i32> = None;
+    let mut new_icon_new_attachment_id: Option<i32> = None;
+    let mut remove_icon_image = false;
+    let mut remove_icon_new_image = false;
+
+    // Helper to load attachments for error display
+    async fn load_attachments(forum: &forums::Model, db: &DatabaseConnection) -> (Option<attachments::Model>, Option<attachments::Model>) {
+        let icon_att = if let Some(att_id) = forum.icon_attachment_id {
+            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+        } else {
+            None
+        };
+        let icon_new_att = if let Some(att_id) = forum.icon_new_attachment_id {
+            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+        } else {
+            None
+        };
+        (icon_att, icon_new_att)
+    }
+
+    while let Ok(Some(mut field)) = multipart.try_next().await {
+        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+
+        match field_name.as_str() {
+            "csrf_token" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "label" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                label = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "description" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                let desc = String::from_utf8_lossy(&buf).to_string();
+                description = if desc.trim().is_empty() { None } else { Some(desc) };
+            }
+            "icon" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                let val = String::from_utf8_lossy(&buf).to_string();
+                if !val.trim().is_empty() {
+                    icon = val.trim().to_string();
+                }
+            }
+            "icon_new" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                let val = String::from_utf8_lossy(&buf).to_string();
+                if !val.trim().is_empty() {
+                    icon_new = val.trim().to_string();
+                }
+            }
+            "display_order" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.display_order);
+            }
+            "parent_id" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                let val = String::from_utf8_lossy(&buf).to_string();
+                parent_id = val.trim().parse().ok().filter(|&pid: &i32| pid != 0 && pid != id);
+            }
+            "remove_icon_image" => {
+                remove_icon_image = true;
+            }
+            "remove_icon_new_image" => {
+                remove_icon_new_image = true;
+            }
+            "icon_image" => {
+                if let Some(payload) = save_field_as_temp_file(&mut field).await? {
+                    // Check if it's an image or SVG
+                    if !payload.is_image_or_svg() {
+                        let all_forums = forums::Entity::find()
+                            .order_by_asc(forums::Column::DisplayOrder)
+                            .all(db)
+                            .await
+                            .map_err(error::ErrorInternalServerError)?;
+                        let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                        return Ok(ForumFormTemplate {
+                            client,
+                            forum: existing,
+                            all_forums,
+                            selected_parent_id,
+                            icon_attachment: icon_att,
+                            icon_new_attachment: icon_new_att,
+                            error: Some("Only image files (PNG, GIF, WebP, SVG) are allowed".to_string()),
+                        }
+                        .to_response());
+                    }
+
+                    let response = match deduplicate_payload(&payload).await {
+                        Some(response) => response,
+                        None => match insert_payload_as_attachment(payload, None).await? {
+                            Some(response) => response,
+                            None => {
+                                let all_forums = forums::Entity::find()
+                                    .order_by_asc(forums::Column::DisplayOrder)
+                                    .all(db)
+                                    .await
+                                    .map_err(error::ErrorInternalServerError)?;
+                                let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                                return Ok(ForumFormTemplate {
+                                    client,
+                                    forum: existing,
+                                    all_forums,
+                                    selected_parent_id,
+                                    icon_attachment: icon_att,
+                                    icon_new_attachment: icon_new_att,
+                                    error: Some("Failed to process icon image".to_string()),
+                                }
+                                .to_response());
+                            }
+                        },
+                    };
+                    new_icon_attachment_id = Some(response.id);
+                }
+            }
+            "icon_new_image" => {
+                if let Some(payload) = save_field_as_temp_file(&mut field).await? {
+                    // Check if it's an image or SVG
+                    if !payload.is_image_or_svg() {
+                        let all_forums = forums::Entity::find()
+                            .order_by_asc(forums::Column::DisplayOrder)
+                            .all(db)
+                            .await
+                            .map_err(error::ErrorInternalServerError)?;
+                        let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                        return Ok(ForumFormTemplate {
+                            client,
+                            forum: existing,
+                            all_forums,
+                            selected_parent_id,
+                            icon_attachment: icon_att,
+                            icon_new_attachment: icon_new_att,
+                            error: Some("Only image files (PNG, GIF, WebP, SVG) are allowed".to_string()),
+                        }
+                        .to_response());
+                    }
+
+                    let response = match deduplicate_payload(&payload).await {
+                        Some(response) => response,
+                        None => match insert_payload_as_attachment(payload, None).await? {
+                            Some(response) => response,
+                            None => {
+                                let all_forums = forums::Entity::find()
+                                    .order_by_asc(forums::Column::DisplayOrder)
+                                    .all(db)
+                                    .await
+                                    .map_err(error::ErrorInternalServerError)?;
+                                let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                                return Ok(ForumFormTemplate {
+                                    client,
+                                    forum: existing,
+                                    all_forums,
+                                    selected_parent_id,
+                                    icon_attachment: icon_att,
+                                    icon_new_attachment: icon_new_att,
+                                    error: Some("Failed to process new content icon image".to_string()),
+                                }
+                                .to_response());
+                            }
+                        },
+                    };
+                    new_icon_new_attachment_id = Some(response.id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Validate CSRF
+    let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
+
+    // Validate input
+    let label = label.unwrap_or_default();
+    if label.trim().is_empty() {
+        let all_forums = forums::Entity::find()
+            .order_by_asc(forums::Column::DisplayOrder)
+            .all(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+        let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+        return Ok(ForumFormTemplate {
+            client,
+            forum: existing,
+            all_forums,
+            selected_parent_id,
+            icon_attachment: icon_att,
+            icon_new_attachment: icon_new_att,
+            error: Some("Forum name is required".to_string()),
+        }
+        .to_response());
+    }
+
+    // Determine final attachment IDs
+    let final_icon_attachment_id = if remove_icon_image {
+        None
+    } else if new_icon_attachment_id.is_some() {
+        new_icon_attachment_id
+    } else {
+        existing.icon_attachment_id
+    };
+
+    let final_icon_new_attachment_id = if remove_icon_new_image {
+        None
+    } else if new_icon_new_attachment_id.is_some() {
+        new_icon_new_attachment_id
+    } else {
+        existing.icon_new_attachment_id
+    };
+
+    // Update forum
+    let mut updated: forums::ActiveModel = existing.into();
+    updated.label = Set(label.trim().to_string());
+    updated.description = Set(description);
+    updated.icon = Set(if icon.trim().is_empty() { "📁".to_string() } else { icon });
+    updated.icon_new = Set(if icon_new.trim().is_empty() { "📂".to_string() } else { icon_new });
+    updated.display_order = Set(display_order);
+    updated.parent_id = Set(parent_id);
+    updated.icon_attachment_id = Set(final_icon_attachment_id);
+    updated.icon_new_attachment_id = Set(final_icon_new_attachment_id);
+
+    updated.update(db).await.map_err(|e| {
+        log::error!("Failed to update forum: {}", e);
+        error::ErrorInternalServerError("Failed to update forum")
+    })?;
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/forums"))
         .finish())
 }
 

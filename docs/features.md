@@ -16,6 +16,12 @@ This document covers the user-facing features and interface elements.
 - **Forum Statistics** - Thread and post counts displayed on forum index
 - **Forum Rules Display** - Optional forum-specific rules displayed at the top of each forum in a highlighted box
 - **Forum Moderators** - Display moderators assigned to each forum with profile links
+- **Custom Forum Icons** - Customize forum folder icons
+  - Emoji/text icons for default (no new posts) and new content states
+  - Upload custom PNG, GIF, WebP, or SVG images for icons
+  - Images take priority over emoji fallback
+  - Separate images for unread vs read forum states
+  - Managed via admin panel at `/admin/forums`
 - **Sub-Forums** - Hierarchical forum structure with parent/child relationships
   - Forums can be nested under parent forums
   - Sub-forums displayed with visual indentation in forum index

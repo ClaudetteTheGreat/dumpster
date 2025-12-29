@@ -145,12 +145,22 @@ pub async fn get_sub_forums(parent_forum_id: i32) -> Result<Vec<ForumWithStats>,
             COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
             f.parent_id,
             f.display_order,
-            MAX(p.created_at) as last_post_at
+            MAX(p.created_at) as last_post_at,
+            f.icon,
+            f.icon_new,
+            f.icon_attachment_id,
+            f.icon_new_attachment_id,
+            a1.hash as icon_hash,
+            a1.filename as icon_filename,
+            a2.hash as icon_new_hash,
+            a2.filename as icon_new_filename
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
+        LEFT JOIN attachments a1 ON a1.id = f.icon_attachment_id
+        LEFT JOIN attachments a2 ON a2.id = f.icon_new_attachment_id
         WHERE f.parent_id = $1
-        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order, f.icon, f.icon_new, f.icon_attachment_id, f.icon_new_attachment_id, a1.hash, a1.filename, a2.hash, a2.filename
         ORDER BY f.display_order, f.id
     "#;
 
@@ -175,6 +185,15 @@ pub struct ForumWithStats {
     pub parent_id: Option<i32>,
     pub display_order: i32,
     pub last_post_at: Option<chrono::NaiveDateTime>,
+    pub icon: String,
+    pub icon_new: String,
+    pub icon_attachment_id: Option<i32>,
+    pub icon_new_attachment_id: Option<i32>,
+    // Attachment info for icon images
+    pub icon_hash: Option<String>,
+    pub icon_filename: Option<String>,
+    pub icon_new_hash: Option<String>,
+    pub icon_new_filename: Option<String>,
 }
 
 /// Forum with its sub-forums for hierarchical display
@@ -648,11 +667,21 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
             COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
             f.parent_id,
             f.display_order,
-            MAX(p.created_at) as last_post_at
+            MAX(p.created_at) as last_post_at,
+            f.icon,
+            f.icon_new,
+            f.icon_attachment_id,
+            f.icon_new_attachment_id,
+            a1.hash as icon_hash,
+            a1.filename as icon_filename,
+            a2.hash as icon_new_hash,
+            a2.filename as icon_new_filename
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
-        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order
+        LEFT JOIN attachments a1 ON a1.id = f.icon_attachment_id
+        LEFT JOIN attachments a2 ON a2.id = f.icon_new_attachment_id
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order, f.icon, f.icon_new, f.icon_attachment_id, f.icon_new_attachment_id, a1.hash, a1.filename, a2.hash, a2.filename
         ORDER BY f.display_order, f.id
     "#;
 

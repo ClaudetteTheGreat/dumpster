@@ -27,6 +27,9 @@ The "Admin" link appears in the top navigation for users with any of these permi
 | Users | `admin.user.manage` |
 | Approval Queue | `moderate.approval.view` |
 | Groups | `admin.permissions.manage` |
+| Forums | `admin.settings` |
+| Reaction Types | `admin.settings` |
+| Badges | `admin.settings` |
 | Forum Permissions | `admin.permissions.manage` (via forum page) |
 
 ### Dashboard Sections (Permission-Gated)
@@ -198,18 +201,38 @@ Admin-configurable content filters for automatic moderation:
 - **Integration** - Applied to thread creation (title and content) and post replies
 - **Efficient Caching** - Compiled regex patterns cached in memory
 
+## Forum Management
+
+Manage forum settings and appearance:
+
+- **Admin Panel** - Manage forums at `/admin/forums`
+- **Editable Properties:**
+  - **Name** - Display name for the forum
+  - **Description** - Brief description shown below forum name
+  - **Display Order** - Control forum ordering (lower numbers first)
+  - **Parent Forum** - Nest forums under parent forums for hierarchy
+- **Custom Icons:**
+  - **Default Icon** - Emoji/text shown when forum has no new content
+  - **New Content Icon** - Emoji/text shown when forum has unread content
+  - **Custom Images** - Upload PNG, GIF, WebP, or SVG images for icons (32x32 or 48x48 recommended)
+  - Images take priority over emoji when both are set
+  - Separate images for default and new content states
+  - File deduplication via BLAKE3 hashing
+- **Access** - Link in admin dashboard under "Forums" (requires `admin.settings` permission)
+
 ## Reaction Type Management
 
 Manage reaction types and their reputation values:
 
 - **Admin Panel** - Manage reaction types at `/admin/reaction-types`
 - **CRUD Operations:**
-  - Create new reaction types with custom emoji
+  - Create new reaction types with custom emoji or images
   - Edit existing reaction type properties
   - Enable/disable reaction types without deletion
 - **Configurable Properties:**
   - **Name** - Display name for the reaction
-  - **Emoji** - Unicode emoji or icon
+  - **Emoji** - Unicode emoji or icon (fallback)
+  - **Custom Image** - Upload PNG, GIF, or WebP image (takes priority over emoji)
   - **Display Order** - Control picker ordering
   - **Reputation Value** - Points given to post author (+/- values)
   - **Positive Flag** - Whether reaction is considered positive

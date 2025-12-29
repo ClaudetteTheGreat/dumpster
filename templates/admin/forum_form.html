@@ -1,0 +1,431 @@
+{% extends "container/public.html" %}
+
+{% block title %}Edit Forum - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Edit Forum: {{ forum.label }}</h1>
+        <p class="panel-subtitle">Customize forum appearance and settings</p>
+    </div>
+
+    {% if let Some(err) = error %}
+    <div class="alert alert-danger">{{ err }}</div>
+    {% endif %}
+
+    <form action="/admin/forums/{{ forum.id }}" method="post" enctype="multipart/form-data" class="forum-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <div class="form-section">
+            <h3>Forum Information</h3>
+
+            <div class="form-group">
+                <label for="label">Name</label>
+                <input type="text" id="label" name="label" value="{{ forum.label }}" required />
+                <small class="form-help">The display name for this forum.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="3">{% if let Some(desc) = forum.description.as_ref() %}{{ desc }}{% endif %}</textarea>
+                <small class="form-help">A brief description shown below the forum name.</small>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Forum Icons</h3>
+            <p class="form-help">Customize the icons displayed for this forum. You can use emoji/text or upload custom images. Images take priority over emoji.</p>
+
+            <div class="form-row">
+                <div class="form-group form-group--half">
+                    <label for="icon">Default Icon (Emoji/Text)</label>
+                    <input type="text" id="icon" name="icon" value="{{ forum.icon }}" maxlength="32" />
+                    <small class="form-help">Fallback when no image is set.</small>
+                </div>
+
+                <div class="form-group form-group--half">
+                    <label for="icon_new">New Content Icon (Emoji/Text)</label>
+                    <input type="text" id="icon_new" name="icon_new" value="{{ forum.icon_new }}" maxlength="32" />
+                    <small class="form-help">Fallback when no image is set.</small>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group form-group--half">
+                    <label for="icon_image">Default Icon Image</label>
+                    {% if let Some(att) = icon_attachment %}
+                    <div class="current-image">
+                        <img src="/content/{{ att.hash[0..64] }}/{{ att.filename }}" alt="Current icon" class="icon-preview-img" />
+                        <span class="current-image-label">Current image</span>
+                    </div>
+                    {% endif %}
+                    <input type="file" id="icon_image" name="icon_image" accept="image/*,.svg" />
+                    <small class="form-help">Upload PNG, GIF, WebP, or SVG (recommended: 32x32 or 48x48).</small>
+                    {% if forum.icon_attachment_id.is_some() %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="remove_icon_image" />
+                        Remove current image
+                    </label>
+                    {% endif %}
+                </div>
+
+                <div class="form-group form-group--half">
+                    <label for="icon_new_image">New Content Icon Image</label>
+                    {% if let Some(att) = icon_new_attachment %}
+                    <div class="current-image">
+                        <img src="/content/{{ att.hash[0..64] }}/{{ att.filename }}" alt="Current new icon" class="icon-preview-img" />
+                        <span class="current-image-label">Current image</span>
+                    </div>
+                    {% endif %}
+                    <input type="file" id="icon_new_image" name="icon_new_image" accept="image/*,.svg" />
+                    <small class="form-help">Upload PNG, GIF, WebP, or SVG (recommended: 32x32 or 48x48).</small>
+                    {% if forum.icon_new_attachment_id.is_some() %}
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="remove_icon_new_image" />
+                        Remove current image
+                    </label>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="icon-preview">
+                <span class="preview-label">Preview:</span>
+                {% if let Some(att) = icon_attachment %}
+                <img src="/content/{{ att.hash[0..64] }}/{{ att.filename }}" alt="Default" class="preview-icon-img" />
+                {% else %}
+                <span class="preview-icon" id="preview-default">{{ forum.icon }}</span>
+                {% endif %}
+                <span class="preview-text">Default</span>
+                {% if let Some(att) = icon_new_attachment %}
+                <img src="/content/{{ att.hash[0..64] }}/{{ att.filename }}" alt="New" class="preview-icon-img" />
+                {% else %}
+                <span class="preview-icon" id="preview-new">{{ forum.icon_new }}</span>
+                {% endif %}
+                <span class="preview-text">New</span>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h3>Organization</h3>
+
+            <div class="form-row">
+                <div class="form-group form-group--half">
+                    <label for="display_order">Display Order</label>
+                    <input type="number" id="display_order" name="display_order" value="{{ forum.display_order }}" />
+                    <small class="form-help">Lower numbers appear first.</small>
+                </div>
+
+                <div class="form-group form-group--half">
+                    <label for="parent_id">Parent Forum</label>
+                    <select id="parent_id" name="parent_id">
+                        <option value="">— None (Top Level) —</option>
+                        {% for f in all_forums %}
+                            {% if f.id != forum.id %}
+                            <option value="{{ f.id }}" {% if f.id == selected_parent_id %}selected{% endif %}>{{ f.label }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <small class="form-help">Make this a sub-forum of another forum.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="/admin/forums" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const iconInput = document.getElementById('icon');
+    const iconNewInput = document.getElementById('icon_new');
+    const previewDefault = document.getElementById('preview-default');
+    const previewNew = document.getElementById('preview-new');
+
+    iconInput.addEventListener('input', function() {
+        previewDefault.textContent = this.value || '📁';
+    });
+
+    iconNewInput.addEventListener('input', function() {
+        previewNew.textContent = this.value || '📂';
+    });
+});
+</script>
+
+<style>
+.admin-panel {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.forum-form {
+    background: #fff;
+    padding: 25px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.form-section {
+    margin: 25px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.form-section:first-child {
+    margin-top: 0;
+}
+
+.form-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 1em;
+    color: #333;
+}
+
+.form-row {
+    display: flex;
+    gap: 20px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+.form-group--half {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-help {
+    display: block;
+    margin-top: 5px;
+    color: #666;
+    font-size: 0.85em;
+}
+
+.icon-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: #fff;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.preview-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.preview-icon {
+    font-size: 1.5em;
+}
+
+.preview-icon-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.icon-preview-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #fff;
+    padding: 4px;
+    border: 1px solid #ddd;
+}
+
+.current-image {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+.current-image-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: normal;
+    margin-top: 8px;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+}
+
+html.dark .current-image {
+    background: #3a3a3a;
+}
+
+html.dark .icon-preview-img {
+    background: #2a2a2a;
+    border-color: #555;
+}
+
+html.dark .current-image-label {
+    color: #aaa;
+}
+
+.preview-text {
+    color: #999;
+    font-size: 0.85em;
+    margin-right: 15px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .form-section h3 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .form-help {
+    color: #aaa;
+}
+
+html.dark .forum-form {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-section {
+    background: #333;
+}
+
+html.dark .form-group label {
+    color: #fff;
+}
+
+html.dark .form-group input,
+html.dark .form-group textarea,
+html.dark .form-group select {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .icon-preview {
+    background: #3a3a3a;
+    border-color: #555;
+}
+
+html.dark .preview-label {
+    color: #aaa;
+}
+
+html.dark .alert-danger {
+    background: #3a2a2a;
+    color: #ff6b6b;
+    border-color: #5a3a3a;
+}
+
+@media (max-width: 600px) {
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+</style>
+{% endblock %}

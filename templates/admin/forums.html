@@ -1,0 +1,191 @@
+{% extends "container/public.html" %}
+
+{% block title %}Forums - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Forums</h1>
+        <p class="panel-subtitle">Manage forum icons and settings</p>
+    </div>
+
+    {% if forums.is_empty() %}
+    <div class="empty-state">
+        <p>No forums have been created yet.</p>
+    </div>
+    {% else %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Icons</th>
+                    <th>Name</th>
+                    <th>Parent</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for forum in forums %}
+                <tr>
+                    <td>{{ forum.display_order }}</td>
+                    <td class="icon-cell">
+                        <span title="Default">{{ forum.icon }}</span>
+                        <span title="New/Unread">{{ forum.icon_new }}</span>
+                    </td>
+                    <td>
+                        <a href="/forums/{{ forum.id }}/">{{ forum.label }}</a>
+                    </td>
+                    <td>
+                        {% match forum.parent_id %}
+                            {% when Some with (pid) %}
+                            <span class="parent-id">Parent #{{ pid }}</span>
+                            {% when None %}
+                            <span class="text-muted">—</span>
+                        {% endmatch %}
+                    </td>
+                    <td class="actions-cell">
+                        <a href="/admin/forums/{{ forum.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
+                        <a href="/admin/forums/{{ forum.id }}/permissions" class="btn btn-sm btn-secondary">Permissions</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.icon-cell {
+    font-size: 1.3em;
+}
+
+.icon-cell span {
+    margin-right: 8px;
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    text-decoration: none;
+    margin-right: 4px;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.8em;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode */
+html.dark .panel-header h1 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .data-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .data-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .data-table td {
+    border-color: #444;
+}
+
+html.dark .data-table tbody tr:hover {
+    background: #333;
+}
+</style>
+{% endblock %}

@@ -18,7 +18,27 @@
     {# Parent forum #}
     <div class="struct-item struct-item--forum{% if unread_forums.contains(item.forum.id) %} struct-item--unread{% endif %}" data-id="{{ item.forum.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
-            <span class="forum-icon">{% if unread_forums.contains(item.forum.id) %}📂{% else %}📁{% endif %}</span>
+            {% if unread_forums.contains(item.forum.id) %}
+                {% if let Some(hash) = item.forum.icon_new_hash %}
+                    {% if let Some(filename) = item.forum.icon_new_filename %}
+                    <img src="/content/{{ hash[0..64] }}/{{ filename }}" alt="" class="forum-icon-img" />
+                    {% else %}
+                    <span class="forum-icon">{{ item.forum.icon_new }}</span>
+                    {% endif %}
+                {% else %}
+                <span class="forum-icon">{{ item.forum.icon_new }}</span>
+                {% endif %}
+            {% else %}
+                {% if let Some(hash) = item.forum.icon_hash %}
+                    {% if let Some(filename) = item.forum.icon_filename %}
+                    <img src="/content/{{ hash[0..64] }}/{{ filename }}" alt="" class="forum-icon-img" />
+                    {% else %}
+                    <span class="forum-icon">{{ item.forum.icon }}</span>
+                    {% endif %}
+                {% else %}
+                <span class="forum-icon">{{ item.forum.icon }}</span>
+                {% endif %}
+            {% endif %}
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
@@ -44,7 +64,27 @@
     {% for child in item.children %}
     <div class="struct-item struct-item--forum struct-item--subforum{% if unread_forums.contains(child.id) %} struct-item--unread{% endif %}" data-id="{{ child.id }}" data-parent="{{ item.forum.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
-            <span class="forum-icon forum-icon--sub">{% if unread_forums.contains(child.id) %}📂{% else %}📁{% endif %}</span>
+            {% if unread_forums.contains(child.id) %}
+                {% if let Some(hash) = child.icon_new_hash %}
+                    {% if let Some(filename) = child.icon_new_filename %}
+                    <img src="/content/{{ hash[0..64] }}/{{ filename }}" alt="" class="forum-icon-img forum-icon-img--sub" />
+                    {% else %}
+                    <span class="forum-icon forum-icon--sub">{{ child.icon_new }}</span>
+                    {% endif %}
+                {% else %}
+                <span class="forum-icon forum-icon--sub">{{ child.icon_new }}</span>
+                {% endif %}
+            {% else %}
+                {% if let Some(hash) = child.icon_hash %}
+                    {% if let Some(filename) = child.icon_filename %}
+                    <img src="/content/{{ hash[0..64] }}/{{ filename }}" alt="" class="forum-icon-img forum-icon-img--sub" />
+                    {% else %}
+                    <span class="forum-icon forum-icon--sub">{{ child.icon }}</span>
+                    {% endif %}
+                {% else %}
+                <span class="forum-icon forum-icon--sub">{{ child.icon }}</span>
+                {% endif %}
+            {% endif %}
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
@@ -142,6 +182,20 @@
         font-size: 2em;
         display: block;
         text-align: center;
+    }
+
+    .forum-icon-img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .forum-icon-img--sub {
+        width: 36px;
+        height: 36px;
+        opacity: 0.9;
     }
 
     /* Unread forum indicator */

@@ -60,7 +60,15 @@
     {% for child in sub_forums %}
     <div class="struct-item struct-item--forum struct-item--subforum-inline" data-id="{{ child.id }}">
         <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconStart">
-            <span class="forum-icon forum-icon--sub">📂</span>
+            {% if let Some(hash) = child.icon_new_hash %}
+                {% if let Some(filename) = child.icon_new_filename %}
+                <img src="/content/{{ hash[0..64] }}/{{ filename }}" alt="" class="forum-icon-img forum-icon-img--sub" />
+                {% else %}
+                <span class="forum-icon forum-icon--sub">{{ child.icon_new }}</span>
+                {% endif %}
+            {% else %}
+            <span class="forum-icon forum-icon--sub">{{ child.icon_new }}</span>
+            {% endif %}
         </div>
         <div class="struct-item-cell struct-item-cell--main">
             <div class="forum-title">
@@ -642,6 +650,20 @@ function addPollOption() {
     .struct-item--subforum-inline .forum-icon--sub {
         font-size: 1.5em;
         opacity: 0.8;
+    }
+
+    .forum-icon-img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .forum-icon-img--sub {
+        width: 36px;
+        height: 36px;
+        opacity: 0.9;
     }
 
     .struct-item--subforum-inline .forum-title {

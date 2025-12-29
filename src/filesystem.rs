@@ -182,6 +182,16 @@ impl UploadPayload {
     pub fn is_image(&self) -> bool {
         self.mime.type_() == mime::IMAGE
     }
+
+    /// Check if the payload is an SVG file
+    pub fn is_svg(&self) -> bool {
+        self.mime == mime::IMAGE_SVG || self.filename.to_lowercase().ends_with(".svg")
+    }
+
+    /// Check if the payload is an image or SVG (for icon uploads)
+    pub fn is_image_or_svg(&self) -> bool {
+        self.is_image() || self.is_svg()
+    }
 }
 
 #[derive(Debug, FromQueryResult, Serialize)]
