@@ -661,3 +661,53 @@ kbd {
     outline-offset: -3px;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
 }
+
+// Inline post edit form
+.message-edit-form {
+    margin-top: 0.5rem;
+
+    .bbcode-editor-container {
+        margin-bottom: 0.5rem;
+    }
+
+    textarea {
+        width: 100%;
+        min-height: 150px;
+    }
+
+    .edit-form-buttons {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+
+        button {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+        }
+
+        .edit-cancel-btn {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 3px;
+
+            &:hover {
+                background-color: #5a6268;
+            }
+        }
+    }
+}
+
+// Style the edit button to match other footer buttons
+.edit-post-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    padding: 0;
+    font: inherit;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}

@@ -58,9 +58,25 @@
         </div>
 
         {% match post.content %}{% when Some with (content) %}
-        <div class="message-content">
+        <div class="message-content" data-post-id="{{ post.id }}">
             {% include "ugc/ugc.html" %}
         </div>
+        {% if client.can_update_post(post) %}
+        <div class="message-edit-form" data-post-id="{{ post.id }}" style="display: none;">
+            <form action="/posts/{{ post.id }}/edit" method="post">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <div class="bbcode-editor-container">
+                    {% include "components/bbcode_toolbar.html" %}
+                    <textarea name="content" rows="8" cols="80"
+                        data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}">{{ content }}</textarea>
+                </div>
+                <div class="edit-form-buttons">
+                    <button type="submit">Save</button>
+                    <button type="button" class="edit-cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
         {% when None %}{% endmatch %}
 
         {% match post_attachments %}{% when Some with (post_attachments) %}
@@ -92,7 +108,7 @@
                     data-content-id="{{ post.id }}"
                     data-csrf="{{ client.get_csrf_token() }}"
                     title="Report this post">Report</button>
-                {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/edit">Edit</a>{% endif %}
+                {% if client.can_update_post(post) %}<button type="button" class="edit-post-btn" data-post-id="{{ post.id }}">Edit</button>{% endif %}
                 {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/delete">Delete</a>{% endif %}
                 {% if post.created_at != post.updated_at && client.can_update_post(post) %}<a
                     href="/posts/{{ post.id }}/history">History</a>{% endif %}
