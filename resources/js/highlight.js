@@ -97,11 +97,18 @@ hljs.registerLanguage('latex', latex);
 
 /**
  * Highlight all code blocks on the page
+ * Only highlights code blocks in rendered content (.ugc), not in editors
  */
 function highlightAll() {
-    document.querySelectorAll('pre code[class^="language-"]').forEach((block) => {
+    // Only highlight code blocks in user-generated content (posts), not in editors
+    document.querySelectorAll('.ugc pre code[class^="language-"], .bbcode-preview pre code[class^="language-"]').forEach((block) => {
         // Skip if already highlighted
         if (block.dataset.highlighted === 'yes') {
+            return;
+        }
+
+        // Skip if inside an editor
+        if (block.closest('.wysiwyg-editor-container') || block.closest('.ProseMirror')) {
             return;
         }
 
@@ -116,17 +123,28 @@ function init() {
     // Highlight on page load
     highlightAll();
 
-    // Re-highlight when new content is added (e.g., via AJAX)
-    // Uses MutationObserver to watch for new code blocks
+    // Re-highlight when new content is added (e.g., via AJAX, preview)
+    // Uses MutationObserver to watch for new code blocks, but only in content areas
     const observer = new MutationObserver((mutations) => {
         let shouldHighlight = false;
 
         mutations.forEach((mutation) => {
+            // Skip mutations from editors
+            if (mutation.target.closest &&
+                (mutation.target.closest('.wysiwyg-editor-container') ||
+                 mutation.target.closest('.ProseMirror') ||
+                 mutation.target.closest('.bbcode-editor-container textarea'))) {
+                return;
+            }
+
             if (mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.matches('pre code[class^="language-"]') ||
-                            node.querySelector('pre code[class^="language-"]')) {
+                        // Only trigger for content in .ugc or .bbcode-preview
+                        if ((node.closest('.ugc') || node.closest('.bbcode-preview') ||
+                             node.classList?.contains('ugc') || node.classList?.contains('bbcode-preview')) &&
+                            (node.matches?.('pre code[class^="language-"]') ||
+                             node.querySelector?.('pre code[class^="language-"]'))) {
                             shouldHighlight = true;
                         }
                     }
