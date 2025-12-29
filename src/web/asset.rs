@@ -32,7 +32,7 @@ async fn view_file_by_hash(req: HttpRequest) -> impl Responder {
         .and_then(|r| r.to_str().ok())
         .map(From::from);
 
-    let res = match crate::filesystem::get_s3().get_object(&key, range).await {
+    let res = match crate::filesystem::get_storage().get_object(&key, range).await {
         Ok(output) => output,
         Err(err) => {
             log::debug!("{:?}", err);
@@ -40,8 +40,7 @@ async fn view_file_by_hash(req: HttpRequest) -> impl Responder {
         }
     };
 
-    //let body = res.body.expect("No body for response").map(Bytes::from).map_err(Error::from);
-    let body = res.body.expect("No body for response");
+    let body = res.body;
     let mut builder = HttpResponse::Ok();
 
     if let Some(content_length) = res.content_length {

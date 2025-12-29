@@ -1,7 +1,7 @@
 use crate::attachment::{get_attachment_by_hash, update_attachment_last_seen};
 use crate::db::get_db_pool;
 use crate::orm::attachments;
-use crate::s3::S3Bucket;
+use crate::storage::StorageBackend;
 use actix_multipart::{Field, Multipart};
 use actix_web::{error, post, web, Error, Responder};
 use chrono::Utc;
@@ -20,7 +20,7 @@ use uuid::Uuid;
 static MIME_LOOKUP: OnceCell<HashMap<&'static str, &'static str>> = OnceCell::new();
 static EXT_LOOKUP: OnceCell<HashMap<&'static str, &'static str>> = OnceCell::new();
 static DIR_TMP: OnceCell<String> = OnceCell::new();
-static S3BUCKET: OnceCell<S3Bucket> = OnceCell::new();
+static STORAGE: OnceCell<Box<dyn StorageBackend>> = OnceCell::new();
 
 #[inline(always)]
 fn get_mime_lookup() -> &'static HashMap<&'static str, &'static str> {
@@ -35,8 +35,8 @@ fn get_dir_tmp() -> &'static str {
     unsafe { DIR_TMP.get_unchecked() }
 }
 #[inline(always)]
-pub fn get_s3() -> &'static S3Bucket {
-    unsafe { S3BUCKET.get_unchecked() }
+pub fn get_storage() -> &'static dyn StorageBackend {
+    unsafe { STORAGE.get_unchecked().as_ref() }
 }
 
 /// MUST be called ONCE before using functions in this module
@@ -59,19 +59,32 @@ pub fn init() {
         )
         .unwrap();
 
-    if S3BUCKET
-        .set(S3Bucket::new(
-            rusoto_core::Region::Custom {
-                name: std::env::var("AWS_REGION_NAME").expect(".env missing AWS_REGION_NAME"),
-                endpoint: std::env::var("AWS_API_ENDPOINT")
-                    .expect(".env missing AWS_API_ENDPOINT."),
-            },
-            std::env::var("AWS_BUCKET_NAME").expect(".env missing AWS_BUCKET_NAME."),
-            std::env::var("AWS_PUBLIC_URL").expect(".env missing AWS_PUBLIC_URL."),
-        ))
-        .is_err()
-    {
-        panic!("S3BUCKET");
+    // Initialize storage backend based on config
+    let storage_config = crate::app_config::storage();
+    let storage: Box<dyn StorageBackend> = match storage_config.backend.as_str() {
+        "local" => {
+            log::info!("Initializing local storage at: {}", storage_config.local_path);
+            Box::new(
+                crate::storage::local::LocalStorage::new(storage_config.local_path.into())
+                    .expect("Failed to initialize local storage"),
+            )
+        }
+        "s3" => {
+            log::info!("Initializing S3 storage: {}", storage_config.s3_bucket);
+            Box::new(crate::storage::s3::S3Storage::new(
+                rusoto_core::Region::Custom {
+                    name: storage_config.s3_region,
+                    endpoint: storage_config.s3_endpoint,
+                },
+                storage_config.s3_bucket,
+                storage_config.s3_public_url,
+            ))
+        }
+        other => panic!("Unknown storage backend: {}. Use 'local' or 's3'.", other),
+    };
+
+    if STORAGE.set(storage).is_err() {
+        panic!("STORAGE already initialized");
     }
 
     let map: HashMap<&'static str, &'static str> = HashMap::from([
@@ -226,16 +239,36 @@ pub async fn deduplicate_payload(payload: &UploadPayload) -> Option<UploadRespon
     let model = get_attachment_by_hash(payload.hash.to_string()).await;
 
     match model {
-        // Attachment exists in storage and we can skip processing
+        // Attachment exists in database - verify it also exists in storage
         Some(attachment) => {
-            // Bump last_seen date on new thread.
-            actix_web::rt::spawn(update_attachment_last_seen(attachment.id));
-            // Return response now.
-            Some(UploadResponse {
-                id: attachment.id,
-                hash: attachment.hash,
-                filename: attachment.filename,
-            })
+            // Check if the file actually exists in storage
+            // (it might be in DB from old S3 uploads but not in local storage)
+            match get_storage().exists(&attachment.filename).await {
+                Ok(true) => {
+                    // File exists in storage, we can skip processing
+                    // Bump last_seen date on new thread.
+                    actix_web::rt::spawn(update_attachment_last_seen(attachment.id));
+                    // Return response now.
+                    Some(UploadResponse {
+                        id: attachment.id,
+                        hash: attachment.hash,
+                        filename: attachment.filename,
+                    })
+                }
+                Ok(false) => {
+                    // DB record exists but file is missing from storage
+                    // (e.g., migrated from S3 to local without file migration)
+                    log::warn!(
+                        "deduplicate_payload: DB record exists but file missing: {}",
+                        attachment.filename
+                    );
+                    None
+                }
+                Err(e) => {
+                    log::error!("deduplicate_payload: storage.exists error: {}", e);
+                    None
+                }
+            }
         }
         // Attachment is new and we need to process it
         None => None,
@@ -442,22 +475,16 @@ pub async fn insert_payload_as_attachment(
             actix_web::error::ErrorInternalServerError("put_file: failed to store file")
         })?;
 
-    let bucket = get_s3();
-    let list = bucket.list_objects_v2(&s3_filename).await.map_err(|e| {
-        log::error!("put_file: failed to list_objects_v2: {}", e);
+    let storage = get_storage();
+    let file_exists = storage.exists(&s3_filename).await.map_err(|e| {
+        log::error!("put_file: failed to check if file exists: {}", e);
         actix_web::error::ErrorInternalServerError("put_file: failed to check if file exists")
     })?;
 
-    // Check for existing s3 data.
-    let count = list.key_count.ok_or_else(|| {
-        log::error!("put_file: key_count, I don't think this should ever happen");
-        actix_web::error::ErrorInternalServerError("put_file: failed to check if file exists")
-    })?;
-
-    // s3 key count should only ever be 0 or 1, otherwise there's something wrong with the prefix
-    if count == 0 {
-        // Insert the file data into s3.
-        bucket
+    // Only upload if file doesn't already exist (deduplication)
+    if !file_exists {
+        // Insert the file data into storage.
+        storage
             .put_object(payload.data, &s3_filename)
             .await
             .map_err(|e| {
@@ -465,7 +492,7 @@ pub async fn insert_payload_as_attachment(
                 actix_web::error::ErrorInternalServerError("put_file: failed to store file")
             })?;
     } else {
-        log::info!("put_file: duplicate upload, skipping S3 put_object");
+        log::info!("put_file: duplicate upload, skipping storage put_object");
     }
 
     // !!! WARNING !!! we delete a file, be mindful and don't fucking delete my porn folder

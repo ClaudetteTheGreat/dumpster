@@ -25,7 +25,7 @@ pub mod notifications;
 pub mod orm;
 pub mod permission;
 pub mod rate_limit;
-pub mod s3;
+pub mod storage;
 pub mod session;
 pub mod spam;
 pub mod template;

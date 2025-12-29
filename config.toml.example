@@ -94,12 +94,20 @@ from_address = "noreply@localhost"
 from_name = "Ruforo"
 
 # =============================================================================
-# Storage Configuration (S3-compatible)
+# Storage Configuration
 # =============================================================================
 [storage]
+# Backend: "local" for filesystem storage, "s3" for S3-compatible storage
+backend = "local"
+
+# Local storage path (used when backend = "local")
+local_path = "./uploads"
+
+# S3 settings below only used when backend = "s3"
 s3_endpoint = "http://localhost:9000"
 s3_region = "us-east-1"
 s3_bucket = "ruforo"
+s3_public_url = "http://localhost:9000/ruforo"
 # S3 credentials - SET VIA ENVIRONMENT VARIABLES:
 #   RUFORO_STORAGE_S3_ACCESS_KEY
 #   RUFORO_STORAGE_S3_SECRET_KEY

@@ -182,16 +182,22 @@ impl Default for EmailConfig {
     }
 }
 
-/// Storage configuration (S3)
+/// Storage configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct StorageConfig {
-    /// S3 endpoint URL
+    /// Storage backend: "local" or "s3"
+    pub backend: String,
+    /// Local storage path (used when backend = "local")
+    pub local_path: String,
+    /// S3 endpoint URL (used when backend = "s3")
     pub s3_endpoint: String,
-    /// S3 region
+    /// S3 region (used when backend = "s3")
     pub s3_region: String,
-    /// S3 bucket name
+    /// S3 bucket name (used when backend = "s3")
     pub s3_bucket: String,
+    /// S3 public URL for serving files (used when backend = "s3")
+    pub s3_public_url: String,
     /// S3 access key (should be in env var RUFORO_STORAGE_S3_ACCESS_KEY)
     #[serde(default)]
     pub s3_access_key: String,
@@ -203,9 +209,12 @@ pub struct StorageConfig {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
+            backend: "local".to_string(),
+            local_path: "./uploads".to_string(),
             s3_endpoint: "http://localhost:9000".to_string(),
             s3_region: "us-east-1".to_string(),
             s3_bucket: "ruforo".to_string(),
+            s3_public_url: "http://localhost:9000/ruforo".to_string(),
             s3_access_key: String::new(),
             s3_secret_key: String::new(),
         }
