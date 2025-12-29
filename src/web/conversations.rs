@@ -7,11 +7,12 @@ use askama_actix::{Template, TemplateToResponse};
 use serde::Deserialize;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
+    // Order matters: specific routes before parameterized routes
     conf.service(view_inbox)
         .service(view_archived)
-        .service(view_conversation)
         .service(new_conversation_form)
         .service(create_conversation)
+        .service(view_conversation) // Must be after /new and /archived
         .service(send_message_handler)
         .service(leave_conversation_handler)
         .service(archive_conversation_handler)
