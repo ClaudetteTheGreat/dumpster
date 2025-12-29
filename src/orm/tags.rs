@@ -10,34 +10,28 @@ pub struct Model {
     pub name: String,
     pub slug: String,
     pub color: Option<String>,
-    pub forum_id: Option<i32>,
+    pub is_global: bool,
     pub use_count: i32,
     pub created_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(
-        belongs_to = "super::forums::Entity",
-        from = "Column::ForumId",
-        to = "super::forums::Column::Id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
-    Forum,
     #[sea_orm(has_many = "super::thread_tags::Entity")]
     ThreadTags,
-}
-
-impl Related<super::forums::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Forum.def()
-    }
+    #[sea_orm(has_many = "super::tag_forums::Entity")]
+    TagForums,
 }
 
 impl Related<super::thread_tags::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ThreadTags.def()
+    }
+}
+
+impl Related<super::tag_forums::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::TagForums.def()
     }
 }
 

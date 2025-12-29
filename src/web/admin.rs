@@ -8,7 +8,7 @@ use crate::middleware::ClientCtx;
 use crate::orm::{
     attachments, badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
     moderator_notes, permission_categories, permission_collections, permission_values, permissions,
-    posts, reaction_types, reports, sessions, settings, tags, threads, user_bans, user_groups,
+    posts, reaction_types, reports, sessions, settings, tag_forums, tags, threads, user_bans, user_groups,
     user_names, user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
@@ -5651,8 +5651,8 @@ struct TagWithForum {
     name: String,
     slug: String,
     color: String,
-    forum_id: Option<i32>,
-    forum_name: Option<String>,
+    is_global: bool,
+    forum_names: Vec<String>,
     use_count: i32,
 }
 
@@ -5663,9 +5663,8 @@ async fn view_tags(client: ClientCtx) -> Result<impl Responder, Error> {
 
     let db = get_db_pool();
 
-    // Fetch all tags with their forum names
-    let tags_raw: Vec<(tags::Model, Option<forums::Model>)> = tags::Entity::find()
-        .find_also_related(forums::Entity)
+    // Fetch all tags
+    let tags_raw = tags::Entity::find()
         .order_by_asc(tags::Column::Name)
         .all(db)
         .await
@@ -5674,16 +5673,41 @@ async fn view_tags(client: ClientCtx) -> Result<impl Responder, Error> {
             error::ErrorInternalServerError("Database error")
         })?;
 
+    // Fetch all tag_forums associations with forum data
+    let tag_forum_associations: Vec<(tag_forums::Model, Option<forums::Model>)> =
+        tag_forums::Entity::find()
+            .find_also_related(forums::Entity)
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch tag_forums: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?;
+
+    // Build a map of tag_id -> Vec<forum_name>
+    let mut tag_forum_map: std::collections::HashMap<i32, Vec<String>> = std::collections::HashMap::new();
+    for (tf, forum_opt) in tag_forum_associations {
+        if let Some(forum) = forum_opt {
+            tag_forum_map
+                .entry(tf.tag_id)
+                .or_insert_with(Vec::new)
+                .push(forum.label);
+        }
+    }
+
     let tags_list: Vec<TagWithForum> = tags_raw
         .into_iter()
-        .map(|(tag, forum)| TagWithForum {
-            id: tag.id,
-            name: tag.name,
-            slug: tag.slug,
-            color: tag.color.unwrap_or_else(|| "#6c757d".to_string()),
-            forum_id: tag.forum_id,
-            forum_name: forum.map(|f| f.label),
-            use_count: tag.use_count,
+        .map(|tag| {
+            let forum_names = tag_forum_map.remove(&tag.id).unwrap_or_default();
+            TagWithForum {
+                id: tag.id,
+                name: tag.name,
+                slug: tag.slug,
+                color: tag.color.unwrap_or_else(|| "#6c757d".to_string()),
+                is_global: tag.is_global,
+                forum_names,
+                use_count: tag.use_count,
+            }
         })
         .collect();
 
@@ -5700,6 +5724,7 @@ struct TagFormTemplate {
     client: ClientCtx,
     tag: Option<tags::Model>,
     forums: Vec<forums::Model>,
+    selected_forum_ids: Vec<i32>,
     is_edit: bool,
 }
 
@@ -5723,6 +5748,7 @@ async fn view_create_tag_form(client: ClientCtx) -> Result<impl Responder, Error
         client,
         tag: None,
         forums: forums_list,
+        selected_forum_ids: Vec::new(),
         is_edit: false,
     }
     .to_response())
@@ -5733,7 +5759,9 @@ struct TagFormData {
     csrf_token: String,
     name: String,
     color: String,
-    forum_id: Option<i32>,
+    is_global: Option<String>,
+    #[serde(default)]
+    forum_ids: Vec<i32>,
 }
 
 /// POST /admin/tags/create - Create a new tag
@@ -5777,22 +5805,12 @@ async fn create_tag(
         "#6c757d".to_string()
     };
 
-    // Check for duplicate slug in the same scope
-    let forum_id = if form.forum_id == Some(0) {
-        None
-    } else {
-        form.forum_id
-    };
+    // Determine if global
+    let is_global = form.is_global.is_some();
 
+    // Check for duplicate slug (global tags must have unique slugs)
     let existing = tags::Entity::find()
         .filter(tags::Column::Slug.eq(slug.clone()))
-        .filter(
-            if let Some(fid) = forum_id {
-                tags::Column::ForumId.eq(fid)
-            } else {
-                tags::Column::ForumId.is_null()
-            }
-        )
         .one(db)
         .await
         .map_err(|e| {
@@ -5801,7 +5819,7 @@ async fn create_tag(
         })?;
 
     if existing.is_some() {
-        return Err(error::ErrorBadRequest("A tag with this name already exists in the same scope"));
+        return Err(error::ErrorBadRequest("A tag with this name already exists"));
     }
 
     // Create the tag
@@ -5809,13 +5827,13 @@ async fn create_tag(
         name: Set(name.clone()),
         slug: Set(slug),
         color: Set(Some(color)),
-        forum_id: Set(forum_id),
+        is_global: Set(is_global),
         use_count: Set(0),
         created_at: Set(chrono::Utc::now().naive_utc()),
         ..Default::default()
     };
 
-    tags::Entity::insert(new_tag)
+    let insert_result = tags::Entity::insert(new_tag)
         .exec(db)
         .await
         .map_err(|e| {
@@ -5823,7 +5841,27 @@ async fn create_tag(
             error::ErrorInternalServerError("Failed to create tag")
         })?;
 
-    log_moderation_action(db, moderator_id, "create_tag", "tag", 0, Some(&name)).await?;
+    let tag_id = insert_result.last_insert_id;
+
+    // If not global, create forum associations
+    if !is_global && !form.forum_ids.is_empty() {
+        for forum_id in &form.forum_ids {
+            let tag_forum = tag_forums::ActiveModel {
+                tag_id: Set(tag_id),
+                forum_id: Set(*forum_id),
+                ..Default::default()
+            };
+            tag_forums::Entity::insert(tag_forum)
+                .exec(db)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to create tag_forum association: {}", e);
+                    error::ErrorInternalServerError("Failed to associate tag with forum")
+                })?;
+        }
+    }
+
+    log_moderation_action(db, moderator_id, "create_tag", "tag", tag_id, Some(&name)).await?;
 
     log::info!("Tag '{}' created by user {}", name, moderator_id);
 
@@ -5861,10 +5899,24 @@ async fn view_edit_tag(
             error::ErrorInternalServerError("Database error")
         })?;
 
+    // Fetch the forum IDs associated with this tag
+    let selected_forum_ids: Vec<i32> = tag_forums::Entity::find()
+        .filter(tag_forums::Column::TagId.eq(tag_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tag_forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .into_iter()
+        .map(|tf| tf.forum_id)
+        .collect();
+
     Ok(TagFormTemplate {
         client,
         tag: Some(tag),
         forums: forums_list,
+        selected_forum_ids,
         is_edit: true,
     }
     .to_response())
@@ -5922,23 +5974,13 @@ async fn update_tag(
         "#6c757d".to_string()
     };
 
-    let forum_id = if form.forum_id == Some(0) {
-        None
-    } else {
-        form.forum_id
-    };
+    // Determine if global
+    let is_global = form.is_global.is_some();
 
     // Check for duplicate slug (excluding current tag)
     let existing = tags::Entity::find()
         .filter(tags::Column::Slug.eq(slug.clone()))
         .filter(tags::Column::Id.ne(tag_id))
-        .filter(
-            if let Some(fid) = forum_id {
-                tags::Column::ForumId.eq(fid)
-            } else {
-                tags::Column::ForumId.is_null()
-            }
-        )
         .one(db)
         .await
         .map_err(|e| {
@@ -5947,7 +5989,7 @@ async fn update_tag(
         })?;
 
     if existing.is_some() {
-        return Err(error::ErrorBadRequest("A tag with this name already exists in the same scope"));
+        return Err(error::ErrorBadRequest("A tag with this name already exists"));
     }
 
     // Update the tag
@@ -5955,12 +5997,40 @@ async fn update_tag(
     active_tag.name = Set(name.clone());
     active_tag.slug = Set(slug);
     active_tag.color = Set(Some(color));
-    active_tag.forum_id = Set(forum_id);
+    active_tag.is_global = Set(is_global);
 
     active_tag.update(db).await.map_err(|e| {
         log::error!("Failed to update tag: {}", e);
         error::ErrorInternalServerError("Failed to update tag")
     })?;
+
+    // Update forum associations: delete old ones and insert new ones
+    tag_forums::Entity::delete_many()
+        .filter(tag_forums::Column::TagId.eq(tag_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete old tag_forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // If not global, create new forum associations
+    if !is_global && !form.forum_ids.is_empty() {
+        for forum_id in &form.forum_ids {
+            let tag_forum = tag_forums::ActiveModel {
+                tag_id: Set(tag_id),
+                forum_id: Set(*forum_id),
+                ..Default::default()
+            };
+            tag_forums::Entity::insert(tag_forum)
+                .exec(db)
+                .await
+                .map_err(|e| {
+                    log::error!("Failed to create tag_forum association: {}", e);
+                    error::ErrorInternalServerError("Failed to associate tag with forum")
+                })?;
+        }
+    }
 
     log_moderation_action(db, moderator_id, "update_tag", "tag", tag_id, Some(&name)).await?;
 

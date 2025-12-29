@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forum_read, forums, poll_options, polls, posts, tags, thread_tags, threads, user_names};
+use crate::orm::{forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
@@ -438,20 +438,33 @@ pub async fn create_thread(
                 continue;
             }
 
-            // Find existing tag (forum-specific or global)
+            // Find existing tag by slug
             let existing_tag = tags::Entity::find()
                 .filter(tags::Column::Slug.eq(slug.clone()))
-                .filter(
-                    tags::Column::ForumId
-                        .eq(forum_id)
-                        .or(tags::Column::ForumId.is_null()),
-                )
                 .one(&txn)
                 .await
                 .map_err(error::ErrorInternalServerError)?;
 
             let tag_id = if let Some(tag) = existing_tag {
-                Some(tag.id)
+                // Check if tag is available in this forum (global or has tag_forums entry)
+                if tag.is_global {
+                    Some(tag.id)
+                } else {
+                    // Check if tag is assigned to this forum
+                    let has_forum = tag_forums::Entity::find()
+                        .filter(tag_forums::Column::TagId.eq(tag.id))
+                        .filter(tag_forums::Column::ForumId.eq(forum_id))
+                        .one(&txn)
+                        .await
+                        .map_err(error::ErrorInternalServerError)?
+                        .is_some();
+
+                    if has_forum {
+                        Some(tag.id)
+                    } else {
+                        None // Tag exists but not available in this forum
+                    }
+                }
             } else if forum.restrict_tags {
                 // Forum restricts to predefined tags only - skip non-existent tags
                 None
@@ -460,7 +473,7 @@ pub async fn create_thread(
                 let new_tag = tags::ActiveModel {
                     name: Set(tag_name.clone()),
                     slug: Set(slug),
-                    forum_id: Set(Some(forum_id)),
+                    is_global: Set(false),
                     created_at: Set(revision.created_at),
                     ..Default::default()
                 };
@@ -468,7 +481,18 @@ pub async fn create_thread(
                     .exec(&txn)
                     .await
                     .map_err(error::ErrorInternalServerError)?;
-                Some(tag_res.last_insert_id)
+
+                let new_tag_id = tag_res.last_insert_id;
+
+                // Associate the new tag with this forum
+                let tag_forum = tag_forums::ActiveModel {
+                    tag_id: Set(new_tag_id),
+                    forum_id: Set(forum_id),
+                    ..Default::default()
+                };
+                let _ = tag_forums::Entity::insert(tag_forum).exec(&txn).await;
+
+                Some(new_tag_id)
             };
 
             // Link tag to thread if we have a valid tag_id
@@ -543,17 +567,36 @@ pub async fn view_forum(
 
     // Check if filtering by tag
     let (threads, active_tag) = if let Some(ref tag_slug) = query.tag {
-        // Find the tag
-        let tag = tags::Entity::find()
+        // Find the tag by slug
+        let tag_opt = tags::Entity::find()
             .filter(tags::Column::Slug.eq(tag_slug.clone()))
-            .filter(
-                tags::Column::ForumId
-                    .eq(forum_id)
-                    .or(tags::Column::ForumId.is_null()),
-            )
             .one(get_db_pool())
             .await
             .map_err(error::ErrorInternalServerError)?;
+
+        // Check if tag is available in this forum (global or has tag_forums entry)
+        let tag = if let Some(t) = tag_opt {
+            if t.is_global {
+                Some(t)
+            } else {
+                // Check if tag is assigned to this forum
+                let has_forum = tag_forums::Entity::find()
+                    .filter(tag_forums::Column::TagId.eq(t.id))
+                    .filter(tag_forums::Column::ForumId.eq(forum_id))
+                    .one(get_db_pool())
+                    .await
+                    .map_err(error::ErrorInternalServerError)?
+                    .is_some();
+
+                if has_forum {
+                    Some(t)
+                } else {
+                    None
+                }
+            }
+        } else {
+            None
+        };
 
         if let Some(tag) = tag {
             // Get thread IDs that have this tag

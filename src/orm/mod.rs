@@ -40,6 +40,7 @@ pub mod reports;
 pub mod sessions;
 pub mod setting_history;
 pub mod settings;
+pub mod tag_forums;
 pub mod tags;
 pub mod thread_read;
 pub mod thread_tags;

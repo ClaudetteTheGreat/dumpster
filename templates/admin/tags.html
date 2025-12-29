@@ -38,12 +38,15 @@
                         <div class="text-muted text-small">{{ tag.slug }}</div>
                     </td>
                     <td>
-                        {% match tag.forum_name %}
-                        {% when Some with (name) %}
-                        <span class="badge badge-info">{{ name }}</span>
-                        {% when None %}
+                        {% if tag.is_global %}
                         <span class="badge badge-secondary">Global</span>
-                        {% endmatch %}
+                        {% else if tag.forum_names.is_empty() %}
+                        <span class="badge badge-warning">No forums</span>
+                        {% else %}
+                        {% for name in tag.forum_names %}
+                        <span class="badge badge-info">{{ name }}</span>
+                        {% endfor %}
+                        {% endif %}
                     </td>
                     <td>{{ tag.use_count }} threads</td>
                     <td class="actions-cell">
@@ -64,7 +67,7 @@
         <h3>Tag System</h3>
         <ul>
             <li><strong>Global Tags:</strong> Available in all forums.</li>
-            <li><strong>Forum Tags:</strong> Only available in the specified forum.</li>
+            <li><strong>Forum-Specific Tags:</strong> Can be assigned to one or more specific forums.</li>
             <li><strong>Usage Count:</strong> Automatically updated when threads use the tag.</li>
         </ul>
         <p>Configure tag restrictions per-forum in the <a href="/admin/forums">Forum Settings</a>.</p>
@@ -173,6 +176,11 @@
 .badge-info {
     background: #17a2b8;
     color: #fff;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #000;
 }
 
 .btn {

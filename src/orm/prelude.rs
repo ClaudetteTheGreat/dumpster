@@ -17,6 +17,8 @@ pub use super::permission_values::Entity as PermissionValues;
 pub use super::permissions::Entity as Permissions;
 pub use super::posts::Entity as Posts;
 pub use super::sessions::Entity as Sessions;
+pub use super::tag_forums::Entity as TagForums;
+pub use super::tags::Entity as Tags;
 pub use super::threads::Entity as Threads;
 pub use super::ugc::Entity as Ugc;
 pub use super::ugc_attachments::Entity as UgcAttachments;
