@@ -6,7 +6,7 @@ use crate::db::get_db_pool;
 use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    badges, feature_flags, forums, groups, ip_bans, mod_log, moderator_notes,
+    badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log, moderator_notes,
     permission_categories, permission_collections, permission_values, permissions, posts,
     reaction_types, reports, sessions, settings, threads, user_bans, user_groups, user_names,
     user_warnings, users, word_filters,
@@ -89,7 +89,10 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(update_badge)
         .service(view_award_badge_form)
         .service(award_badge_to_user)
-        .service(revoke_badge_from_user);
+        .service(revoke_badge_from_user)
+        // Forum permissions management
+        .service(view_forum_permissions)
+        .service(save_forum_permissions);
 }
 
 // ============================================================================
@@ -4568,5 +4571,432 @@ async fn revoke_badge_from_user(
 
     Ok(HttpResponse::SeeOther()
         .insert_header(("Location", format!("/admin/badges/{}/award", badge_id)))
+        .finish())
+}
+
+// ============================================================================
+// Forum Permissions Management
+// ============================================================================
+
+/// Group info for column headers
+struct ForumPermGroupInfo {
+    label: String,
+}
+
+/// Permission value for a specific group
+struct ForumPermGroupValue {
+    group_id: i32,
+    value: String,
+}
+
+/// Permission row with values per group
+struct ForumPermissionRow {
+    id: i32,
+    label: String,
+    /// Values in same order as groups
+    values: Vec<ForumPermGroupValue>,
+}
+
+/// Category with permissions for forum permission matrix
+struct ForumPermCategoryDisplay {
+    label: String,
+    permissions: Vec<ForumPermissionRow>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/forum_permissions.html")]
+struct ForumPermissionsTemplate {
+    client: ClientCtx,
+    forum: forums::Model,
+    groups: Vec<ForumPermGroupInfo>,
+    categories: Vec<ForumPermCategoryDisplay>,
+}
+
+/// Form for updating forum permissions
+#[derive(Deserialize)]
+struct ForumPermissionsForm {
+    csrf_token: String,
+    /// Map of "perm_{permission_id}_{group_id}" -> value
+    #[serde(flatten)]
+    permissions: std::collections::HashMap<String, String>,
+}
+
+/// GET /admin/forums/{id}/permissions - View/edit forum permissions
+#[get("/admin/forums/{id}/permissions")]
+async fn view_forum_permissions(
+    client: ClientCtx,
+    forum_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.permissions.manage")?;
+
+    let db = get_db_pool();
+    let forum_id = forum_id.into_inner();
+
+    // Find the forum
+    let forum = forums::Entity::find_by_id(forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Get all groups
+    let all_groups = groups::Entity::find()
+        .order_by_asc(groups::Column::Id)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let groups_info: Vec<ForumPermGroupInfo> = all_groups
+        .iter()
+        .map(|g| ForumPermGroupInfo {
+            label: g.label.clone(),
+        })
+        .collect();
+
+    // Get all categories
+    let categories = permission_categories::Entity::find()
+        .order_by_asc(permission_categories::Column::Sort)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission categories: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get all permissions
+    let all_permissions = permissions::Entity::find()
+        .order_by_asc(permissions::Column::Sort)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permissions: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get forum permission collections for this forum
+    let forum_perms = forum_permissions::Entity::find()
+        .filter(forum_permissions::Column::ForumId.eq(forum_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum permissions: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build a map of collection_id -> group_id for this forum's collections
+    let collection_ids: Vec<i32> = forum_perms.iter().map(|fp| fp.collection_id).collect();
+
+    let collections = if !collection_ids.is_empty() {
+        permission_collections::Entity::find()
+            .filter(permission_collections::Column::Id.is_in(collection_ids.clone()))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch permission collections: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+    } else {
+        Vec::new()
+    };
+
+    // Map: group_id -> collection_id
+    let group_to_collection: std::collections::HashMap<i32, i32> = collections
+        .into_iter()
+        .filter_map(|c| c.group_id.map(|gid| (gid, c.id)))
+        .collect();
+
+    // Map: collection_id -> group_id (inverse)
+    let collection_to_group: std::collections::HashMap<i32, i32> = group_to_collection
+        .iter()
+        .map(|(&gid, &cid)| (cid, gid))
+        .collect();
+
+    // Get permission values for these collections
+    let perm_values = if !collection_ids.is_empty() {
+        permission_values::Entity::find()
+            .filter(permission_values::Column::CollectionId.is_in(collection_ids))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch permission values: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+    } else {
+        Vec::new()
+    };
+
+    // Build map: (group_id, permission_id) -> value_string
+    let mut value_map: std::collections::HashMap<(i32, i32), String> =
+        std::collections::HashMap::new();
+    for pv in perm_values {
+        if let Some(&group_id) = collection_to_group.get(&pv.collection_id) {
+            let value_str = match pv.value {
+                Flag::YES => "yes",
+                Flag::NO => "no",
+                Flag::NEVER => "never",
+                Flag::DEFAULT => "default",
+            };
+            value_map.insert((group_id, pv.permission_id), value_str.to_string());
+        }
+    }
+
+    // Build category displays
+    let mut category_displays = Vec::new();
+    for cat in categories {
+        let perms: Vec<ForumPermissionRow> = all_permissions
+            .iter()
+            .filter(|p| p.category_id == cat.id)
+            .map(|p| {
+                let values: Vec<ForumPermGroupValue> = all_groups
+                    .iter()
+                    .map(|group| {
+                        let value = value_map
+                            .get(&(group.id, p.id))
+                            .cloned()
+                            .unwrap_or_else(|| "default".to_string());
+                        ForumPermGroupValue {
+                            group_id: group.id,
+                            value,
+                        }
+                    })
+                    .collect();
+                ForumPermissionRow {
+                    id: p.id,
+                    label: p.label.clone(),
+                    values,
+                }
+            })
+            .collect();
+
+        if !perms.is_empty() {
+            category_displays.push(ForumPermCategoryDisplay {
+                label: cat.label,
+                permissions: perms,
+            });
+        }
+    }
+
+    Ok(ForumPermissionsTemplate {
+        client,
+        forum,
+        groups: groups_info,
+        categories: category_displays,
+    }
+    .to_response())
+}
+
+/// POST /admin/forums/{id}/permissions - Save forum permissions
+#[post("/admin/forums/{id}/permissions")]
+async fn save_forum_permissions(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    forum_id: web::Path<i32>,
+    form: web::Form<ForumPermissionsForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.permissions.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let forum_id = forum_id.into_inner();
+
+    // Verify forum exists
+    let forum = forums::Entity::find_by_id(forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Get all groups
+    let all_groups = groups::Entity::find().all(db).await.map_err(|e| {
+        log::error!("Failed to fetch groups: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    // Parse form data: perm_{permission_id}_{group_id} -> value
+    // Build map: group_id -> HashMap<permission_id, value>
+    let mut group_permissions: std::collections::HashMap<
+        i32,
+        std::collections::HashMap<i32, String>,
+    > = std::collections::HashMap::new();
+
+    for (key, value) in &form.permissions {
+        if !key.starts_with("perm_") {
+            continue;
+        }
+        let parts: Vec<&str> = key.split('_').collect();
+        if parts.len() != 3 {
+            continue;
+        }
+        let perm_id: i32 = match parts[1].parse() {
+            Ok(id) => id,
+            Err(_) => continue,
+        };
+        let group_id: i32 = match parts[2].parse() {
+            Ok(id) => id,
+            Err(_) => continue,
+        };
+        group_permissions
+            .entry(group_id)
+            .or_insert_with(std::collections::HashMap::new)
+            .insert(perm_id, value.clone());
+    }
+
+    // Get existing forum permission links
+    let existing_forum_perms = forum_permissions::Entity::find()
+        .filter(forum_permissions::Column::ForumId.eq(forum_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum permissions: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let existing_collection_ids: Vec<i32> =
+        existing_forum_perms.iter().map(|fp| fp.collection_id).collect();
+
+    // Get existing collections for these IDs
+    let existing_collections = if !existing_collection_ids.is_empty() {
+        permission_collections::Entity::find()
+            .filter(permission_collections::Column::Id.is_in(existing_collection_ids))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch permission collections: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+    } else {
+        Vec::new()
+    };
+
+    // Map: group_id -> collection_id
+    let mut group_to_collection: std::collections::HashMap<i32, i32> = existing_collections
+        .into_iter()
+        .filter_map(|c| c.group_id.map(|gid| (gid, c.id)))
+        .collect();
+
+    // For each group, update or create permission collection
+    for group in &all_groups {
+        let group_perms = match group_permissions.get(&group.id) {
+            Some(perms) => perms,
+            None => continue, // No permissions for this group
+        };
+
+        // Check if all values are "default" - if so, skip/delete
+        let has_non_default = group_perms.values().any(|v| v != "default");
+
+        if !has_non_default {
+            // All default - delete collection if exists
+            if let Some(collection_id) = group_to_collection.remove(&group.id) {
+                // Delete permission values
+                permission_values::Entity::delete_many()
+                    .filter(permission_values::Column::CollectionId.eq(collection_id))
+                    .exec(db)
+                    .await
+                    .ok();
+
+                // Delete forum_permission link
+                forum_permissions::Entity::delete_many()
+                    .filter(forum_permissions::Column::ForumId.eq(forum_id))
+                    .filter(forum_permissions::Column::CollectionId.eq(collection_id))
+                    .exec(db)
+                    .await
+                    .ok();
+
+                // Delete collection
+                permission_collections::Entity::delete_by_id(collection_id)
+                    .exec(db)
+                    .await
+                    .ok();
+            }
+            continue;
+        }
+
+        // Get or create collection for this group
+        let collection_id = if let Some(&cid) = group_to_collection.get(&group.id) {
+            cid
+        } else {
+            // Create new collection
+            let new_collection = permission_collections::ActiveModel {
+                group_id: Set(Some(group.id)),
+                user_id: Set(None),
+                ..Default::default()
+            };
+            let c = new_collection.insert(db).await.map_err(|e| {
+                log::error!("Failed to create permission collection: {}", e);
+                error::ErrorInternalServerError("Failed to create permission collection")
+            })?;
+
+            // Link to forum
+            let fp = forum_permissions::ActiveModel {
+                forum_id: Set(forum_id),
+                collection_id: Set(c.id),
+            };
+            fp.insert(db).await.map_err(|e| {
+                log::error!("Failed to link collection to forum: {}", e);
+                error::ErrorInternalServerError("Failed to link collection to forum")
+            })?;
+
+            c.id
+        };
+
+        // Delete existing permission values for this collection
+        permission_values::Entity::delete_many()
+            .filter(permission_values::Column::CollectionId.eq(collection_id))
+            .exec(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to delete old permission values: {}", e);
+                error::ErrorInternalServerError("Failed to update permissions")
+            })?;
+
+        // Insert new permission values
+        for (perm_id, value_str) in group_perms {
+            let flag = match value_str.as_str() {
+                "yes" => Flag::YES,
+                "no" => Flag::NO,
+                "never" => Flag::NEVER,
+                _ => continue, // Skip "default" values
+            };
+
+            let pv = permission_values::ActiveModel {
+                permission_id: Set(*perm_id),
+                collection_id: Set(collection_id),
+                value: Set(flag),
+            };
+
+            let _ = pv.insert(db).await;
+        }
+    }
+
+    // Log moderation action
+    log_moderation_action(
+        db,
+        moderator_id,
+        "update_forum_permissions",
+        "forum",
+        forum_id,
+        Some(&forum.label),
+    )
+    .await?;
+
+    log::info!(
+        "Forum {} permissions updated by user {}",
+        forum_id,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
         .finish())
 }

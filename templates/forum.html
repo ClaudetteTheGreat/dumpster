@@ -46,6 +46,11 @@
             ✓ Mark Forum Read
         </button>
     </form>
+    {% if client.can("admin.permissions.manage") %}
+    <a href="/admin/forums/{{ forum.id }}/permissions" class="btn btn--secondary btn--small" title="Manage forum permissions">
+        ⚙️ Permissions
+    </a>
+    {% endif %}
 </div>
 {% endif %}
 

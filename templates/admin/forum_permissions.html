@@ -1,0 +1,286 @@
+{% extends "container/public.html" %}
+
+{% block title %}Forum Permissions: {{ forum.label }} - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel admin-forum-permissions">
+    <div class="panel-header">
+        <h1>Forum Permissions</h1>
+        <p class="panel-subtitle">{{ forum.label }}</p>
+    </div>
+
+    <div class="panel-actions">
+        <a href="/forum/{{ forum.id }}" class="btn btn-secondary">View Forum</a>
+    </div>
+
+    <form method="post" class="forum-permissions-form">
+        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+
+        <div class="form-section">
+            <p class="section-desc">
+                Set permissions for each group in this forum.
+                <strong>Default</strong> = inherit from global permissions.
+                <strong>Yes</strong> = grant in this forum.
+                <strong>No</strong> = deny in this forum.
+                <strong>Never</strong> = permanent deny (cannot be overridden).
+            </p>
+            <p class="section-desc">
+                Sub-forums inherit permissions from their parent forums unless explicitly overridden.
+            </p>
+        </div>
+
+        {% for category in categories %}
+        <div class="form-section permission-category-section">
+            <h2>{{ category.label }}</h2>
+
+            <div class="permission-matrix-wrapper">
+                <table class="permission-matrix">
+                    <thead>
+                        <tr>
+                            <th class="perm-label-col">Permission</th>
+                            {% for group in groups %}
+                            <th class="group-col">{{ group.label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for perm in category.permissions %}
+                        <tr>
+                            <td class="perm-label-col"><code>{{ perm.label }}</code></td>
+                            {% for gv in perm.values %}
+                            <td class="group-col">
+                                <select name="perm_{{ perm.id }}_{{ gv.group_id }}" class="permission-select">
+                                    <option value="default"{% if gv.value == "default" %} selected{% endif %}>Default</option>
+                                    <option value="yes"{% if gv.value == "yes" %} selected{% endif %}>Yes</option>
+                                    <option value="no"{% if gv.value == "no" %} selected{% endif %}>No</option>
+                                    <option value="never"{% if gv.value == "never" %} selected{% endif %}>Never</option>
+                                </select>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Save Permissions</button>
+            <a href="/forum/{{ forum.id }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<style>
+.admin-forum-permissions {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+    font-size: 1.1em;
+}
+
+.panel-actions {
+    margin-bottom: 20px;
+}
+
+.form-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.form-section h2 {
+    margin: 0 0 15px 0;
+    font-size: 1.2em;
+    color: #333;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.section-desc {
+    margin: 0 0 15px 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.permission-category-section h2 {
+    color: #0066cc;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.permission-matrix-wrapper {
+    overflow-x: auto;
+}
+
+.permission-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.permission-matrix th,
+.permission-matrix td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.permission-matrix thead th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+}
+
+.permission-matrix tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.perm-label-col {
+    min-width: 200px;
+}
+
+.perm-label-col code {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.9em;
+}
+
+.group-col {
+    min-width: 100px;
+    text-align: center !important;
+}
+
+.permission-select {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85em;
+    background: #fff;
+    min-width: 80px;
+}
+
+.permission-select:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    padding-top: 10px;
+}
+
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .form-section h2 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .section-desc {
+    color: #aaa;
+}
+
+html.dark .form-section {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .form-section h2 {
+    border-color: #444;
+}
+
+html.dark .permission-matrix th,
+html.dark .permission-matrix td {
+    border-color: #444;
+}
+
+html.dark .permission-matrix thead th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .permission-matrix tbody tr:hover {
+    background: #333;
+}
+
+html.dark .perm-label-col code {
+    color: #fff;
+}
+
+html.dark .permission-select {
+    background: #2a2a2a;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .permission-category-section h2 {
+    color: #5fa8e0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .permission-matrix {
+        font-size: 0.8em;
+    }
+
+    .permission-matrix th,
+    .permission-matrix td {
+        padding: 6px 8px;
+    }
+
+    .permission-select {
+        min-width: 70px;
+        font-size: 0.8em;
+    }
+}
+</style>
+{% endblock %}
