@@ -27,6 +27,7 @@ The "Admin" link appears in the top navigation for users with any of these permi
 | Users | `admin.user.manage` |
 | Approval Queue | `moderate.approval.view` |
 | Groups | `admin.permissions.manage` |
+| Forum Permissions | `admin.permissions.manage` (via forum page) |
 
 ### Dashboard Sections (Permission-Gated)
 | Section | Required Permission |
@@ -140,6 +141,39 @@ Create and manage user groups at `/admin/groups`:
 - **No** - Deny the permission
 - **Never** - Permanent deny (cannot be overridden by other groups)
 - **Default** - Inherit from other groups
+
+## Forum-Specific Permissions
+
+Override global permissions on a per-forum basis at `/admin/forums/{id}/permissions`:
+
+### Features
+- **Permission Matrix** - Visual grid showing all permissions × all groups
+- **Per-Forum Overrides** - Set different permissions for each forum
+- **Sub-Forum Inheritance** - Child forums inherit parent permissions unless explicitly overridden
+- **Thread Inheritance** - Threads automatically inherit their parent forum's permissions
+
+### Permission Resolution Order
+1. Check the specific forum for an explicit override
+2. If not found, check parent forum (and continue up the hierarchy)
+3. If no override in the chain, fall back to global group permission
+
+### Example Use Cases
+- **Private Forums** - Deny `forum.view` for Guests in specific forums
+- **Read-Only Archives** - Deny `post.create` and `thread.create` for all groups except admins
+- **Staff Forums** - Only allow Moderators and Administrators to view/post
+- **Announcement Forums** - Allow viewing but restrict thread creation to staff
+
+### Access
+- **Admin Link** - "Permissions" button appears on forum pages for users with `admin.permissions.manage`
+- **Route** - `/admin/forums/{id}/permissions`
+
+### Inheritance Behavior
+```
+General Forum (deny post.create for Guests)
+├── Announcements (no override) → inherits deny
+│   └── Archive (no override) → inherits deny
+└── Discussion (allow post.create) → explicit override
+```
 
 ## Word Filters
 
