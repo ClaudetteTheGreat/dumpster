@@ -229,6 +229,35 @@
         max-width: 100%;
     }
 
+    // Code blocks
+    pre {
+        margin: 1em 0;
+        padding: 0;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: #f6f8fa;
+        overflow-x: auto;
+
+        code {
+            display: block;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+            white-space: pre;
+        }
+    }
+
+    // Inline code (not in pre)
+    :not(pre) > code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.9em;
+        padding: 2px 5px;
+        background: #f6f8fa;
+        border: 1px solid #e1e4e8;
+        border-radius: 3px;
+    }
+
     // @mention links
     a.mention {
         color: #1976d2;
