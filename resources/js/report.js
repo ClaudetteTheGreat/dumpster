@@ -153,11 +153,15 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.textContent = 'Submitting...';
         messageDiv.style.display = 'none';
 
-        const formData = new FormData(form);
+        // Send as URL-encoded form data (not multipart)
+        const formData = new URLSearchParams(new FormData(form));
 
         try {
             const response = await fetch('/reports', {
                 method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
                 body: formData
             });
 
