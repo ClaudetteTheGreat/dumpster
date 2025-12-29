@@ -405,9 +405,37 @@ export class WysiwygEditor {
         return this.insertNode('spoiler', attrs);
       case 'insertCode':
         return this.insertNode('code_block', attrs);
+      case 'insertList':
+        return this.insertList(attrs.listType || 'bullet');
       default:
         return false;
     }
+  }
+
+  /**
+   * Insert a list at the current position
+   */
+  insertList(listType = 'bullet') {
+    const state = this.editorView.state;
+    const { from } = state.selection;
+    const schema = bbcodeSchema;
+
+    // Create list items with empty paragraphs
+    const listItem1 = schema.nodes.list_item.create(null, schema.nodes.paragraph.create());
+    const listItem2 = schema.nodes.list_item.create(null, schema.nodes.paragraph.create());
+    const listItem3 = schema.nodes.list_item.create(null, schema.nodes.paragraph.create());
+
+    // Create the list node
+    let listNode;
+    if (listType === 'ordered' || listType === 'numbered') {
+      listNode = schema.nodes.ordered_list.create({ listType: '1' }, [listItem1, listItem2, listItem3]);
+    } else {
+      listNode = schema.nodes.bullet_list.create(null, [listItem1, listItem2, listItem3]);
+    }
+
+    const tr = state.tr.insert(from, listNode);
+    this.editorView.dispatch(tr);
+    return true;
   }
 
   /**

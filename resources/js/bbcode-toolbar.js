@@ -114,12 +114,14 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'video':
             case 'audio':
             case 'youtube':
-            case 'list':
-                // For complex insertions, fall back to BBCode insertion
+                // For media insertions, fall back to BBCode insertion
                 const bbcode = promptForBBCode(tag);
                 if (bbcode) {
                     editor.insertBBCodeContent(bbcode);
                 }
+                break;
+            case 'list':
+                editor.executeCommand('insertList', { listType: 'bullet' });
                 break;
             default:
                 // Unknown tag - try to apply as a mark or insert as BBCode
