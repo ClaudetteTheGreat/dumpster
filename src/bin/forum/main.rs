@@ -36,6 +36,9 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Permission System failed to initialize.");
 
+    // Initialize global permission data store for cache invalidation
+    ruforo::permission::init_permission_data(permissions.clone());
+
     let secret_key = match std::env::var("SECRET_KEY") {
         Ok(key) => Key::from(key.as_bytes()),
         Err(err) => {

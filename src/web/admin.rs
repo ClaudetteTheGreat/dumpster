@@ -4996,6 +4996,12 @@ async fn save_forum_permissions(
         moderator_id
     );
 
+    // Reload forum permissions cache so changes take effect immediately
+    if let Err(e) = crate::permission::reload_forum_permissions().await {
+        log::error!("Failed to reload forum permissions cache: {}", e);
+        // Continue anyway - changes are saved, just need server restart
+    }
+
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
         .finish())

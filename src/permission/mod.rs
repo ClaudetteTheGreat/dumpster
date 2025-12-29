@@ -29,7 +29,104 @@ pub const MAX_PERMS: u32 = GROUP_LIMIT * PERM_LIMIT;
 
 use crate::middleware::ClientCtx;
 use dashmap::DashMap;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
+use std::sync::RwLock;
+
+/// Global permission data store
+static PERMISSION_DATA: OnceCell<RwLock<PermissionData>> = OnceCell::new();
+
+/// Get a read guard to the global permission data
+pub fn get_permission_data() -> std::sync::RwLockReadGuard<'static, PermissionData> {
+    PERMISSION_DATA
+        .get()
+        .expect("Permission data not initialized")
+        .read()
+        .expect("Permission data lock poisoned")
+}
+
+/// Initialize the global permission data (call once at startup)
+pub fn init_permission_data(data: PermissionData) {
+    PERMISSION_DATA
+        .set(RwLock::new(data))
+        .expect("Permission data already initialized");
+}
+
+/// Reload forum permissions from database
+/// Call this after modifying forum permissions via admin UI
+pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
+    use crate::db::get_db_pool;
+    use crate::orm::forum_permissions;
+    use crate::orm::forums;
+    use crate::orm::permission_collections;
+    use crate::orm::permission_values;
+    use collection_values::CollectionValues;
+    use sea_orm::entity::*;
+    use sea_orm::QueryFilter;
+
+    log::info!("Reloading forum permissions from database...");
+
+    // Get write lock
+    let mut perm_data = PERMISSION_DATA
+        .get()
+        .expect("Permission data not initialized")
+        .write()
+        .expect("Permission data lock poisoned");
+
+    // Load forum permissions
+    let forum_perm_rows = forum_permissions::Entity::find()
+        .find_with_related(permission_collections::Entity)
+        .all(get_db_pool())
+        .await?;
+
+    let mut forum_perms_map: HashMap<i32, DashMap<(i32, i32), CollectionValues>> = HashMap::new();
+
+    for (fp, collections) in forum_perm_rows {
+        let forum_id = fp.forum_id;
+
+        for pc in collections {
+            // Load permission values for this collection
+            let pvs = permission_values::Entity::find()
+                .filter(permission_values::Column::CollectionId.eq(pc.id))
+                .all(get_db_pool())
+                .await?;
+
+            let mut cv = CollectionValues::default();
+
+            for pv in pvs {
+                if let Some(pindices) = perm_data.collection.lookup.get(&pv.permission_id) {
+                    cv.set_flag(pindices.0, pindices.1, pv.value);
+                }
+            }
+
+            let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
+
+            let forum_vals = forum_perms_map
+                .entry(forum_id)
+                .or_insert_with(DashMap::new);
+
+            if forum_vals.contains_key(&val_key) {
+                forum_vals.alter(&val_key, |_, v| cv.join(&v));
+            } else {
+                forum_vals.insert(val_key, cv);
+            }
+        }
+    }
+
+    // Load forum parent relationships
+    let forum_rows = forums::Entity::find().all(get_db_pool()).await?;
+
+    let forum_parents: HashMap<i32, Option<i32>> =
+        forum_rows.into_iter().map(|f| (f.id, f.parent_id)).collect();
+
+    // Update the permission data
+    perm_data.forum_permissions = forum_perms_map;
+    perm_data.forum_parents = forum_parents;
+
+    log::info!("Forum permissions reloaded successfully");
+
+    Ok(())
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct PermissionData {
@@ -117,6 +214,7 @@ impl PermissionData {
 
     /// Check permission in forum context with parent inheritance.
     /// Walks up the forum hierarchy until an override is found.
+    /// Uses global permission store for forum data to support live reloading.
     pub fn can_in_forum(&self, client: &ClientCtx, forum_id: i32, permission: &str) -> bool {
         // Look up the permission's indices by name
         let pindices = match self.collection.dictionary.get(permission) {
@@ -134,10 +232,14 @@ impl PermissionData {
         let user_id = client.get_id();
         let mut current_forum_id = Some(forum_id);
 
+        // Access the global permission data for forum-specific checks
+        // This allows live reloading of forum permissions without server restart
+        let global_perm_data = get_permission_data();
+
         // Walk up the forum hierarchy
         while let Some(fid) = current_forum_id {
             // Check if this forum has permission overrides
-            if let Some(forum_perms) = self.forum_permissions.get(&fid) {
+            if let Some(forum_perms) = global_perm_data.forum_permissions.get(&fid) {
                 // Build values from forum-specific group permissions
                 let mut forum_values = collection_values::CollectionValues::default();
                 let mut has_override = false;
@@ -169,7 +271,7 @@ impl PermissionData {
             }
 
             // Move to parent forum
-            current_forum_id = self.forum_parents.get(&fid).copied().flatten();
+            current_forum_id = global_perm_data.forum_parents.get(&fid).copied().flatten();
         }
 
         // No forum overrides in chain - fall back to global permissions
@@ -178,7 +280,12 @@ impl PermissionData {
 
     /// Get the parent forum ID for a given forum
     pub fn get_forum_parent(&self, forum_id: i32) -> Option<i32> {
-        self.forum_parents.get(&forum_id).copied().flatten()
+        // Use global store for live reloading support
+        get_permission_data()
+            .forum_parents
+            .get(&forum_id)
+            .copied()
+            .flatten()
     }
 }
 
