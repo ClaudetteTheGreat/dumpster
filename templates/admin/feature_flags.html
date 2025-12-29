@@ -7,10 +7,6 @@
     <div class="panel-header">
         <h1>Feature Flags</h1>
         <p class="panel-subtitle">Enable or disable features</p>
-        <div class="admin-nav">
-            <a href="/admin/settings" class="btn btn-secondary">Settings</a>
-            <a href="/admin/feature-flags" class="btn btn-primary active">Feature Flags</a>
-        </div>
     </div>
 
     {% if flags.is_empty() %}
@@ -68,13 +64,8 @@
 }
 
 .panel-subtitle {
-    margin: 0 0 15px 0;
+    margin: 0;
     color: #666;
-}
-
-.admin-nav {
-    display: flex;
-    gap: 10px;
 }
 
 .empty-state {

@@ -7,10 +7,6 @@
     <div class="panel-header">
         <h1>Site Settings</h1>
         <p class="panel-subtitle">Manage site configuration</p>
-        <div class="admin-nav">
-            <a href="/admin/settings" class="btn btn-primary active">Settings</a>
-            <a href="/admin/feature-flags" class="btn btn-secondary">Feature Flags</a>
-        </div>
     </div>
 
     {% if categories.is_empty() %}
@@ -83,13 +79,8 @@
 }
 
 .panel-subtitle {
-    margin: 0 0 15px 0;
+    margin: 0;
     color: #666;
-}
-
-.admin-nav {
-    display: flex;
-    gap: 10px;
 }
 
 .empty-state {
