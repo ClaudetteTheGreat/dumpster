@@ -1,0 +1,443 @@
+/**
+ * WYSIWYG Editor Styles
+ * Styles for the ProseMirror-based rich text editor
+ */
+
+// Editor container
+.wysiwyg-editor-container {
+    min-height: 200px;
+    border: 1px solid var(--color-border, #ccc);
+    border-radius: 4px;
+    background: var(--color-bg, #fff);
+
+    // Focus state
+    &:focus-within {
+        border-color: var(--color-primary, #4a90d9);
+        box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.2);
+    }
+}
+
+// ProseMirror editor content area
+.ProseMirror {
+    min-height: 200px;
+    padding: 12px;
+    outline: none;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-text, #333);
+
+    // Placeholder for empty editor
+    &.ProseMirror-focused .ProseMirror-gapcursor {
+        display: none;
+    }
+
+    // Selection styling
+    &::selection,
+    & *::selection {
+        background: var(--color-selection, rgba(74, 144, 217, 0.3));
+    }
+
+    // Basic typography
+    p {
+        margin: 0 0 1em 0;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    // Headings (if supported)
+    h1, h2, h3, h4, h5, h6 {
+        margin: 1.5em 0 0.5em 0;
+        font-weight: bold;
+        line-height: 1.3;
+    }
+
+    // Links
+    a {
+        color: var(--color-link, #4a90d9);
+        text-decoration: underline;
+
+        &:hover {
+            text-decoration: none;
+        }
+    }
+
+    // Mentions
+    a.mention {
+        color: var(--color-mention, #4a90d9);
+        background: var(--color-mention-bg, rgba(74, 144, 217, 0.1));
+        padding: 0 4px;
+        border-radius: 3px;
+        text-decoration: none;
+
+        &:hover {
+            background: var(--color-mention-bg-hover, rgba(74, 144, 217, 0.2));
+        }
+    }
+
+    // Inline code
+    code.inline-code {
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 0.9em;
+        padding: 2px 4px;
+        background: var(--color-code-bg, #f5f5f5);
+        border-radius: 3px;
+    }
+
+    // Images
+    img.bbcode-image {
+        max-width: 100%;
+        height: auto;
+        border-radius: 4px;
+
+        &.ProseMirror-selectednode {
+            outline: 2px solid var(--color-primary, #4a90d9);
+        }
+    }
+
+    // Horizontal rule
+    hr {
+        border: none;
+        border-top: 1px solid var(--color-border, #ddd);
+        margin: 1em 0;
+    }
+}
+
+// =============================================================================
+// Block Elements
+// =============================================================================
+
+// Quote blocks
+.ProseMirror blockquote.bbcode-quote {
+    margin: 1em 0;
+    padding: 0;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 4px;
+    background: var(--color-quote-bg, #f9f9f9);
+
+    .quote-header {
+        padding: 8px 12px;
+        background: var(--color-quote-header-bg, #eee);
+        border-bottom: 1px solid var(--color-border, #ddd);
+        font-size: 0.9em;
+        color: var(--color-text-muted, #666);
+
+        .quote-author {
+            font-weight: 500;
+        }
+
+        .quote-link {
+            margin-left: 8px;
+            color: var(--color-link, #4a90d9);
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+
+    .quote-content {
+        padding: 12px;
+    }
+}
+
+// Spoiler blocks
+.ProseMirror details.bbcode-spoiler {
+    margin: 1em 0;
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 4px;
+    background: var(--color-spoiler-bg, #f9f9f9);
+
+    summary {
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 500;
+        background: var(--color-spoiler-header-bg, #eee);
+        border-bottom: 1px solid var(--color-border, #ddd);
+        user-select: none;
+
+        &:hover {
+            background: var(--color-spoiler-header-hover, #e5e5e5);
+        }
+
+        &::-webkit-details-marker {
+            margin-right: 8px;
+        }
+    }
+
+    .spoiler-content {
+        padding: 12px;
+    }
+}
+
+// Code blocks
+.ProseMirror pre.bbcode-code {
+    margin: 1em 0;
+    padding: 12px;
+    background: var(--color-code-bg, #f5f5f5);
+    border: 1px solid var(--color-border, #ddd);
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+    white-space: pre;
+
+    code {
+        background: none;
+        padding: 0;
+        font-family: inherit;
+        font-size: inherit;
+    }
+}
+
+// Lists
+.ProseMirror ul.bbcode-list,
+.ProseMirror ol.bbcode-list {
+    margin: 1em 0;
+    padding-left: 2em;
+
+    li {
+        margin: 0.25em 0;
+
+        p {
+            margin: 0;
+        }
+    }
+}
+
+// Tables
+.ProseMirror table.bbcode-table {
+    margin: 1em 0;
+    border-collapse: collapse;
+    width: 100%;
+
+    th, td {
+        border: 1px solid var(--color-border, #ddd);
+        padding: 8px 12px;
+        text-align: left;
+    }
+
+    th {
+        background: var(--color-table-header-bg, #f5f5f5);
+        font-weight: 600;
+    }
+
+    tr:nth-child(even) td {
+        background: var(--color-table-row-alt, #fafafa);
+    }
+}
+
+// Text alignment
+.ProseMirror .text-center {
+    text-align: center;
+}
+
+.ProseMirror .text-left {
+    text-align: left;
+}
+
+.ProseMirror .text-right {
+    text-align: right;
+}
+
+// =============================================================================
+// Media Embeds
+// =============================================================================
+
+// Video wrapper
+.ProseMirror .bbcode-video-wrapper {
+    margin: 1em 0;
+
+    video.bbcode-video {
+        max-width: 100%;
+        border-radius: 4px;
+    }
+}
+
+// Audio wrapper
+.ProseMirror .bbcode-audio-wrapper {
+    margin: 1em 0;
+
+    audio.bbcode-audio {
+        width: 100%;
+    }
+}
+
+// YouTube wrapper
+.ProseMirror .bbcode-youtube-wrapper {
+    margin: 1em 0;
+
+    &.responsive-embed {
+        position: relative;
+        padding-bottom: 56.25%; // 16:9 aspect ratio
+        height: 0;
+        overflow: hidden;
+
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: 4px;
+        }
+    }
+}
+
+// =============================================================================
+// Toolbar Mode Button
+// =============================================================================
+
+.toolbar-group--mode {
+    margin-left: auto; // Push to right side
+
+    .mode-toggle-btn {
+        font-weight: 500;
+        min-width: 50px;
+        background: var(--color-bg-secondary, #f5f5f5);
+        border: 1px solid var(--color-border, #ccc);
+
+        &:hover {
+            background: var(--color-bg-hover, #e5e5e5);
+        }
+
+        &.mode-toggle-btn--rich {
+            background: var(--color-primary, #4a90d9);
+            color: white;
+            border-color: var(--color-primary, #4a90d9);
+
+            &:hover {
+                background: var(--color-primary-dark, #3a7cc0);
+            }
+        }
+    }
+}
+
+// Active state for toolbar buttons in rich mode
+.toolbar-rich-mode {
+    &[data-bbcode="b"],
+    &[data-bbcode="i"],
+    &[data-bbcode="u"],
+    &[data-bbcode="s"] {
+        // These buttons now work as toggles in rich mode
+        &:active,
+        &.active {
+            background: var(--color-primary, #4a90d9);
+            color: white;
+        }
+    }
+}
+
+// =============================================================================
+// Dark Mode Support
+// =============================================================================
+
+@media (prefers-color-scheme: dark) {
+    .wysiwyg-editor-container {
+        --color-bg: #1a1a1a;
+        --color-border: #444;
+        --color-text: #e0e0e0;
+        --color-text-muted: #888;
+        --color-primary: #5c9fd9;
+        --color-primary-dark: #4a8cc9;
+        --color-link: #6ab0f3;
+        --color-selection: rgba(92, 159, 217, 0.3);
+        --color-code-bg: #2a2a2a;
+        --color-quote-bg: #222;
+        --color-quote-header-bg: #2a2a2a;
+        --color-spoiler-bg: #222;
+        --color-spoiler-header-bg: #2a2a2a;
+        --color-spoiler-header-hover: #333;
+        --color-table-header-bg: #2a2a2a;
+        --color-table-row-alt: #1e1e1e;
+        --color-bg-secondary: #2a2a2a;
+        --color-bg-hover: #333;
+        --color-mention-bg: rgba(92, 159, 217, 0.15);
+        --color-mention-bg-hover: rgba(92, 159, 217, 0.25);
+    }
+}
+
+// Manual dark mode class (for theme toggle)
+body.dark-mode,
+[data-theme="dark"] {
+    .wysiwyg-editor-container {
+        --color-bg: #1a1a1a;
+        --color-border: #444;
+        --color-text: #e0e0e0;
+        --color-text-muted: #888;
+        --color-primary: #5c9fd9;
+        --color-primary-dark: #4a8cc9;
+        --color-link: #6ab0f3;
+        --color-selection: rgba(92, 159, 217, 0.3);
+        --color-code-bg: #2a2a2a;
+        --color-quote-bg: #222;
+        --color-quote-header-bg: #2a2a2a;
+        --color-spoiler-bg: #222;
+        --color-spoiler-header-bg: #2a2a2a;
+        --color-spoiler-header-hover: #333;
+        --color-table-header-bg: #2a2a2a;
+        --color-table-row-alt: #1e1e1e;
+        --color-bg-secondary: #2a2a2a;
+        --color-bg-hover: #333;
+        --color-mention-bg: rgba(92, 159, 217, 0.15);
+        --color-mention-bg-hover: rgba(92, 159, 217, 0.25);
+    }
+}
+
+// =============================================================================
+// Editor State Indicators
+// =============================================================================
+
+// Loading state
+.wysiwyg-editor-container.loading {
+    opacity: 0.7;
+    pointer-events: none;
+
+    &::after {
+        content: 'Loading...';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 8px 16px;
+        background: var(--color-bg, #fff);
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+}
+
+// Empty state placeholder
+.ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--color-text-muted, #aaa);
+    pointer-events: none;
+    height: 0;
+}
+
+// =============================================================================
+// Responsive Design
+// =============================================================================
+
+@media (max-width: 768px) {
+    .wysiwyg-editor-container {
+        min-height: 150px;
+    }
+
+    .ProseMirror {
+        padding: 8px;
+        font-size: 16px; // Prevent zoom on iOS
+    }
+
+    .toolbar-group--mode {
+        .mode-toggle-btn {
+            min-width: 40px;
+            padding: 4px 8px;
+        }
+    }
+}

@@ -1,7 +1,13 @@
 /**
  * BBCode Toolbar
  * Provides formatting buttons for BBCode text editing
+ * Supports both raw BBCode mode and rich WYSIWYG mode
  */
+
+import { WysiwygEditor } from './wysiwyg/index.js';
+
+// Store editor instances per container
+const editorInstances = new WeakMap();
 
 document.addEventListener('DOMContentLoaded', function() {
     // Find all textareas with bbcode-editor class or within bbcode-editor-container
@@ -13,13 +19,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (!textarea || !toolbar) return;
 
+        // Initialize WYSIWYG editor instance (starts in raw mode)
+        const wysiwygEditor = new WysiwygEditor(textarea, {
+            mode: 'raw',
+            onModeChange: (mode) => updateModeButton(toolbar, mode),
+            onContentChange: () => {
+                // Trigger input event for character counter
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+
+        // Store editor instance
+        editorInstances.set(container, wysiwygEditor);
+
         // Set up toolbar button handlers
         toolbar.querySelectorAll('[data-bbcode]').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 const tag = button.dataset.bbcode;
                 const param = button.dataset.param || '';
-                insertBBCode(textarea, tag, param);
+
+                if (wysiwygEditor.isRichMode()) {
+                    // Handle in WYSIWYG mode
+                    handleRichModeFormatting(wysiwygEditor, tag, param);
+                } else {
+                    // Handle in raw mode (original behavior)
+                    insertBBCode(textarea, tag, param);
+                }
             });
         });
 
@@ -27,13 +53,126 @@ document.addEventListener('DOMContentLoaded', function() {
         toolbar.querySelectorAll('[data-action]').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
-                handleAction(textarea, button.dataset.action, container);
+                handleAction(textarea, button.dataset.action, container, wysiwygEditor);
             });
         });
     });
 
     /**
-     * Insert BBCode tags around selected text or at cursor
+     * Handle formatting in rich/WYSIWYG mode
+     */
+    function handleRichModeFormatting(editor, tag, param) {
+        switch (tag) {
+            case 'b':
+                editor.executeCommand('bold');
+                break;
+            case 'i':
+                editor.executeCommand('italic');
+                break;
+            case 'u':
+                editor.executeCommand('underline');
+                break;
+            case 's':
+                editor.executeCommand('strikethrough');
+                break;
+            case 'url':
+                const url = prompt('Enter URL:', 'https://');
+                if (url) {
+                    editor.executeCommand('link', { href: url });
+                }
+                break;
+            case 'img':
+                const imgUrl = prompt('Enter image URL:', 'https://');
+                if (imgUrl) {
+                    editor.executeCommand('insertImage', { src: imgUrl });
+                }
+                break;
+            case 'quote':
+                const author = prompt('Quote author (leave empty for no attribution):');
+                editor.executeCommand('insertQuote', { author: author || null });
+                break;
+            case 'code':
+                const lang = prompt('Code language (leave empty for none):');
+                editor.executeCommand('insertCode', { language: lang || null });
+                break;
+            case 'spoiler':
+                const title = prompt('Spoiler title (leave empty for default):');
+                editor.executeCommand('insertSpoiler', { title: title || 'Spoiler' });
+                break;
+            case 'color':
+                const color = param || prompt('Enter color (name or #hex):', 'red');
+                if (color) {
+                    editor.executeCommand('color', { color });
+                }
+                break;
+            case 'size':
+                const size = param || prompt('Enter size (8-36):', '14');
+                if (size) {
+                    editor.executeCommand('size', { size: parseInt(size, 10) });
+                }
+                break;
+            case 'video':
+            case 'audio':
+            case 'youtube':
+            case 'list':
+                // For complex insertions, fall back to BBCode insertion
+                const bbcode = promptForBBCode(tag);
+                if (bbcode) {
+                    editor.insertBBCodeContent(bbcode);
+                }
+                break;
+            default:
+                // Unknown tag - try to apply as a mark or insert as BBCode
+                editor.insertBBCodeContent(`[${tag}][/${tag}]`);
+        }
+    }
+
+    /**
+     * Prompt for BBCode content (for complex tags in rich mode)
+     */
+    function promptForBBCode(tag) {
+        switch (tag) {
+            case 'video':
+                const videoUrl = prompt('Enter video URL (YouTube, Vimeo, or direct video):', 'https://');
+                return videoUrl ? `[video]${videoUrl}[/video]` : null;
+            case 'audio':
+                const audioUrl = prompt('Enter audio URL:', 'https://');
+                return audioUrl ? `[audio]${audioUrl}[/audio]` : null;
+            case 'youtube':
+                const ytUrl = prompt('Enter YouTube video URL or ID:', '');
+                return ytUrl ? `[youtube]${ytUrl}[/youtube]` : null;
+            case 'list':
+                return '[list]\n[*] Item 1\n[*] Item 2\n[*] Item 3\n[/list]';
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Update mode toggle button text and state
+     */
+    function updateModeButton(toolbar, mode) {
+        const modeBtn = toolbar.querySelector('.mode-toggle-btn');
+        if (modeBtn) {
+            if (mode === 'rich') {
+                modeBtn.textContent = 'Raw';
+                modeBtn.classList.add('mode-toggle-btn--rich');
+                modeBtn.title = 'Switch to raw BBCode mode';
+            } else {
+                modeBtn.textContent = 'Rich';
+                modeBtn.classList.remove('mode-toggle-btn--rich');
+                modeBtn.title = 'Switch to rich WYSIWYG mode';
+            }
+        }
+
+        // Update toolbar button states
+        toolbar.querySelectorAll('[data-bbcode]').forEach(button => {
+            button.classList.toggle('toolbar-rich-mode', mode === 'rich');
+        });
+    }
+
+    /**
+     * Insert BBCode tags around selected text or at cursor (raw mode)
      */
     function insertBBCode(textarea, tag, param = '') {
         const start = textarea.selectionStart;
@@ -195,25 +334,56 @@ document.addEventListener('DOMContentLoaded', function() {
     /**
      * Handle special toolbar actions
      */
-    function handleAction(textarea, action, container) {
+    function handleAction(textarea, action, container, editor) {
         switch (action) {
             case 'preview':
-                togglePreview(textarea, container);
+                togglePreview(textarea, container, editor);
+                break;
+            case 'toggle-mode':
+                toggleEditorMode(container, editor);
                 break;
         }
     }
 
     /**
+     * Toggle between rich and raw editor modes
+     */
+    async function toggleEditorMode(container, editor) {
+        if (!editor) return;
+
+        // Close preview if open
+        const preview = container.querySelector('.bbcode-preview');
+        if (preview) {
+            preview.remove();
+            const textarea = container.querySelector('textarea');
+            textarea.style.display = '';
+            const previewBtn = container.querySelector('.preview-btn');
+            if (previewBtn) {
+                previewBtn.textContent = 'Preview';
+                previewBtn.classList.remove('preview-btn--active');
+            }
+        }
+
+        await editor.toggleMode();
+    }
+
+    /**
      * Toggle preview mode with server-side BBCode rendering
      */
-    async function togglePreview(textarea, container) {
+    async function togglePreview(textarea, container, editor) {
         let preview = container.querySelector('.bbcode-preview');
         const previewBtn = container.querySelector('.preview-btn');
 
         if (preview) {
-            // Hide preview, show textarea
+            // Hide preview, show textarea/editor
             preview.remove();
-            textarea.style.display = '';
+            if (editor && editor.isRichMode()) {
+                // In rich mode, show the WYSIWYG editor
+                const editorContainer = container.querySelector('.wysiwyg-editor-container');
+                if (editorContainer) editorContainer.style.display = 'block';
+            } else {
+                textarea.style.display = '';
+            }
             if (previewBtn) {
                 previewBtn.textContent = 'Preview';
                 previewBtn.classList.remove('preview-btn--active');
@@ -228,13 +398,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
+            // Get content from editor (handles both modes)
+            const content = editor ? editor.getContent() : textarea.value;
+
             // Fetch rendered BBCode from server
             const response = await fetch('/api/bbcode/preview', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ content: textarea.value }),
+                body: JSON.stringify({ content }),
             });
 
             if (!response.ok) {
@@ -249,8 +422,10 @@ document.addEventListener('DOMContentLoaded', function() {
             preview.innerHTML = '<div class="preview-header">Preview <span class="preview-edit-hint">(click Edit to continue editing)</span></div>' +
                 '<div class="preview-content ugc">' + html + '</div>';
 
-            // Hide textarea, show preview
+            // Hide textarea/editor, show preview
             textarea.style.display = 'none';
+            const editorContainer = container.querySelector('.wysiwyg-editor-container');
+            if (editorContainer) editorContainer.style.display = 'none';
             textarea.parentNode.insertBefore(preview, textarea.nextSibling);
 
             if (previewBtn) {
@@ -260,12 +435,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Preview error:', error);
             // Fallback to showing raw content
+            const content = editor ? editor.getContent() : textarea.value;
             preview = document.createElement('div');
             preview.className = 'bbcode-preview';
             preview.innerHTML = '<div class="preview-header preview-header--error">Preview unavailable</div>' +
-                '<div class="preview-content">' + escapeHtml(textarea.value) + '</div>';
+                '<div class="preview-content">' + escapeHtml(content) + '</div>';
 
             textarea.style.display = 'none';
+            const editorContainer = container.querySelector('.wysiwyg-editor-container');
+            if (editorContainer) editorContainer.style.display = 'none';
             textarea.parentNode.insertBefore(preview, textarea.nextSibling);
 
             if (previewBtn) {
@@ -326,4 +504,35 @@ window.insertBBCodeTag = function(textareaId, tag, param) {
     textarea.selectionStart = start + openTag.length;
     textarea.selectionEnd = start + openTag.length + selectedText.length;
     textarea.focus();
+};
+
+/**
+ * Get WYSIWYG editor instance for a container
+ */
+window.getWysiwygEditor = function(container) {
+    return editorInstances.get(container);
+};
+
+/**
+ * Insert content into the appropriate editor (for external use by quotes, mentions, etc.)
+ */
+window.insertEditorContent = async function(textareaId, content) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+
+    const container = textarea.closest('.bbcode-editor-container');
+    const editor = container ? editorInstances.get(container) : null;
+
+    if (editor) {
+        await editor.insertBBCodeContent(content);
+    } else {
+        // Fallback: insert directly into textarea
+        const start = textarea.selectionStart;
+        const before = textarea.value.substring(0, start);
+        const after = textarea.value.substring(start);
+        textarea.value = before + content + after;
+        textarea.selectionStart = textarea.selectionEnd = start + content.length;
+        textarea.focus();
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 };

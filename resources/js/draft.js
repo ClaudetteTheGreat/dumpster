@@ -173,10 +173,21 @@
     function collectFormData(form) {
         const data = {};
 
-        // Get textarea content
+        // Get textarea content (supports WYSIWYG editor)
         const textarea = form.querySelector('textarea[name="content"]');
         if (textarea) {
-            data.content = textarea.value;
+            // Check for WYSIWYG editor and get content from it
+            const container = textarea.closest('.bbcode-editor-container');
+            if (container && typeof window.getWysiwygEditor === 'function') {
+                const editor = window.getWysiwygEditor(container);
+                if (editor) {
+                    data.content = editor.getContent();
+                } else {
+                    data.content = textarea.value;
+                }
+            } else {
+                data.content = textarea.value;
+            }
         }
 
         // Get title (for new threads)

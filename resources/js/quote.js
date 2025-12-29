@@ -93,8 +93,8 @@
         return `[quote=${quote.username}]${decodedContent}[/quote]`;
     }
 
-    // Insert a single quote into textarea
-    function insertQuote(username, content, threadId, postId) {
+    // Insert a single quote into textarea (supports WYSIWYG editor)
+    async function insertQuote(username, content, threadId, postId) {
         const textarea = getReplyTextarea();
         if (!textarea) {
             alert('Reply form not found. You may need to scroll down to the reply form.');
@@ -109,6 +109,14 @@
             quote = `[quote=${username}]${decodedContent}[/quote]\n\n`;
         }
 
+        // Use WYSIWYG-aware insert if available
+        if (typeof window.insertEditorContent === 'function') {
+            await window.insertEditorContent(textarea.id || 'content', quote);
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
+        }
+
+        // Fallback: direct textarea insert
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
         const currentValue = textarea.value;
@@ -126,8 +134,8 @@
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    // Insert all queued quotes into textarea
-    function insertAllQuotes() {
+    // Insert all queued quotes into textarea (supports WYSIWYG editor)
+    async function insertAllQuotes() {
         const textarea = getReplyTextarea();
         if (!textarea) {
             alert('Reply form not found. You may need to scroll down to the reply form.');
@@ -146,6 +154,15 @@
         // Build all quotes
         const allQuotes = quotes.map(q => buildQuoteBBCode(q)).join('\n\n') + '\n\n';
 
+        // Use WYSIWYG-aware insert if available
+        if (typeof window.insertEditorContent === 'function') {
+            await window.insertEditorContent(textarea.id || 'content', allQuotes);
+            textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            clearQuotes();
+            return;
+        }
+
+        // Fallback: direct textarea insert
         const start = textarea.selectionStart;
         const currentValue = textarea.value;
 
