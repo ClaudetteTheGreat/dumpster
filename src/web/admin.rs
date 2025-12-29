@@ -389,7 +389,7 @@ pub async fn lock_thread(
     log::info!("Thread {} locked by moderator {}", thread_id, moderator_id);
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
@@ -447,7 +447,7 @@ pub async fn unlock_thread(
     );
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
@@ -501,7 +501,7 @@ pub async fn pin_thread(
     log::info!("Thread {} pinned by moderator {}", thread_id, moderator_id);
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
@@ -559,7 +559,7 @@ pub async fn unpin_thread(
     );
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
