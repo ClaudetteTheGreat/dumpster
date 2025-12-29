@@ -167,6 +167,11 @@ Override global permissions on a per-forum basis at `/admin/forums/{id}/permissi
 - **Admin Link** - "Permissions" button appears on forum pages for users with `admin.permissions.manage`
 - **Route** - `/admin/forums/{id}/permissions`
 
+### Live Reload
+- Permission changes take effect **immediately** without server restart
+- Uses global `RwLock` store shared across all workers
+- When permissions are saved, `reload_forum_permissions()` updates the cache
+
 ### Inheritance Behavior
 ```
 General Forum (deny post.create for Guests)
