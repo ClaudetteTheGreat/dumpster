@@ -1,28 +1,23 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<h2>Private Messages</h2>
+<h2>Archived Conversations</h2>
 
 <div class="pm-header">
     <div class="pm-count">
-        {% if unread_count > 0 %}
-            <p>You have <strong>{{ unread_count }}</strong> unread conversation(s)</p>
-        {% else %}
-            <p>No unread conversations</p>
-        {% endif %}
+        <p>{{ conversations.len() }} archived conversation(s)</p>
     </div>
     <div class="pm-actions">
-        <a href="/conversations/archived" class="button button-secondary">Archived</a>
-        <a href="/conversations/new" class="button">New Conversation</a>
+        <a href="/conversations" class="button">Back to Inbox</a>
     </div>
 </div>
 
 {% if conversations.is_empty() %}
-    <p>No conversations yet. <a href="/conversations/new">Start one!</a></p>
+    <p>No archived conversations.</p>
 {% else %}
     <div class="conversation-list">
         {% for conv in conversations %}
-            <div class="conversation-item {% if conv.is_unread %}unread{% endif %}">
+            <div class="conversation-item">
                 <a href="/conversations/{{ conv.id }}">
                     <div class="conversation-content">
                         <h4>
@@ -30,9 +25,6 @@
                                 {{ title }}
                             {% else %}
                                 Conversation with {% for participant in conv.participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
-                            {% endif %}
-                            {% if conv.is_unread %}
-                                <span class="unread-badge">NEW</span>
                             {% endif %}
                         </h4>
                         <p class="participants">With:
@@ -82,12 +74,6 @@
         background: #f9f9f9;
     }
 
-    .conversation-item.unread {
-        background: #f0f8ff;
-        border-color: #4a90e2;
-        border-left-width: 4px;
-    }
-
     .conversation-item a {
         text-decoration: none;
         color: inherit;
@@ -117,16 +103,6 @@
         font-size: 0.85em;
     }
 
-    .unread-badge {
-        background: #4a90e2;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.75em;
-        font-weight: bold;
-        margin-left: 10px;
-    }
-
     .button {
         display: inline-block;
         padding: 10px 20px;
@@ -139,19 +115,6 @@
 
     .button:hover {
         background: #357abd;
-    }
-
-    .button-secondary {
-        background: #6c757d;
-    }
-
-    .button-secondary:hover {
-        background: #5a6268;
-    }
-
-    .pm-actions {
-        display: flex;
-        gap: 10px;
     }
 </style>
 {% endblock %}

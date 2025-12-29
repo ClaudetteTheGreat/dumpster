@@ -8,11 +8,14 @@ use serde::Deserialize;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_inbox)
+        .service(view_archived)
         .service(view_conversation)
         .service(new_conversation_form)
         .service(create_conversation)
         .service(send_message_handler)
-        .service(leave_conversation_handler);
+        .service(leave_conversation_handler)
+        .service(archive_conversation_handler)
+        .service(unarchive_conversation_handler);
 }
 
 /// Template for inbox (conversation list)
@@ -24,6 +27,14 @@ struct InboxTemplate {
     unread_count: i64,
 }
 
+/// Template for archived conversations
+#[derive(Template)]
+#[template(path = "conversations/archived.html")]
+struct ArchivedTemplate {
+    client: ClientCtx,
+    conversations: Vec<conversations::ConversationPreview>,
+}
+
 /// Template for conversation view
 #[derive(Template)]
 #[template(path = "conversations/view.html")]
@@ -33,6 +44,7 @@ struct ConversationViewTemplate {
     messages: Vec<conversations::MessageDisplay>,
     participants: Vec<String>,
     title: Option<String>,
+    is_archived: bool,
 }
 
 /// Template for new conversation form
@@ -74,21 +86,28 @@ pub async fn view_conversation(
     let user_id = client.require_login()?;
     let conv_id = *conversation_id;
 
-    // Verify user is participant
-    conversations::verify_participant(crate::db::get_db_pool(), user_id, conv_id)
+    use crate::orm::conversation_participants;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+    let db = crate::db::get_db_pool();
+
+    // Get participant record (verifies participation and gets archived status)
+    let user_participant = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conv_id))
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .one(db)
         .await
-        .map_err(|_| error::ErrorForbidden("You are not a participant in this conversation"))?;
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorForbidden("You are not a participant in this conversation"))?;
+
+    let is_archived = user_participant.is_archived;
 
     // Get messages
     let messages = conversations::get_conversation_messages(conv_id, 100, 0)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    // Get participants
-    use crate::orm::conversation_participants;
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-    let db = crate::db::get_db_pool();
+    // Get all participants
     let participants_data = conversation_participants::Entity::find()
         .filter(conversation_participants::Column::ConversationId.eq(conv_id))
         .all(db)
@@ -123,6 +142,7 @@ pub async fn view_conversation(
         messages,
         participants: participant_names,
         title,
+        is_archived,
     }
     .to_response())
 }
@@ -329,5 +349,88 @@ pub async fn leave_conversation_handler(
     // Redirect to inbox
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/conversations"))
+        .finish())
+}
+
+/// Form data for archiving/unarchiving a conversation
+#[derive(Deserialize)]
+pub struct ArchiveConversationForm {
+    csrf_token: String,
+}
+
+/// GET /conversations/archived - View archived conversations
+#[get("/conversations/archived")]
+pub async fn view_archived(client: ClientCtx) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+
+    // Get user's archived conversations
+    let archived = conversations::get_archived_conversations(user_id, 50)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    Ok(ArchivedTemplate {
+        client,
+        conversations: archived,
+    }
+    .to_response())
+}
+
+/// POST /conversations/{id}/archive - Archive a conversation
+#[post("/conversations/{id}/archive")]
+pub async fn archive_conversation_handler(
+    client: ClientCtx,
+    session: actix_session::Session,
+    conversation_id: web::Path<i32>,
+    form: web::Form<ArchiveConversationForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Archive the conversation
+    conversations::archive_conversation(user_id, conv_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to archive conversation: {}", e);
+            error::ErrorInternalServerError("Failed to archive conversation")
+        })?;
+
+    log::info!("User {} archived conversation {}", user_id, conv_id);
+
+    // Redirect to inbox
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/conversations"))
+        .finish())
+}
+
+/// POST /conversations/{id}/unarchive - Unarchive a conversation
+#[post("/conversations/{id}/unarchive")]
+pub async fn unarchive_conversation_handler(
+    client: ClientCtx,
+    session: actix_session::Session,
+    conversation_id: web::Path<i32>,
+    form: web::Form<ArchiveConversationForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Unarchive the conversation
+    conversations::unarchive_conversation(user_id, conv_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to unarchive conversation: {}", e);
+            error::ErrorInternalServerError("Failed to unarchive conversation")
+        })?;
+
+    log::info!("User {} unarchived conversation {}", user_id, conv_id);
+
+    // Redirect to the conversation
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
         .finish())
 }

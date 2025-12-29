@@ -627,3 +627,147 @@ async fn test_leave_conversation_non_participant() {
     let result = conversations::leave_conversation(user3.id, conversation_id).await;
     assert!(result.is_err());
 }
+
+#[actix_rt::test]
+#[serial]
+async fn test_archive_conversation() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id], None)
+        .await
+        .expect("Failed to create conversation");
+
+    // Verify conversation is not archived initially
+    let participant_before = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user1.id))
+        .one(&db)
+        .await
+        .expect("Failed to find participant")
+        .expect("Participant not found");
+    assert!(!participant_before.is_archived);
+
+    // Archive the conversation for user1
+    conversations::archive_conversation(user1.id, conversation_id)
+        .await
+        .expect("Failed to archive conversation");
+
+    // Verify it's now archived for user1
+    let participant_after = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user1.id))
+        .one(&db)
+        .await
+        .expect("Failed to find participant")
+        .expect("Participant not found");
+    assert!(participant_after.is_archived);
+
+    // Verify it's NOT archived for user2
+    let user2_participant = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user2.id))
+        .one(&db)
+        .await
+        .expect("Failed to find participant")
+        .expect("Participant not found");
+    assert!(!user2_participant.is_archived);
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_unarchive_conversation() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id], None)
+        .await
+        .expect("Failed to create conversation");
+
+    // Archive then unarchive
+    conversations::archive_conversation(user1.id, conversation_id)
+        .await
+        .expect("Failed to archive conversation");
+
+    conversations::unarchive_conversation(user1.id, conversation_id)
+        .await
+        .expect("Failed to unarchive conversation");
+
+    // Verify it's no longer archived
+    let participant = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user1.id))
+        .one(&db)
+        .await
+        .expect("Failed to find participant")
+        .expect("Participant not found");
+    assert!(!participant.is_archived);
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_get_archived_conversations() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    // Create two conversations
+    let conv1 = conversations::create_conversation(user1.id, &[user2.id], Some("Conv 1"))
+        .await
+        .expect("Failed to create conversation 1");
+
+    let _conv2 = conversations::create_conversation(user1.id, &[user2.id], Some("Conv 2"))
+        .await
+        .expect("Failed to create conversation 2");
+
+    // Archive only conv1
+    conversations::archive_conversation(user1.id, conv1)
+        .await
+        .expect("Failed to archive conversation");
+
+    // Get user's non-archived conversations
+    let active_convs = conversations::get_user_conversations(user1.id, 10)
+        .await
+        .expect("Failed to get conversations");
+    assert_eq!(active_convs.len(), 1);
+    assert_eq!(active_convs[0].title, Some("Conv 2".to_string()));
+
+    // Get user's archived conversations
+    let archived_convs = conversations::get_archived_conversations(user1.id, 10)
+        .await
+        .expect("Failed to get archived conversations");
+    assert_eq!(archived_convs.len(), 1);
+    assert_eq!(archived_convs[0].title, Some("Conv 1".to_string()));
+}

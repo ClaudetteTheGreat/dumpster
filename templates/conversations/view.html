@@ -3,11 +3,28 @@
 {% block content %}
 <div class="conversation-header">
     <div class="header-top">
-        <a href="/conversations" class="back-link">← Back to Inbox</a>
-        <form action="/conversations/{{ conversation_id }}/leave" method="post" class="leave-form" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
-            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-            <button type="submit" class="btn-leave">Leave Conversation</button>
-        </form>
+        {% if is_archived %}
+            <a href="/conversations/archived" class="back-link">← Back to Archived</a>
+        {% else %}
+            <a href="/conversations" class="back-link">← Back to Inbox</a>
+        {% endif %}
+        <div class="header-actions">
+            {% if is_archived %}
+                <form action="/conversations/{{ conversation_id }}/unarchive" method="post" class="action-form">
+                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                    <button type="submit" class="btn-unarchive">Unarchive</button>
+                </form>
+            {% else %}
+                <form action="/conversations/{{ conversation_id }}/archive" method="post" class="action-form">
+                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                    <button type="submit" class="btn-archive">Archive</button>
+                </form>
+            {% endif %}
+            <form action="/conversations/{{ conversation_id }}/leave" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <button type="submit" class="btn-leave">Leave</button>
+            </form>
+        </div>
     </div>
     <h2>
         {% if let Some(t) = title %}
@@ -69,8 +86,28 @@
         text-decoration: underline;
     }
 
-    .leave-form {
+    .header-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .action-form {
         margin: 0;
+    }
+
+    .btn-archive, .btn-unarchive {
+        padding: 6px 12px;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-archive:hover, .btn-unarchive:hover {
+        background: #5a6268;
     }
 
     .btn-leave {

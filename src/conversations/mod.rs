@@ -352,6 +352,103 @@ pub struct MessageDisplay {
     pub created_at: chrono::NaiveDateTime,
 }
 
+/// Archive a conversation for a user (hides from inbox but preserves messages)
+pub async fn archive_conversation(user_id: i32, conversation_id: i32) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Verify user is a participant
+    verify_participant(db, user_id, conversation_id).await?;
+
+    // Set is_archived to true
+    conversation_participants::Entity::update_many()
+        .col_expr(
+            conversation_participants::Column::IsArchived,
+            Expr::value(true),
+        )
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+/// Unarchive a conversation for a user (restores to inbox)
+pub async fn unarchive_conversation(user_id: i32, conversation_id: i32) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Verify user is a participant
+    verify_participant(db, user_id, conversation_id).await?;
+
+    // Set is_archived to false
+    conversation_participants::Entity::update_many()
+        .col_expr(
+            conversation_participants::Column::IsArchived,
+            Expr::value(false),
+        )
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+/// Get archived conversations for a user
+pub async fn get_archived_conversations(
+    user_id: i32,
+    limit: u64,
+) -> Result<Vec<ConversationPreview>, DbErr> {
+    let db = get_db_pool();
+
+    // Get archived conversations where user is participant
+    let participants = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .filter(conversation_participants::Column::IsArchived.eq(true))
+        .find_also_related(conversations::Entity)
+        .order_by_desc(conversations::Column::UpdatedAt)
+        .limit(limit)
+        .all(db)
+        .await?;
+
+    let mut previews = Vec::new();
+
+    for (participant, conversation) in participants {
+        if let Some(conv) = conversation {
+            // Get other participants
+            let other_participants =
+                get_conversation_participants(db, conv.id, Some(user_id)).await?;
+
+            // Get last message
+            let last_message = get_last_message(db, conv.id).await?;
+
+            // Check if unread
+            let is_unread = if let Some(last_read) = participant.last_read_at {
+                conv.updated_at > last_read
+            } else {
+                true
+            };
+
+            // Extract content and timestamp from last_message
+            let (last_content, last_timestamp) = match last_message {
+                Some((content, timestamp)) => (Some(content), Some(timestamp)),
+                None => (None, None),
+            };
+
+            previews.push(ConversationPreview {
+                id: conv.id,
+                title: conv.title,
+                participants: other_participants,
+                last_message_content: last_content,
+                last_message_at: last_timestamp,
+                is_unread,
+            });
+        }
+    }
+
+    Ok(previews)
+}
+
 /// Leave a conversation (remove user as participant)
 /// If no participants remain, the conversation is deleted
 pub async fn leave_conversation(user_id: i32, conversation_id: i32) -> Result<(), DbErr> {
