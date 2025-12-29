@@ -6,7 +6,7 @@ use crate::db::get_db_pool;
 use crate::orm::ip;
 use actix_web::HttpRequest;
 use chrono::Utc;
-use sea_orm::{entity::*, query::*, ActiveValue::Set, DbErr};
+use sea_orm::{ConnectionTrait, FromQueryResult, Statement, DbErr};
 use std::net::IpAddr;
 
 /// Extract the real client IP address from an HTTP request.
@@ -61,30 +61,40 @@ pub async fn get_or_create_ip_id(address: &str) -> Result<Option<i32>, DbErr> {
     let db = get_db_pool();
     let now = Utc::now().naive_utc();
 
-    // Try to find existing IP record
-    match ip::Entity::find()
-        .filter(ip::Column::Address.eq(address))
-        .one(db)
-        .await?
-    {
+    // Try to find existing IP record using raw SQL
+    // Use host() to extract IP without netmask for comparison (SeaORM can't handle inet directly)
+    let existing = ip::Model::find_by_statement(Statement::from_sql_and_values(
+        sea_orm::DatabaseBackend::Postgres,
+        "SELECT id, host(address) as address, first_seen_at, last_seen_at FROM ip WHERE host(address) = $1 LIMIT 1",
+        [address.into()],
+    ))
+    .one(db)
+    .await?;
+
+    match existing {
         Some(existing) => {
-            // Update last_seen_at
-            let mut active_model: ip::ActiveModel = existing.into();
-            active_model.last_seen_at = Set(now);
-            let updated = active_model.update(db).await?;
-            Ok(Some(updated.id))
+            // Update last_seen_at using raw SQL (SeaORM can't decode inet from RETURNING)
+            let id = existing.id;
+            db.execute(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "UPDATE ip SET last_seen_at = $1 WHERE id = $2",
+                [now.into(), id.into()],
+            ))
+            .await?;
+            Ok(Some(id))
         }
         None => {
-            // Create new IP record
-            let new_ip = ip::ActiveModel {
-                address: Set(address.to_string()),
-                first_seen_at: Set(now),
-                last_seen_at: Set(now),
-                ..Default::default()
-            };
+            // Create new IP record using raw SQL (SeaORM can't handle inet type)
+            // Cast address to text in RETURNING so SeaORM can decode it
+            let result: Option<ip::Model> = ip::Model::find_by_statement(Statement::from_sql_and_values(
+                sea_orm::DatabaseBackend::Postgres,
+                "INSERT INTO ip (address, first_seen_at, last_seen_at) VALUES ($1::inet, $2, $3) RETURNING id, address::text as address, first_seen_at, last_seen_at",
+                [address.into(), now.into(), now.into()],
+            ))
+            .one(db)
+            .await?;
 
-            let model = new_ip.insert(db).await?;
-            Ok(Some(model.id))
+            Ok(result.map(|m| m.id))
         }
     }
 }
