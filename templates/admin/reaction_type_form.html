@@ -13,7 +13,7 @@
     <div class="alert alert-danger">{{ err }}</div>
     {% endif %}
 
-    <form action="{% if let Some(rt) = reaction_type %}/admin/reaction-types/{{ rt.id }}{% else %}/admin/reaction-types{% endif %}" method="post" class="reaction-form">
+    <form action="{% if let Some(rt) = reaction_type %}/admin/reaction-types/{{ rt.id }}{% else %}/admin/reaction-types{% endif %}" method="post" enctype="multipart/form-data" class="reaction-form">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
 
         <div class="form-group">
@@ -24,12 +24,42 @@
             <small class="form-help">The display name for this reaction type.</small>
         </div>
 
-        <div class="form-group">
-            <label for="emoji">Emoji</label>
-            <input type="text" id="emoji" name="emoji"
-                   value="{% if let Some(rt) = reaction_type %}{{ rt.emoji }}{% endif %}"
-                   placeholder="e.g., &#128077;" required />
-            <small class="form-help">The emoji or icon displayed for this reaction.</small>
+        <div class="form-section">
+            <h3>Reaction Display</h3>
+            <p class="form-help">Choose either an emoji or upload a custom image. If an image is uploaded, it will be used instead of the emoji.</p>
+
+            <div class="form-group">
+                <label for="emoji">Emoji (fallback)</label>
+                <input type="text" id="emoji" name="emoji"
+                       value="{% if let Some(rt) = reaction_type %}{{ rt.emoji }}{% endif %}"
+                       placeholder="e.g., &#128077;" />
+                <small class="form-help">The emoji displayed if no custom image is set.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="image">Custom Image</label>
+                {% if let Some(rt) = reaction_type %}
+                    {% if let Some(att) = attachment %}
+                    <div class="current-image">
+                        <img src="/content/{{ att.hash[0..64] }}/{{ att.filename }}" alt="{{ rt.name }}" class="reaction-preview" />
+                        <span class="current-image-label">Current image</span>
+                    </div>
+                    {% endif %}
+                {% endif %}
+                <input type="file" id="image" name="image" accept="image/*" />
+                <small class="form-help">Upload a custom image (PNG, GIF, WebP recommended). Recommended size: 32x32 or 64x64 pixels.</small>
+            </div>
+
+            {% if let Some(rt) = reaction_type %}
+                {% if rt.attachment_id.is_some() %}
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="remove_image" id="remove_image" />
+                        Remove current image (use emoji instead)
+                    </label>
+                </div>
+                {% endif %}
+            {% endif %}
         </div>
 
         <div class="form-group">
@@ -220,6 +250,44 @@
 
 .checkbox-label input[type="checkbox"] {
     width: auto;
+}
+
+.current-image {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+.reaction-preview {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #fff;
+    padding: 4px;
+    border: 1px solid #ddd;
+}
+
+.current-image-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+html.dark .current-image {
+    background: #3a3a3a;
+}
+
+html.dark .reaction-preview {
+    background: #2a2a2a;
+    border-color: #555;
+}
+
+html.dark .current-image-label {
+    color: #aaa;
 }
 
 .form-actions {

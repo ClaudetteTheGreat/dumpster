@@ -82,10 +82,15 @@ function renderReactionsDisplay(container, reactions, userReactions) {
         const classes = ['reaction-badge'];
         if (isUserReaction) classes.push('reaction-badge--active');
 
+        // Use image if available, otherwise emoji
+        const icon = reaction.image_url
+            ? `<img src="${reaction.image_url}" alt="${reaction.name}" class="reaction-image" />`
+            : `<span class="reaction-emoji">${reaction.emoji}</span>`;
+
         return `<span class="${classes.join(' ')}"
                       data-reaction-type="${reaction.reaction_type_id}"
                       title="${reaction.name}">
-                    <span class="reaction-emoji">${reaction.emoji}</span>
+                    ${icon}
                     <span class="reaction-count">${reaction.count}</span>
                 </span>`;
     }).join('');
@@ -129,11 +134,16 @@ async function renderReactionPicker(container) {
         const classes = ['reaction-option'];
         if (isActive) classes.push('reaction-option--active');
 
+        // Use image if available, otherwise emoji
+        const icon = type.image_url
+            ? `<img src="${type.image_url}" alt="${type.name}" class="reaction-picker-image" />`
+            : type.emoji;
+
         return `<button type="button"
                         class="${classes.join(' ')}"
                         data-reaction-type="${type.id}"
                         title="${type.name}">
-                    ${type.emoji}
+                    ${icon}
                 </button>`;
     }).join('');
 

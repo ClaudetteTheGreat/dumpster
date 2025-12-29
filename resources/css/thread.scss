@@ -382,6 +382,13 @@
         font-size: 1.1em;
     }
 
+    .reaction-image {
+        width: 18px;
+        height: 18px;
+        object-fit: contain;
+        vertical-align: middle;
+    }
+
     .reaction-count {
         font-weight: 600;
         color: #555;
@@ -451,5 +458,11 @@
     &.reaction-option--active {
         background: #e3f2fd;
         border-color: #2196f3;
+    }
+
+    .reaction-picker-image {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
     }
 }

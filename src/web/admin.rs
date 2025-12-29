@@ -6,9 +6,9 @@ use crate::db::get_db_pool;
 use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log, moderator_notes,
-    permission_categories, permission_collections, permission_values, permissions, posts,
-    reaction_types, reports, sessions, settings, threads, user_bans, user_groups, user_names,
+    attachments, badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
+    moderator_notes, permission_categories, permission_collections, permission_values, permissions,
+    posts, reaction_types, reports, sessions, settings, threads, user_bans, user_groups, user_names,
     user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
@@ -3925,7 +3925,7 @@ async fn save_group_permissions(
 #[template(path = "admin/reaction_types.html")]
 struct ReactionTypesTemplate {
     client: ClientCtx,
-    reaction_types: Vec<reaction_types::Model>,
+    reaction_types: Vec<(reaction_types::Model, Option<attachments::Model>)>,
 }
 
 #[derive(Template)]
@@ -3933,29 +3933,20 @@ struct ReactionTypesTemplate {
 struct ReactionTypeFormTemplate {
     client: ClientCtx,
     reaction_type: Option<reaction_types::Model>,
+    attachment: Option<attachments::Model>,
     error: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ReactionTypeForm {
-    csrf_token: String,
-    name: String,
-    emoji: String,
-    display_order: i32,
-    is_positive: Option<String>,
-    is_active: Option<String>,
-    reputation_value: i32,
 }
 
 /// GET /admin/reaction-types - List all reaction types
 #[get("/admin/reaction-types")]
 async fn view_reaction_types(client: ClientCtx) -> Result<impl Responder, Error> {
-    client.require_permission("admin.settings.manage")?;
+    client.require_permission("admin.settings")?;
 
     let db = get_db_pool();
 
-    let reaction_types = reaction_types::Entity::find()
+    let types = reaction_types::Entity::find()
         .order_by_asc(reaction_types::Column::DisplayOrder)
+        .find_also_related(attachments::Entity)
         .all(db)
         .await
         .map_err(|e| {
@@ -3965,7 +3956,7 @@ async fn view_reaction_types(client: ClientCtx) -> Result<impl Responder, Error>
 
     Ok(ReactionTypesTemplate {
         client,
-        reaction_types,
+        reaction_types: types,
     }
     .to_response())
 }
@@ -3973,11 +3964,12 @@ async fn view_reaction_types(client: ClientCtx) -> Result<impl Responder, Error>
 /// GET /admin/reaction-types/new - Show form to create new reaction type
 #[get("/admin/reaction-types/new")]
 async fn view_create_reaction_type_form(client: ClientCtx) -> Result<impl Responder, Error> {
-    client.require_permission("admin.settings.manage")?;
+    client.require_permission("admin.settings")?;
 
     Ok(ReactionTypeFormTemplate {
         client,
         reaction_type: None,
+        attachment: None,
         error: None,
     }
     .to_response())
@@ -3988,41 +3980,133 @@ async fn view_create_reaction_type_form(client: ClientCtx) -> Result<impl Respon
 async fn create_reaction_type(
     client: ClientCtx,
     cookies: actix_session::Session,
-    form: web::Form<ReactionTypeForm>,
+    mut multipart: actix_multipart::Multipart,
 ) -> Result<impl Responder, Error> {
-    client.require_login()?;
-    client.require_permission("admin.settings.manage")?;
+    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use futures::{StreamExt, TryStreamExt};
 
-    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+    client.require_login()?;
+    client.require_permission("admin.settings")?;
 
     let db = get_db_pool();
 
+    // Parse multipart form
+    let mut csrf_token: Option<String> = None;
+    let mut name: Option<String> = None;
+    let mut emoji: Option<String> = None;
+    let mut display_order: i32 = 0;
+    let mut is_positive = false;
+    let mut is_active = false;
+    let mut reputation_value: i32 = 0;
+    let mut attachment_id: Option<i32> = None;
+
+    while let Ok(Some(mut field)) = multipart.try_next().await {
+        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+
+        match field_name.as_str() {
+            "csrf_token" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "name" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                name = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "emoji" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                emoji = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "display_order" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(0);
+            }
+            "reputation_value" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                reputation_value = String::from_utf8_lossy(&buf).parse().unwrap_or(0);
+            }
+            "is_positive" => {
+                is_positive = true;
+            }
+            "is_active" => {
+                is_active = true;
+            }
+            "image" => {
+                // Handle file upload
+                if let Some(payload) = save_field_as_temp_file(&mut field).await? {
+                    // Check if it's an image
+                    if !payload.is_image() {
+                        return Ok(ReactionTypeFormTemplate {
+                            client,
+                            reaction_type: None,
+                            attachment: None,
+                            error: Some("Only image files are allowed".to_string()),
+                        }
+                        .to_response());
+                    }
+
+                    let response = match deduplicate_payload(&payload).await {
+                        Some(response) => response,
+                        None => match insert_payload_as_attachment(payload, None).await? {
+                            Some(response) => response,
+                            None => {
+                                return Ok(ReactionTypeFormTemplate {
+                                    client,
+                                    reaction_type: None,
+                                    attachment: None,
+                                    error: Some("Failed to process image".to_string()),
+                                }
+                                .to_response());
+                            }
+                        },
+                    };
+                    attachment_id = Some(response.id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Validate CSRF
+    let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
+
     // Validate input
-    if form.name.trim().is_empty() {
+    let name = name.unwrap_or_default();
+    if name.trim().is_empty() {
         return Ok(ReactionTypeFormTemplate {
             client,
             reaction_type: None,
+            attachment: None,
             error: Some("Name is required".to_string()),
         }
         .to_response());
     }
 
-    if form.emoji.trim().is_empty() {
-        return Ok(ReactionTypeFormTemplate {
-            client,
-            reaction_type: None,
-            error: Some("Emoji is required".to_string()),
-        }
-        .to_response());
-    }
+    let emoji = emoji.unwrap_or_default();
 
     let new_reaction_type = reaction_types::ActiveModel {
-        name: Set(form.name.trim().to_string()),
-        emoji: Set(form.emoji.trim().to_string()),
-        display_order: Set(form.display_order),
-        is_positive: Set(form.is_positive.is_some()),
-        is_active: Set(form.is_active.is_some()),
-        reputation_value: Set(form.reputation_value),
+        name: Set(name.trim().to_string()),
+        emoji: Set(emoji.trim().to_string()),
+        display_order: Set(display_order),
+        is_positive: Set(is_positive),
+        is_active: Set(is_active),
+        reputation_value: Set(reputation_value),
+        attachment_id: Set(attachment_id),
         ..Default::default()
     };
 
@@ -4042,7 +4126,7 @@ async fn view_edit_reaction_type(
     client: ClientCtx,
     path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
-    client.require_permission("admin.settings.manage")?;
+    client.require_permission("admin.settings")?;
 
     let id = path.into_inner();
     let db = get_db_pool();
@@ -4056,9 +4140,23 @@ async fn view_edit_reaction_type(
         })?
         .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
 
+    // Load attachment if exists
+    let attachment = if let Some(att_id) = reaction_type.attachment_id {
+        attachments::Entity::find_by_id(att_id)
+            .one(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch attachment: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+    } else {
+        None
+    };
+
     Ok(ReactionTypeFormTemplate {
         client,
         reaction_type: Some(reaction_type),
+        attachment,
         error: None,
     }
     .to_response())
@@ -4070,12 +4168,13 @@ async fn update_reaction_type(
     client: ClientCtx,
     cookies: actix_session::Session,
     path: web::Path<i32>,
-    form: web::Form<ReactionTypeForm>,
+    mut multipart: actix_multipart::Multipart,
 ) -> Result<impl Responder, Error> {
-    client.require_login()?;
-    client.require_permission("admin.settings.manage")?;
+    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use futures::{StreamExt, TryStreamExt};
 
-    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+    client.require_login()?;
+    client.require_permission("admin.settings")?;
 
     let id = path.into_inner();
     let db = get_db_pool();
@@ -4090,32 +4189,152 @@ async fn update_reaction_type(
         })?
         .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
 
+    // Parse multipart form
+    let mut csrf_token: Option<String> = None;
+    let mut name: Option<String> = None;
+    let mut emoji: Option<String> = None;
+    let mut display_order: i32 = existing.display_order;
+    let mut is_positive = false;
+    let mut is_active = false;
+    let mut reputation_value: i32 = existing.reputation_value;
+    let mut new_attachment_id: Option<i32> = None;
+    let mut remove_image = false;
+
+    while let Ok(Some(mut field)) = multipart.try_next().await {
+        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+
+        match field_name.as_str() {
+            "csrf_token" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "name" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                name = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "emoji" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                emoji = Some(String::from_utf8_lossy(&buf).to_string());
+            }
+            "display_order" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.display_order);
+            }
+            "reputation_value" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                }
+                reputation_value = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.reputation_value);
+            }
+            "is_positive" => {
+                is_positive = true;
+            }
+            "is_active" => {
+                is_active = true;
+            }
+            "remove_image" => {
+                remove_image = true;
+            }
+            "image" => {
+                // Handle file upload
+                if let Some(payload) = save_field_as_temp_file(&mut field).await? {
+                    // Check if it's an image
+                    if !payload.is_image() {
+                        // Load attachment for error display
+                        let attachment = if let Some(att_id) = existing.attachment_id {
+                            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+                        } else {
+                            None
+                        };
+                        return Ok(ReactionTypeFormTemplate {
+                            client,
+                            reaction_type: Some(existing),
+                            attachment,
+                            error: Some("Only image files are allowed".to_string()),
+                        }
+                        .to_response());
+                    }
+
+                    let response = match deduplicate_payload(&payload).await {
+                        Some(response) => response,
+                        None => match insert_payload_as_attachment(payload, None).await? {
+                            Some(response) => response,
+                            None => {
+                                let attachment = if let Some(att_id) = existing.attachment_id {
+                                    attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+                                } else {
+                                    None
+                                };
+                                return Ok(ReactionTypeFormTemplate {
+                                    client,
+                                    reaction_type: Some(existing),
+                                    attachment,
+                                    error: Some("Failed to process image".to_string()),
+                                }
+                                .to_response());
+                            }
+                        },
+                    };
+                    new_attachment_id = Some(response.id);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Validate CSRF
+    let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, &token)?;
+
     // Validate input
-    if form.name.trim().is_empty() {
+    let name = name.unwrap_or_default();
+    if name.trim().is_empty() {
+        let attachment = if let Some(att_id) = existing.attachment_id {
+            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+        } else {
+            None
+        };
         return Ok(ReactionTypeFormTemplate {
             client,
             reaction_type: Some(existing),
+            attachment,
             error: Some("Name is required".to_string()),
         }
         .to_response());
     }
 
-    if form.emoji.trim().is_empty() {
-        return Ok(ReactionTypeFormTemplate {
-            client,
-            reaction_type: Some(existing),
-            error: Some("Emoji is required".to_string()),
-        }
-        .to_response());
-    }
+    let emoji = emoji.unwrap_or_default();
+
+    // Determine final attachment_id
+    let final_attachment_id = if remove_image {
+        None
+    } else if new_attachment_id.is_some() {
+        new_attachment_id
+    } else {
+        existing.attachment_id
+    };
 
     let mut updated: reaction_types::ActiveModel = existing.into();
-    updated.name = Set(form.name.trim().to_string());
-    updated.emoji = Set(form.emoji.trim().to_string());
-    updated.display_order = Set(form.display_order);
-    updated.is_positive = Set(form.is_positive.is_some());
-    updated.is_active = Set(form.is_active.is_some());
-    updated.reputation_value = Set(form.reputation_value);
+    updated.name = Set(name.trim().to_string());
+    updated.emoji = Set(emoji.trim().to_string());
+    updated.display_order = Set(display_order);
+    updated.is_positive = Set(is_positive);
+    updated.is_active = Set(is_active);
+    updated.reputation_value = Set(reputation_value);
+    updated.attachment_id = Set(final_attachment_id);
 
     updated.update(db).await.map_err(|e| {
         log::error!("Failed to update reaction type: {}", e);

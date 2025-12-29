@@ -102,7 +102,7 @@
                 {# Reactions #}
                 <div class="reactions-container" data-ugc-id="{{ post.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
                     <div class="reactions-display"></div>
-                    {% if client.is_user() %}
+                    {% if client.is_user() && client.get_id() != post.user_id %}
                     <div class="reactions-picker">
                         <button type="button" class="reaction-picker-toggle" title="Add reaction">+</button>
                         <div class="reaction-picker-dropdown" style="display: none;"></div>

@@ -3,7 +3,7 @@
 use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{posts, reaction_types, threads, ugc_reactions};
+use crate::orm::{attachments, posts, reaction_types, threads, ugc_reactions};
 use actix_web::{error, get, post, web, Error, HttpResponse};
 use chrono::Utc;
 use sea_orm::{entity::*, query::*, ColumnTrait, EntityTrait, QueryFilter};
@@ -11,9 +11,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
-    conf.service(toggle_reaction)
-        .service(get_reactions)
-        .service(get_reaction_types);
+    // Note: get_reaction_types must be registered before get_reactions
+    // because /reactions/types would otherwise match /reactions/{ugc_id}
+    conf.service(get_reaction_types)
+        .service(toggle_reaction)
+        .service(get_reactions);
 }
 
 /// Response for reaction toggle
@@ -37,6 +39,8 @@ struct ReactionSummary {
     reaction_type_id: i32,
     name: String,
     emoji: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image_url: Option<String>,
     count: i64,
 }
 
@@ -45,6 +49,8 @@ struct ReactionTypeInfo {
     id: i32,
     name: String,
     emoji: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    image_url: Option<String>,
     is_positive: bool,
 }
 
@@ -207,6 +213,20 @@ async fn get_reactions(client: ClientCtx, path: web::Path<i32>) -> Result<HttpRe
     let ugc_id = path.into_inner();
     let db = get_db_pool();
 
+    // Get all reaction types with their attachments for image URLs
+    let reaction_types_with_attachments: std::collections::HashMap<i32, Option<String>> =
+        reaction_types::Entity::find()
+            .find_also_related(attachments::Entity)
+            .all(db)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+            .into_iter()
+            .map(|(rt, att)| {
+                let image_url = att.map(|a| format!("/content/{}/{}", &a.hash[0..64], a.filename));
+                (rt.id, image_url)
+            })
+            .collect();
+
     // Get reaction counts grouped by type
     let reactions = ugc_reactions::Entity::find()
         .filter(ugc_reactions::Column::UgcId.eq(ugc_id))
@@ -231,11 +251,18 @@ async fn get_reactions(client: ClientCtx, path: web::Path<i32>) -> Result<HttpRe
 
     let summaries: Vec<ReactionSummary> = reaction_counts
         .into_iter()
-        .map(|(id, (name, emoji, count))| ReactionSummary {
-            reaction_type_id: id,
-            name,
-            emoji,
-            count,
+        .map(|(id, (name, emoji, count))| {
+            let image_url = reaction_types_with_attachments
+                .get(&id)
+                .cloned()
+                .flatten();
+            ReactionSummary {
+                reaction_type_id: id,
+                name,
+                emoji,
+                image_url,
+                count,
+            }
         })
         .collect();
 
@@ -264,17 +291,22 @@ async fn get_reaction_types() -> Result<HttpResponse, Error> {
     let types = reaction_types::Entity::find()
         .filter(reaction_types::Column::IsActive.eq(true))
         .order_by_asc(reaction_types::Column::DisplayOrder)
+        .find_also_related(attachments::Entity)
         .all(db)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
     let response: Vec<ReactionTypeInfo> = types
         .into_iter()
-        .map(|t| ReactionTypeInfo {
-            id: t.id,
-            name: t.name,
-            emoji: t.emoji,
-            is_positive: t.is_positive,
+        .map(|(t, att)| {
+            let image_url = att.map(|a| format!("/content/{}/{}", &a.hash[0..64], a.filename));
+            ReactionTypeInfo {
+                id: t.id,
+                name: t.name,
+                emoji: t.emoji,
+                image_url,
+                is_positive: t.is_positive,
+            }
         })
         .collect();
 

@@ -21,7 +21,7 @@
             <thead>
                 <tr>
                     <th>Order</th>
-                    <th>Emoji</th>
+                    <th>Icon</th>
                     <th>Name</th>
                     <th>Reputation Value</th>
                     <th>Positive</th>
@@ -30,10 +30,16 @@
                 </tr>
             </thead>
             <tbody>
-                {% for rt in reaction_types %}
+                {% for (rt, att) in reaction_types %}
                 <tr class="{% if rt.is_active %}row-active{% else %}row-disabled{% endif %}">
                     <td>{{ rt.display_order }}</td>
-                    <td class="emoji-cell">{{ rt.emoji }}</td>
+                    <td class="icon-cell">
+                        {% if let Some(a) = att %}
+                        <img src="/content/{{ a.hash[0..64] }}/{{ a.filename }}" alt="{{ rt.name }}" class="reaction-icon" />
+                        {% else %}
+                        <span class="reaction-emoji">{{ rt.emoji }}</span>
+                        {% endif %}
+                    </td>
                     <td>{{ rt.name }}</td>
                     <td class="{% if rt.reputation_value > 0 %}reputation-positive{% else if rt.reputation_value < 0 %}reputation-negative{% endif %}">
                         {% if rt.reputation_value > 0 %}+{% endif %}{{ rt.reputation_value }}
@@ -146,7 +152,20 @@
     opacity: 0.6;
 }
 
-.emoji-cell {
+.icon-cell {
+    font-size: 1.5em;
+    text-align: center;
+    width: 60px;
+}
+
+.reaction-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    vertical-align: middle;
+}
+
+.reaction-emoji {
     font-size: 1.5em;
 }
 

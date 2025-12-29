@@ -177,6 +177,13 @@ pub struct UploadPayload {
     mime: Mime,
 }
 
+impl UploadPayload {
+    /// Check if the payload is an image
+    pub fn is_image(&self) -> bool {
+        self.mime.type_() == mime::IMAGE
+    }
+}
+
 #[derive(Debug, FromQueryResult, Serialize)]
 pub struct UploadResponse {
     pub id: i32,
