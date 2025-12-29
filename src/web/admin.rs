@@ -8,8 +8,8 @@ use crate::middleware::ClientCtx;
 use crate::orm::{
     attachments, badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
     moderator_notes, permission_categories, permission_collections, permission_values, permissions,
-    posts, reaction_types, reports, sessions, settings, threads, user_bans, user_groups, user_names,
-    user_warnings, users, word_filters,
+    posts, reaction_types, reports, sessions, settings, tags, threads, user_bans, user_groups,
+    user_names, user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
@@ -96,7 +96,14 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(update_forum)
         // Forum permissions management
         .service(view_forum_permissions)
-        .service(save_forum_permissions);
+        .service(save_forum_permissions)
+        // Tag management
+        .service(view_tags)
+        .service(view_create_tag_form)
+        .service(create_tag)
+        .service(view_edit_tag)
+        .service(update_tag)
+        .service(delete_tag);
 }
 
 // ============================================================================
@@ -4937,6 +4944,8 @@ async fn update_forum(
     let mut new_icon_new_attachment_id: Option<i32> = None;
     let mut remove_icon_image = false;
     let mut remove_icon_new_image = false;
+    let mut tags_enabled = false;
+    let mut restrict_tags = false;
 
     // Helper to load attachments for error display
     async fn load_attachments(forum: &forums::Model, db: &DatabaseConnection) -> (Option<attachments::Model>, Option<attachments::Model>) {
@@ -5019,6 +5028,12 @@ async fn update_forum(
             }
             "remove_icon_new_image" => {
                 remove_icon_new_image = true;
+            }
+            "tags_enabled" => {
+                tags_enabled = true;
+            }
+            "restrict_tags" => {
+                restrict_tags = true;
             }
             "icon_image" => {
                 if let Some(payload) = save_field_as_temp_file(&mut field).await? {
@@ -5174,6 +5189,8 @@ async fn update_forum(
     updated.parent_id = Set(parent_id);
     updated.icon_attachment_id = Set(final_icon_attachment_id);
     updated.icon_new_attachment_id = Set(final_icon_new_attachment_id);
+    updated.tags_enabled = Set(tags_enabled);
+    updated.restrict_tags = Set(restrict_tags);
 
     updated.update(db).await.map_err(|e| {
         log::error!("Failed to update forum: {}", e);
@@ -5615,5 +5632,386 @@ async fn save_forum_permissions(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
+        .finish())
+}
+
+// =============================================================================
+// Tag Management
+// =============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/tags.html")]
+struct TagsAdminTemplate {
+    client: ClientCtx,
+    tags: Vec<TagWithForum>,
+}
+
+struct TagWithForum {
+    id: i32,
+    name: String,
+    slug: String,
+    color: String,
+    forum_id: Option<i32>,
+    forum_name: Option<String>,
+    use_count: i32,
+}
+
+/// GET /admin/tags - List all tags
+#[get("/admin/tags")]
+async fn view_tags(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    // Fetch all tags with their forum names
+    let tags_raw: Vec<(tags::Model, Option<forums::Model>)> = tags::Entity::find()
+        .find_also_related(forums::Entity)
+        .order_by_asc(tags::Column::Name)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tags: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let tags_list: Vec<TagWithForum> = tags_raw
+        .into_iter()
+        .map(|(tag, forum)| TagWithForum {
+            id: tag.id,
+            name: tag.name,
+            slug: tag.slug,
+            color: tag.color.unwrap_or_else(|| "#6c757d".to_string()),
+            forum_id: tag.forum_id,
+            forum_name: forum.map(|f| f.label),
+            use_count: tag.use_count,
+        })
+        .collect();
+
+    Ok(TagsAdminTemplate {
+        client,
+        tags: tags_list,
+    }
+    .to_response())
+}
+
+#[derive(Template)]
+#[template(path = "admin/tag_form.html")]
+struct TagFormTemplate {
+    client: ClientCtx,
+    tag: Option<tags::Model>,
+    forums: Vec<forums::Model>,
+    is_edit: bool,
+}
+
+/// GET /admin/tags/create - Show create tag form
+#[get("/admin/tags/create")]
+async fn view_create_tag_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let forums_list = forums::Entity::find()
+        .order_by_asc(forums::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(TagFormTemplate {
+        client,
+        tag: None,
+        forums: forums_list,
+        is_edit: false,
+    }
+    .to_response())
+}
+
+#[derive(Deserialize)]
+struct TagFormData {
+    csrf_token: String,
+    name: String,
+    color: String,
+    forum_id: Option<i32>,
+}
+
+/// POST /admin/tags/create - Create a new tag
+#[post("/admin/tags/create")]
+async fn create_tag(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<TagFormData>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate name
+    let name = form.name.trim().to_string();
+    if name.is_empty() || name.len() > 50 {
+        return Err(error::ErrorBadRequest("Tag name must be 1-50 characters"));
+    }
+
+    // Create slug from name
+    let slug: String = name
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ')
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-");
+
+    if slug.is_empty() {
+        return Err(error::ErrorBadRequest("Tag name must contain valid characters"));
+    }
+
+    // Validate color (should be hex color)
+    let color = if form.color.starts_with('#') && form.color.len() == 7 {
+        form.color.clone()
+    } else {
+        "#6c757d".to_string()
+    };
+
+    // Check for duplicate slug in the same scope
+    let forum_id = if form.forum_id == Some(0) {
+        None
+    } else {
+        form.forum_id
+    };
+
+    let existing = tags::Entity::find()
+        .filter(tags::Column::Slug.eq(slug.clone()))
+        .filter(
+            if let Some(fid) = forum_id {
+                tags::Column::ForumId.eq(fid)
+            } else {
+                tags::Column::ForumId.is_null()
+            }
+        )
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check for duplicate tag: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    if existing.is_some() {
+        return Err(error::ErrorBadRequest("A tag with this name already exists in the same scope"));
+    }
+
+    // Create the tag
+    let new_tag = tags::ActiveModel {
+        name: Set(name.clone()),
+        slug: Set(slug),
+        color: Set(Some(color)),
+        forum_id: Set(forum_id),
+        use_count: Set(0),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    tags::Entity::insert(new_tag)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to create tag: {}", e);
+            error::ErrorInternalServerError("Failed to create tag")
+        })?;
+
+    log_moderation_action(db, moderator_id, "create_tag", "tag", 0, Some(&name)).await?;
+
+    log::info!("Tag '{}' created by user {}", name, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/tags"))
+        .finish())
+}
+
+/// GET /admin/tags/{id}/edit - Show edit tag form
+#[get("/admin/tags/{id}/edit")]
+async fn view_edit_tag(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+    let tag_id = path.into_inner();
+
+    let tag = tags::Entity::find_by_id(tag_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tag: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Tag not found"))?;
+
+    let forums_list = forums::Entity::find()
+        .order_by_asc(forums::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(TagFormTemplate {
+        client,
+        tag: Some(tag),
+        forums: forums_list,
+        is_edit: true,
+    }
+    .to_response())
+}
+
+/// POST /admin/tags/{id} - Update a tag
+#[post("/admin/tags/{id}")]
+async fn update_tag(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<TagFormData>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let tag_id = path.into_inner();
+
+    let tag = tags::Entity::find_by_id(tag_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tag: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Tag not found"))?;
+
+    // Validate name
+    let name = form.name.trim().to_string();
+    if name.is_empty() || name.len() > 50 {
+        return Err(error::ErrorBadRequest("Tag name must be 1-50 characters"));
+    }
+
+    // Create slug from name
+    let slug: String = name
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_' || *c == ' ')
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-");
+
+    if slug.is_empty() {
+        return Err(error::ErrorBadRequest("Tag name must contain valid characters"));
+    }
+
+    // Validate color
+    let color = if form.color.starts_with('#') && form.color.len() == 7 {
+        form.color.clone()
+    } else {
+        "#6c757d".to_string()
+    };
+
+    let forum_id = if form.forum_id == Some(0) {
+        None
+    } else {
+        form.forum_id
+    };
+
+    // Check for duplicate slug (excluding current tag)
+    let existing = tags::Entity::find()
+        .filter(tags::Column::Slug.eq(slug.clone()))
+        .filter(tags::Column::Id.ne(tag_id))
+        .filter(
+            if let Some(fid) = forum_id {
+                tags::Column::ForumId.eq(fid)
+            } else {
+                tags::Column::ForumId.is_null()
+            }
+        )
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check for duplicate tag: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    if existing.is_some() {
+        return Err(error::ErrorBadRequest("A tag with this name already exists in the same scope"));
+    }
+
+    // Update the tag
+    let mut active_tag: tags::ActiveModel = tag.into();
+    active_tag.name = Set(name.clone());
+    active_tag.slug = Set(slug);
+    active_tag.color = Set(Some(color));
+    active_tag.forum_id = Set(forum_id);
+
+    active_tag.update(db).await.map_err(|e| {
+        log::error!("Failed to update tag: {}", e);
+        error::ErrorInternalServerError("Failed to update tag")
+    })?;
+
+    log_moderation_action(db, moderator_id, "update_tag", "tag", tag_id, Some(&name)).await?;
+
+    log::info!("Tag {} updated by user {}", tag_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/tags"))
+        .finish())
+}
+
+/// POST /admin/tags/{id}/delete - Delete a tag
+#[post("/admin/tags/{id}/delete")]
+async fn delete_tag(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let tag_id = path.into_inner();
+
+    let tag = tags::Entity::find_by_id(tag_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch tag: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Tag not found"))?;
+
+    let tag_name = tag.name.clone();
+
+    // Delete the tag (thread_tags entries will cascade delete)
+    tags::Entity::delete_by_id(tag_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete tag: {}", e);
+            error::ErrorInternalServerError("Failed to delete tag")
+        })?;
+
+    log_moderation_action(db, moderator_id, "delete_tag", "tag", tag_id, Some(&tag_name)).await?;
+
+    log::info!("Tag {} ('{}') deleted by user {}", tag_id, tag_name, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/tags"))
         .finish())
 }

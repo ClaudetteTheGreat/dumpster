@@ -25,6 +25,10 @@ pub struct Model {
     pub icon_attachment_id: Option<i32>,
     /// Custom image/SVG for forum icon when new content exists
     pub icon_new_attachment_id: Option<i32>,
+    /// Whether tags are enabled for threads in this forum
+    pub tags_enabled: bool,
+    /// If true, only existing/admin-created tags can be used (no ad-hoc tags)
+    pub restrict_tags: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -169,11 +169,13 @@
         <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
     </div>
 
+    {% if forum.tags_enabled %}
     <div class="tags-input-container">
         <label for="tags-input">Tags (comma-separated, max 10):</label>
         <input type="text" id="tags-input" name="tags" placeholder="e.g., discussion, help, news" maxlength="500" />
-        <small class="tags-hint">Tags help categorize and find threads. Max 50 characters per tag.</small>
+        <small class="tags-hint">Tags help categorize and find threads. Max 50 characters per tag.{% if forum.restrict_tags %} Only predefined tags are allowed.{% endif %}</small>
     </div>
+    {% endif %}
 
     <details class="poll-section">
         <summary>Add Poll (optional)</summary>

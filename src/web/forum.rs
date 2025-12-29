@@ -1,7 +1,7 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forum_read, poll_options, polls, posts, tags, thread_tags, threads, user_names};
+use crate::orm::{forum_read, forums, poll_options, polls, posts, tags, thread_tags, threads, user_names};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
@@ -261,6 +261,13 @@ pub async fn create_thread(
         ));
     }
 
+    // Fetch forum for tag settings
+    let forum = forums::Entity::find_by_id(forum_id)
+        .one(get_db_pool())
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
     // Run form data through validator.
     let (form, validated_poll) = validate_thread_form(form)?;
 
@@ -418,8 +425,8 @@ pub async fn create_thread(
         }
     }
 
-    // Step 6. Create/link tags if provided.
-    if !form.tags.is_empty() {
+    // Step 6. Create/link tags if provided and enabled for this forum.
+    if !form.tags.is_empty() && forum.tags_enabled {
         for tag_name in &form.tags {
             // Create slug from tag name
             let slug = tag_name
@@ -431,7 +438,7 @@ pub async fn create_thread(
                 continue;
             }
 
-            // Find or create the tag (forum-specific or global)
+            // Find existing tag (forum-specific or global)
             let existing_tag = tags::Entity::find()
                 .filter(tags::Column::Slug.eq(slug.clone()))
                 .filter(
@@ -444,7 +451,10 @@ pub async fn create_thread(
                 .map_err(error::ErrorInternalServerError)?;
 
             let tag_id = if let Some(tag) = existing_tag {
-                tag.id
+                Some(tag.id)
+            } else if forum.restrict_tags {
+                // Forum restricts to predefined tags only - skip non-existent tags
+                None
             } else {
                 // Create new forum-specific tag
                 let new_tag = tags::ActiveModel {
@@ -458,18 +468,20 @@ pub async fn create_thread(
                     .exec(&txn)
                     .await
                     .map_err(error::ErrorInternalServerError)?;
-                tag_res.last_insert_id
+                Some(tag_res.last_insert_id)
             };
 
-            // Link tag to thread
-            let thread_tag = thread_tags::ActiveModel {
-                thread_id: Set(thread_res.last_insert_id),
-                tag_id: Set(tag_id),
-                created_at: Set(revision.created_at),
-                ..Default::default()
-            };
-            // Ignore duplicate key errors (tag already linked)
-            let _ = thread_tags::Entity::insert(thread_tag).exec(&txn).await;
+            // Link tag to thread if we have a valid tag_id
+            if let Some(tid) = tag_id {
+                let thread_tag = thread_tags::ActiveModel {
+                    thread_id: Set(thread_res.last_insert_id),
+                    tag_id: Set(tid),
+                    created_at: Set(revision.created_at),
+                    ..Default::default()
+                };
+                // Ignore duplicate key errors (tag already linked)
+                let _ = thread_tags::Entity::insert(thread_tag).exec(&txn).await;
+            }
         }
     }
 

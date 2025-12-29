@@ -130,6 +130,30 @@
             </div>
         </div>
 
+        <div class="form-section">
+            <h3>Tag Settings</h3>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="tags_enabled" id="tags_enabled" {% if forum.tags_enabled %}checked{% endif %} />
+                    Enable tags for this forum
+                </label>
+                <small class="form-help">When enabled, users can add tags to threads in this forum.</small>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="restrict_tags" id="restrict_tags" {% if forum.restrict_tags %}checked{% endif %} />
+                    Restrict to predefined tags only
+                </label>
+                <small class="form-help">When enabled, users can only use tags created by admins (no ad-hoc tags).</small>
+            </div>
+
+            <p class="form-help">
+                <a href="/admin/tags">Manage tags</a> to create predefined tags for this forum.
+            </p>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="/admin/forums" class="btn btn-secondary">Cancel</a>
