@@ -126,65 +126,68 @@ pub async fn mark_all_read(client: ClientCtx) -> Result<impl Responder, Error> {
 
 // Thread Watching Routes
 
-/// POST /threads/{id}/watch - Watch a thread
-#[post("/threads/{id}/watch")]
+/// POST /threads/{thread_id}/watch - Watch a thread
+#[post("/threads/{thread_id}/watch")]
 pub async fn watch_thread(
     client: ClientCtx,
-    thread_id: web::Path<i32>,
+    path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
     let user_id = client.require_login()?;
+    let thread_id = path.into_inner();
 
-    notifications::watch_thread(user_id, *thread_id)
+    notifications::watch_thread(user_id, thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .append_header(("Location", format!("/threads/{}", thread_id)))
         .finish())
 }
 
-/// POST /threads/{id}/unwatch - Unwatch a thread
-#[post("/threads/{id}/unwatch")]
+/// POST /threads/{thread_id}/unwatch - Unwatch a thread
+#[post("/threads/{thread_id}/unwatch")]
 pub async fn unwatch_thread(
     client: ClientCtx,
-    thread_id: web::Path<i32>,
+    path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
     let user_id = client.require_login()?;
+    let thread_id = path.into_inner();
 
-    notifications::unwatch_thread(user_id, *thread_id)
+    notifications::unwatch_thread(user_id, thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .append_header(("Location", format!("/threads/{}", thread_id)))
         .finish())
 }
 
-/// POST /threads/{id}/toggle-email - Toggle email notifications for watched thread
-#[post("/threads/{id}/toggle-email")]
+/// POST /threads/{thread_id}/toggle-email - Toggle email notifications for watched thread
+#[post("/threads/{thread_id}/toggle-email")]
 pub async fn toggle_thread_email(
     client: ClientCtx,
-    thread_id: web::Path<i32>,
+    path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
     let user_id = client.require_login()?;
+    let thread_id = path.into_inner();
 
     // Get current status
-    let watch_status = notifications::get_watch_status(user_id, *thread_id)
+    let watch_status = notifications::get_watch_status(user_id, thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
     if let Some(watch) = watch_status {
         // Toggle the email setting
-        notifications::toggle_thread_email(user_id, *thread_id, !watch.email_on_reply)
+        notifications::toggle_thread_email(user_id, thread_id, !watch.email_on_reply)
             .await
             .map_err(error::ErrorInternalServerError)?;
     }
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", *thread_id)))
+        .append_header(("Location", format!("/threads/{}", thread_id)))
         .finish())
 }
 
