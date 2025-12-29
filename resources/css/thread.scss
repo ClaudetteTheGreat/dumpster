@@ -237,6 +237,23 @@
         border-radius: 4px;
         background: #f6f8fa;
         overflow-x: auto;
+        position: relative;
+
+        // Language label in top-right corner
+        &[data-language]::before {
+            content: attr(data-language);
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 2px 8px;
+            font-size: 0.75em;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #888;
+            background: rgba(0, 0, 0, 0.05);
+            border-bottom-left-radius: 4px;
+            user-select: none;
+            pointer-events: none;
+        }
 
         code {
             display: block;

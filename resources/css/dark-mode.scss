@@ -144,6 +144,12 @@ html.dark {
             background: #252525;
             border: 1px solid #444;
 
+            // Language label
+            &[data-language]::before {
+                color: #666;
+                background: rgba(255, 255, 255, 0.05);
+            }
+
             code {
                 background: transparent;
             }

@@ -112,6 +112,12 @@ function highlightAll() {
             return;
         }
 
+        // Extract language from class and set on parent pre for CSS label
+        const langMatch = block.className.match(/language-(\w+)/);
+        if (langMatch) {
+            block.parentElement.dataset.language = langMatch[1];
+        }
+
         hljs.highlightElement(block);
     });
 }
