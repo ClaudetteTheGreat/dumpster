@@ -55,8 +55,8 @@ async function fetchRenderedHTML(bbcode) {
     throw new Error(`BBCode preview failed: ${response.status}`);
   }
 
-  const data = await response.json();
-  return data.html || '';
+  // API returns plain HTML, not JSON
+  return await response.text();
 }
 
 /**
