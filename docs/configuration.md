@@ -22,7 +22,7 @@ Copy `config.toml.example` to `config.toml` and customize as needed.
 | `[rate_limit]` | Login attempts, registration limits, posts/threads per minute |
 | `[limits]` | Posts per page, max upload size, post length limits |
 | `[email]` | SMTP host, port, TLS, from address |
-| `[storage]` | S3 endpoint, region, bucket |
+| `[storage]` | Storage backend (local/s3), paths, S3 settings |
 | `[spam]` | Spam threshold, max URLs, first post URL blocking |
 
 ## Environment Variable Override
@@ -87,6 +87,53 @@ SMTP_USERNAME=noreply@example.com
 SMTP_PASSWORD=your-smtp-password
 SMTP_FROM=noreply@example.com
 ```
+
+## Storage Configuration
+
+Ruforo supports two storage backends for file uploads:
+
+### Local Storage (Default)
+
+Stores files on the local filesystem. Recommended for development and simple deployments.
+
+```toml
+[storage]
+backend = "local"
+local_path = "./uploads"
+```
+
+Files are stored with a prefix structure: `./uploads/{hash[0:2]}/{hash[2:4]}/{filename}`
+
+The directory is created automatically on first upload.
+
+### S3 Storage
+
+Stores files in S3-compatible object storage (AWS S3, MinIO, etc.).
+
+```toml
+[storage]
+backend = "s3"
+s3_endpoint = "http://localhost:9000"
+s3_region = "us-east-1"
+s3_bucket = "ruforo"
+s3_public_url = "http://localhost:9000/ruforo"
+```
+
+S3 credentials should be set via environment variables:
+```bash
+RUFORO_STORAGE_S3_ACCESS_KEY=your-access-key
+RUFORO_STORAGE_S3_SECRET_KEY=your-secret-key
+```
+
+### Migrating from S3 to Local
+
+If you have existing files in S3/MinIO and want to switch to local storage:
+
+1. Copy files from S3 to local (preserving directory structure)
+2. Change config to `backend = "local"`
+3. Restart the server
+
+Files uploaded after migration will be stored locally. Existing database records will work as files are re-uploaded (deduplication checks storage, not just database).
 
 ## Development Environment
 
