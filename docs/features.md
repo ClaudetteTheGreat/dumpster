@@ -152,6 +152,28 @@ Visual editor toolbar for post formatting:
 - List creation with automatic item formatting
 - Quick color buttons (red, green, blue) and custom color picker
 - Text size controls (small/large)
+- Rich/Raw mode toggle for WYSIWYG editing
+
+### WYSIWYG Editor
+
+Rich text editing mode with visual BBCode rendering:
+- Toggle between Rich (WYSIWYG) and Raw (BBCode) modes via toolbar button
+- Visual formatting: bold appears bold, images display inline
+- Keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), Ctrl+Z/Y (undo/redo)
+- ProseMirror-based editor with full BBCode support
+- Bidirectional conversion: BBCode ↔ rich content
+- Seamless integration with drafts, quotes, and character counter
+- Dark mode support
+
+### Code Blocks
+
+Syntax-highlighted code display:
+- Language-specific syntax highlighting via highlight.js
+- 50+ languages supported (JavaScript, Python, Rust, Go, etc.)
+- Language label displayed in top-right corner
+- Copy-to-clipboard button with visual feedback
+- Framed display with darker background
+- Dark mode support with appropriate color scheme
 
 ### Post Preview
 
