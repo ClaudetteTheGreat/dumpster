@@ -211,7 +211,31 @@ Runtime feature flags can be managed at `/admin/feature-flags`:
 
 Site-wide settings can be configured at `/admin/settings`:
 
-- Site name and description
-- Registration settings (open/closed, approval required)
-- Content limits (post length, attachment size)
-- Rate limit thresholds
+### General Settings
+- **site_name** - Name of the forum (used in meta tags)
+- **site_title** - Brand name displayed in navigation header
+- **site_description** - Site description for meta tags
+- **footer_message** - Message displayed in site footer
+- **site_url** - Base URL of the site
+- **timezone** - Default timezone
+
+### Display Settings
+- **posts_per_page** - Default posts per page
+- **threads_per_page** - Threads per page in forum list
+
+### Security Settings
+- **registration_enabled** - Allow new user registrations
+- **session_timeout_minutes** - Session timeout duration
+- **max_login_attempts** - Maximum login attempts before lockout
+- **lockout_duration_minutes** - Account lockout duration
+
+### Feature Toggles
+- **maintenance_mode** - Put site in maintenance mode
+- **chat_enabled** - Enable real-time chat feature
+- **reactions_enabled** - Enable post reactions
+- **polls_enabled** - Enable thread polls
+- **signatures_enabled** - Show user signatures in posts
+
+### Storage Settings
+- **max_upload_size_mb** - Maximum file upload size in MB
+- **max_avatar_size_kb** - Maximum avatar file size in KB
