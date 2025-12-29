@@ -50,6 +50,10 @@ This document covers the user-facing features and interface elements.
 - **Watch Threads** - Subscribe to threads for notifications on new posts
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
+- **Inline Post Editing** - Edit posts directly in the thread without page redirect
+  - Click Edit to reveal inline BBCode editor with toolbar
+  - Cancel button to discard changes and return to view mode
+  - Same character limits as post creation (50K users, 100K mods)
 - **Attachments** - File upload support with S3 storage integration
 - **Thread Polls** - Create polls when starting threads
   - Single or multiple choice voting with configurable max choices
