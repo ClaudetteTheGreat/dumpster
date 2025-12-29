@@ -78,8 +78,10 @@ This document covers the user-facing features and interface elements.
   - Admin-configurable reputation values per reaction type
   - Voting restrictions: cannot react to own posts, minimum post count required
 - **Quote Reply** - Click Quote button on any post to insert quoted content into reply
-  - Inserts `[quote=username]content[/quote]` BBCode
+  - Inserts `[quote=username;thread_id;post_id]content[/quote]` BBCode with link metadata
   - Scrolls to and focuses the reply textarea
+  - Rendered quotes display framed box with ↑ link to original post
+  - Same-page quotes smooth scroll and highlight; cross-page quotes navigate
 - **Multi-Quote** - Queue multiple posts to quote at once
   - Click +Quote to add posts to queue (persists across pages via localStorage)
   - Floating indicator shows number of selected quotes
