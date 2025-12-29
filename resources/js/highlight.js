@@ -112,14 +112,58 @@ function highlightAll() {
             return;
         }
 
-        // Extract language from class and set on parent pre for CSS label
+        const pre = block.parentElement;
+
+        // Extract language from class and add header with label + copy button
         const langMatch = block.className.match(/language-(\w+)/);
-        if (langMatch) {
-            block.parentElement.dataset.language = langMatch[1];
+        if (langMatch && !pre.querySelector('.code-header')) {
+            addCodeHeader(pre, langMatch[1]);
         }
 
         hljs.highlightElement(block);
     });
+}
+
+/**
+ * Add header with language label and copy button to a code block
+ */
+function addCodeHeader(pre, language) {
+    const header = document.createElement('div');
+    header.className = 'code-header';
+
+    // Language label
+    const langLabel = document.createElement('span');
+    langLabel.className = 'code-language';
+    langLabel.textContent = language;
+
+    // Copy button
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'code-copy-btn';
+    copyBtn.title = 'Copy code';
+    copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+    copyBtn.addEventListener('click', async () => {
+        const code = pre.querySelector('code');
+        const text = code.textContent;
+
+        try {
+            await navigator.clipboard.writeText(text);
+            copyBtn.classList.add('copied');
+            copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>';
+
+            setTimeout(() => {
+                copyBtn.classList.remove('copied');
+                copyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy:', err);
+        }
+    });
+
+    header.appendChild(langLabel);
+    header.appendChild(copyBtn);
+    pre.insertBefore(header, pre.firstChild);
 }
 
 /**
