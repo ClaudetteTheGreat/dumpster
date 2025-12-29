@@ -193,6 +193,24 @@ Server-side BBCode preview before posting:
 - **Pagination** - Accessible page navigation with current page indication
 - **Form Accessibility** - Proper labels and autocomplete attributes
 
+## Private Messaging
+
+Private conversations between users:
+
+- **Inbox** - View all active conversations with unread indicators
+- **Multi-Participant Conversations** - Create conversations with multiple users
+- **Read Tracking** - Per-user read/unread status for each conversation
+- **Message History** - Full conversation history with pagination
+- **Leave Conversation** - Remove yourself from a conversation
+  - Confirmation dialog before leaving
+  - Conversation auto-deleted when all participants leave
+- **Archive Conversations** - Hide conversations from inbox without deleting
+  - Per-user archive status (doesn't affect other participants)
+  - Archived conversations page at `/conversations/archived`
+  - Unarchive to restore to inbox
+- **Notifications** - In-app alerts for new messages
+- **Unread Badge** - Message count displayed in navigation header
+
 ## User Preferences & Customization
 
 - **Dark Mode** - Toggle between light, dark, and auto (system preference) themes
