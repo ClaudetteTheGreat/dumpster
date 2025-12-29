@@ -141,7 +141,7 @@ pub async fn watch_thread(
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
@@ -160,7 +160,7 @@ pub async fn unwatch_thread(
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
@@ -187,7 +187,7 @@ pub async fn toggle_thread_email(
 
     // Redirect back to the thread
     Ok(HttpResponse::Found()
-        .append_header(("Location", format!("/threads/{}", thread_id)))
+        .append_header(("Location", format!("/threads/{}/", thread_id)))
         .finish())
 }
 
