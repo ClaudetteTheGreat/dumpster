@@ -79,7 +79,7 @@
         {% block header %}
         <nav id="primary-nav" aria-label="Main navigation">
             <div class="container header-inner">
-                <a href="/" class="brand" aria-label="ruforo home">ruforo</a>
+                <a href="/" class="brand" aria-label="{{ client.site_title() }} home">{{ client.site_title() }}</a>
             </div>
             <div class="container">
                 {% block navigation %}
@@ -136,7 +136,7 @@
     <footer class="container" role="contentinfo" aria-label="Site footer">
         <div class="footer-inner">
             {% block footer %}
-            <p>🐍 Live Free or Die</p>
+            <p>{{ client.footer_message() }}</p>
             <p>Generated in {{ client.request_time_as_string() }}</p>
             {% endblock %}
         </div>

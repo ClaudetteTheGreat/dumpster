@@ -1,3 +1,4 @@
+use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::permission::PermissionData;
 use crate::user::Profile;
@@ -9,6 +10,7 @@ use actix_web::dev::{
 use actix_web::{web::Data, Error, FromRequest, HttpMessage, HttpRequest};
 use futures::future::{err, LocalBoxFuture, Ready};
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Client data stored for a single request cycle.
@@ -21,6 +23,8 @@ pub struct ClientCtxInner {
     pub groups: Vec<i32>,
     /// Permission data.
     pub permissions: Data<PermissionData>,
+    /// Site configuration.
+    pub config: Option<Data<Arc<Config>>>,
     /// Randomly generated string for CSR.
     pub nonce: String,
     /// CSRF token for form protection
@@ -38,6 +42,7 @@ impl Default for ClientCtxInner {
         Self {
             // Guests and users.
             permissions: Data::new(PermissionData::default()),
+            config: None,
             groups: Vec::new(),
             // Only users.
             client: None,
@@ -52,7 +57,11 @@ impl Default for ClientCtxInner {
 }
 
 impl ClientCtxInner {
-    pub async fn from_session(session: &Session, permissions: Data<PermissionData>) -> Self {
+    pub async fn from_session(
+        session: &Session,
+        permissions: Data<PermissionData>,
+        config: Option<Data<Arc<Config>>>,
+    ) -> Self {
         use crate::group::get_group_ids_for_client;
         use crate::middleware::csrf::get_or_create_csrf_token;
         use crate::session::authenticate_client_by_session;
@@ -94,6 +103,7 @@ impl ClientCtxInner {
             client,
             groups,
             permissions,
+            config,
             csrf_token,
             unread_notifications,
             unread_messages,
@@ -139,15 +149,20 @@ impl Default for ClientCtx {
 
 impl ClientCtx {
     /// Returns instance of Self with components required for ClientCtxInner.
-    pub async fn from_session(session: &Session, permissions: Data<PermissionData>) -> Self {
+    pub async fn from_session(
+        session: &Session,
+        permissions: Data<PermissionData>,
+        config: Option<Data<Arc<Config>>>,
+    ) -> Self {
         Self(Data::new(
-            ClientCtxInner::from_session(session, permissions).await,
+            ClientCtxInner::from_session(session, permissions, config).await,
         ))
     }
 
     pub fn get_or_default_from_extensions(
         extensions: &mut Extensions,
         permissions: Data<PermissionData>,
+        config: Option<Data<Arc<Config>>>,
     ) -> Self {
         match extensions.get::<Data<ClientCtxInner>>() {
             // Existing record in extensions; pull it and return clone.
@@ -157,6 +172,7 @@ impl ClientCtx {
                 let cbox = Data::new(ClientCtxInner {
                     // Add permission Arc reference to our inner value.
                     permissions,
+                    config,
                     ..Default::default()
                 });
                 // Insert ClientCtx into extensions jar.
@@ -282,6 +298,24 @@ impl ClientCtx {
         }
     }
 
+    /// Get site title from configuration
+    pub fn site_title(&self) -> String {
+        self.0
+            .config
+            .as_ref()
+            .map(|c| c.site_title())
+            .unwrap_or_else(|| "ruforo".to_string())
+    }
+
+    /// Get footer message from configuration
+    pub fn footer_message(&self) -> String {
+        self.0
+            .config
+            .as_ref()
+            .map(|c| c.footer_message())
+            .unwrap_or_else(|| "Live Free or Die".to_string())
+    }
+
     /// Require user to be logged in. Returns user_id or ErrorUnauthorized.
     pub fn require_login(&self) -> Result<i32, actix_web::Error> {
         self.get_id()
@@ -337,9 +371,11 @@ impl FromRequest for ClientCtx {
     /// Create a Self from request parts asynchronously.
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
         if let Some(perm_arc) = req.app_data::<Data<PermissionData>>() {
+            let config = req.app_data::<Data<Arc<Config>>>().cloned();
             ready(Ok(ClientCtx::get_or_default_from_extensions(
                 &mut req.extensions_mut(),
                 perm_arc.clone(),
+                config,
             )))
         } else {
             err(actix_web::error::ErrorServiceUnavailable(
@@ -400,10 +436,12 @@ where
         Box::pin(async move {
             if let Some(perm_arc) = req.app_data::<Data<PermissionData>>() {
                 let perm_arc = perm_arc.clone();
+                let config = req.app_data::<Data<Arc<Config>>>().cloned();
 
                 match session {
                     Ok(session) => {
-                        let inner = ClientCtxInner::from_session(&session, perm_arc).await;
+                        let inner =
+                            ClientCtxInner::from_session(&session, perm_arc, config).await;
                         req.extensions_mut().insert(Data::new(inner))
                     }
                     Err(err) => {

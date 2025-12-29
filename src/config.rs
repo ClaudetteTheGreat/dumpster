@@ -77,6 +77,7 @@ impl SettingValue {
 }
 
 /// Configuration manager with caching
+#[derive(Debug)]
 pub struct Config {
     settings: DashMap<String, SettingValue>,
     feature_flags: DashMap<String, bool>,
@@ -302,6 +303,16 @@ impl Config {
     /// Get site name
     pub fn site_name(&self) -> String {
         self.get_string_or("site_name", "Ruforo")
+    }
+
+    /// Get site title (brand name displayed in navigation)
+    pub fn site_title(&self) -> String {
+        self.get_string_or("site_title", "ruforo")
+    }
+
+    /// Get footer message
+    pub fn footer_message(&self) -> String {
+        self.get_string_or("footer_message", "Live Free or Die")
     }
 
     /// Get site description

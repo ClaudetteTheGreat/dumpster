@@ -501,7 +501,7 @@ pub async fn post_login(
         .map_err(|_| error::ErrorInternalServerError("middleware error"))?;
 
     Ok(LoginTemplate {
-        client: ClientCtx::from_session(&cookies, client.get_permissions().clone()).await,
+        client: ClientCtx::from_session(&cookies, client.get_permissions().clone(), None).await,
         user_id: Some(user_id),
         logged_in: true,
         username: Some(&form.username),
@@ -631,7 +631,7 @@ pub async fn post_login_2fa(
 
     // Redirect to home or show success
     Ok(LoginTemplate {
-        client: ClientCtx::from_session(&cookies, client.get_permissions().clone()).await,
+        client: ClientCtx::from_session(&cookies, client.get_permissions().clone(), None).await,
         user_id: Some(user_id),
         logged_in: true,
         username: None,
