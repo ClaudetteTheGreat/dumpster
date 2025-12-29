@@ -211,6 +211,9 @@ Private conversations between users:
 
 - **Inbox** - View all active conversations with unread indicators
 - **Multi-Participant Conversations** - Create conversations with multiple users
+  - Recipient autocomplete with username search as you type
+  - Comma-separated input for multiple recipients
+  - Keyboard navigation (arrow keys, Enter/Tab to select, Escape to close)
 - **Read Tracking** - Per-user read/unread status for each conversation
 - **Message History** - Full conversation history with pagination
 - **Leave Conversation** - Remove yourself from a conversation
