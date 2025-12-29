@@ -386,6 +386,27 @@ html.dark {
         color: #e0e0e0;
     }
 
+    // Recipient autocomplete (for conversations)
+    .recipient-dropdown {
+        background: #2a2a2a;
+        border-color: #555;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .recipient-item {
+        &:hover {
+            background-color: #3a3a3a;
+        }
+
+        &.recipient-item--selected {
+            background-color: #1e3a5f;
+        }
+    }
+
+    .recipient-username {
+        color: #e0e0e0;
+    }
+
     // @mention links in posts
     .ugc a.mention {
         color: #64b5f6;

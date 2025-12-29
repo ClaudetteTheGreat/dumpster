@@ -133,6 +133,38 @@ input {
     color: #333;
 }
 
+// Recipient autocomplete dropdown (for conversation recipients)
+.recipient-dropdown {
+    position: absolute;
+    z-index: 1000;
+    min-width: 200px;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.recipient-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+
+    &:hover {
+        background-color: #f5f5f5;
+    }
+
+    &.recipient-item--selected {
+        background-color: #e3f2fd;
+    }
+}
+
+.recipient-username {
+    font-weight: 500;
+    color: #333;
+}
+
 // Report Button
 .report-btn {
     background: none;

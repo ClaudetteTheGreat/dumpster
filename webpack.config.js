@@ -51,6 +51,7 @@ module.exports = {
             path.resolve(__dirname, './resources/js/post-edit.js'),
             path.resolve(__dirname, './resources/js/quote.js'),
             path.resolve(__dirname, './resources/js/reactions.js'),
+            path.resolve(__dirname, './resources/js/recipient-autocomplete.js'),
             path.resolve(__dirname, './resources/js/report.js'),
             path.resolve(__dirname, './resources/js/unfurl.js'),
         ],
