@@ -257,11 +257,45 @@
         }
     }
 
+    // Handle quote link clicks - scroll if on same page
+    function handleQuoteLinkClick(e) {
+        const link = e.target.closest('.quote-link');
+        if (!link) return;
+
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        // Extract post ID from href like /threads/123/post-456
+        const match = href.match(/\/threads\/(\d+)\/post-(\d+)/);
+        if (!match) return;
+
+        const postId = match[2];
+
+        // Check if the target post is on this page
+        const targetPost = document.querySelector(`a[href="/threads/${match[1]}/post-${postId}"]`);
+        if (targetPost) {
+            // Find the parent message element
+            const messageEl = targetPost.closest('.message');
+            if (messageEl) {
+                e.preventDefault();
+                messageEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // Briefly highlight the post
+                messageEl.classList.add('post-focused');
+                setTimeout(() => {
+                    messageEl.classList.remove('post-focused');
+                }, 2000);
+            }
+        }
+        // If not found, let the normal navigation happen
+    }
+
     // Initialize
     function init() {
         // Event delegation for quote buttons
         document.addEventListener('click', handleQuoteClick);
         document.addEventListener('click', handleAddQuoteClick);
+        document.addEventListener('click', handleQuoteLinkClick);
 
         // Update UI on page load
         updateMultiQuoteUI();
