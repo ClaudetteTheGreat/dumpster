@@ -209,12 +209,30 @@ impl ClientCtx {
         self.0.permissions.can(self, tag)
     }
 
-    pub fn can_post_in_thread(&self, _thread: &crate::orm::threads::Model) -> bool {
-        self.can_post_in_forum()
+    /// Check if user can post in a thread (inherits forum permission)
+    pub fn can_post_in_thread(&self, thread: &crate::orm::threads::Model) -> bool {
+        // Thread inherits permission from its parent forum
+        self.can_in_forum(&thread.forum_id, "post.create")
     }
 
-    pub fn can_post_in_forum(&self) -> bool {
-        true
+    /// Check permission in forum context with parent inheritance
+    pub fn can_in_forum(&self, forum_id: &i32, permission: &str) -> bool {
+        self.0.permissions.can_in_forum(self, *forum_id, permission)
+    }
+
+    /// Check if user can post in a forum
+    pub fn can_post_in_forum(&self, forum_id: &i32) -> bool {
+        self.can_in_forum(forum_id, "post.create")
+    }
+
+    /// Check if user can create threads in a forum
+    pub fn can_create_thread_in_forum(&self, forum_id: &i32) -> bool {
+        self.can_in_forum(forum_id, "thread.create")
+    }
+
+    /// Check if user can view a forum
+    pub fn can_view_forum(&self, forum_id: &i32) -> bool {
+        self.can_in_forum(forum_id, "forum.view")
     }
 
     pub fn can_delete_post(&self, post: &crate::web::post::PostForTemplate) -> bool {

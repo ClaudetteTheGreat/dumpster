@@ -235,6 +235,13 @@ pub async fn create_thread(
     use crate::ugc::{create_ugc, NewUgcPartial};
     let forum_id = path.into_inner();
 
+    // Check forum-specific permission for thread creation
+    if !client.can_create_thread_in_forum(&forum_id) {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to create threads in this forum.",
+        ));
+    }
+
     // Run form data through validator.
     let (form, validated_poll) = validate_thread_form(form)?;
 
@@ -495,6 +502,13 @@ pub async fn view_forum(
         .await
         .map_err(|_| error::ErrorInternalServerError("Could not look up forum."))?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
+
+    // Check forum-specific view permission
+    if !client.can_view_forum(&forum_id) {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to view this forum.",
+        ));
+    }
 
     // Check if filtering by tag
     let (threads, active_tag) = if let Some(ref tag_slug) = query.tag {

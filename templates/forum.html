@@ -145,7 +145,7 @@
     {% endfor %}
 </div>
 
-{% if client.can_post_in_forum() %}
+{% if client.can_create_thread_in_forum(forum.id) %}
 <form action="/forums/{{ forum.id }}/post-thread" method="post">
     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
     <h2>New Thread</h2>

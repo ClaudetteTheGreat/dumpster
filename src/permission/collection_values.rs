@@ -52,4 +52,16 @@ impl CollectionValues {
     pub fn set_flag(&mut self, category: u8, item: u8, flag: Flag) {
         self.categories[category as usize].set_flag(item, flag)
     }
+
+    /// Check if a permission has an explicit value (not default/inherit)
+    pub fn has_explicit_value(&self, category: usize, item: u8) -> bool {
+        let cat = &self.categories[category];
+        let bit: u64 = 1 << item;
+        (cat.yes | cat.no | cat.never) & bit != 0
+    }
+
+    /// Check if permission is explicitly granted (yes and not overridden by no/never)
+    pub fn can(&self, category: usize, item: u8) -> bool {
+        self.categories[category].can(item)
+    }
 }

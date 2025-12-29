@@ -793,6 +793,13 @@ pub async fn create_reply(
         .map_err(|_| error::ErrorInternalServerError("Could not look up thread."))?
         .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
 
+    // Check forum-specific permission for posting (inherits from forum)
+    if !client.can_post_in_forum(&our_thread.forum_id) {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to post in this forum.",
+        ));
+    }
+
     // Check if thread is locked
     if our_thread.is_locked {
         return Err(error::ErrorForbidden(
