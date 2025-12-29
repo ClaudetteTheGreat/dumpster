@@ -46,9 +46,9 @@ async function fetchRenderedHTML(bbcode) {
   const response = await fetch('/api/bbcode/preview', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    body: new URLSearchParams({ content: bbcode })
+    body: JSON.stringify({ content: bbcode })
   });
 
   if (!response.ok) {
