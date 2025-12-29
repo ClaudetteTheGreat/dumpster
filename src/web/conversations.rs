@@ -11,7 +11,8 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_conversation)
         .service(new_conversation_form)
         .service(create_conversation)
-        .service(send_message_handler);
+        .service(send_message_handler)
+        .service(leave_conversation_handler);
 }
 
 /// Template for inbox (conversation list)
@@ -292,5 +293,41 @@ pub async fn send_message_handler(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}
+
+/// Form data for leaving a conversation
+#[derive(Deserialize)]
+pub struct LeaveConversationForm {
+    csrf_token: String,
+}
+
+/// POST /conversations/{id}/leave - Leave a conversation
+#[post("/conversations/{id}/leave")]
+pub async fn leave_conversation_handler(
+    client: ClientCtx,
+    session: actix_session::Session,
+    conversation_id: web::Path<i32>,
+    form: web::Form<LeaveConversationForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Leave the conversation
+    conversations::leave_conversation(user_id, conv_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to leave conversation: {}", e);
+            error::ErrorInternalServerError("Failed to leave conversation")
+        })?;
+
+    log::info!("User {} left conversation {}", user_id, conv_id);
+
+    // Redirect to inbox
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/conversations"))
         .finish())
 }

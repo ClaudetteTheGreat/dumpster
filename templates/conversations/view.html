@@ -2,7 +2,13 @@
 
 {% block content %}
 <div class="conversation-header">
-    <a href="/conversations" class="back-link">← Back to Inbox</a>
+    <div class="header-top">
+        <a href="/conversations" class="back-link">← Back to Inbox</a>
+        <form action="/conversations/{{ conversation_id }}/leave" method="post" class="leave-form" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+            <button type="submit" class="btn-leave">Leave Conversation</button>
+        </form>
+    </div>
     <h2>
         {% if let Some(t) = title %}
             {{ t }}
@@ -47,15 +53,39 @@
         border-bottom: 2px solid #e0e0e0;
     }
 
-    .back-link {
-        display: inline-block;
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 10px;
+    }
+
+    .back-link {
         color: #4a90e2;
         text-decoration: none;
     }
 
     .back-link:hover {
         text-decoration: underline;
+    }
+
+    .leave-form {
+        margin: 0;
+    }
+
+    .btn-leave {
+        padding: 6px 12px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-leave:hover {
+        background: #c82333;
     }
 
     .conversation-header h2 {

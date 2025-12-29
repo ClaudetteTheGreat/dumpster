@@ -500,3 +500,130 @@ async fn test_verify_participant() {
     let result3 = conversations::verify_participant(&db, user3.id, conversation_id).await;
     assert!(result3.is_err());
 }
+
+#[actix_rt::test]
+#[serial]
+async fn test_leave_conversation() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    let user3 = create_test_user_with_email(&db, "charlie", "charlie@example.com", true)
+        .await
+        .expect("Failed to create charlie");
+
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id, user3.id], None)
+        .await
+        .expect("Failed to create conversation");
+
+    // Verify all three are participants
+    let participants_before = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .all(&db)
+        .await
+        .expect("Failed to find participants");
+    assert_eq!(participants_before.len(), 3);
+
+    // User2 leaves the conversation
+    conversations::leave_conversation(user2.id, conversation_id)
+        .await
+        .expect("Failed to leave conversation");
+
+    // Verify user2 is no longer a participant
+    let participants_after = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .all(&db)
+        .await
+        .expect("Failed to find participants");
+    assert_eq!(participants_after.len(), 2);
+
+    let participant_ids: Vec<i32> = participants_after.iter().map(|p| p.user_id).collect();
+    assert!(participant_ids.contains(&user1.id));
+    assert!(!participant_ids.contains(&user2.id));
+    assert!(participant_ids.contains(&user3.id));
+
+    // Conversation should still exist
+    let conversation = conversation_orm::Entity::find_by_id(conversation_id)
+        .one(&db)
+        .await
+        .expect("Failed to find conversation");
+    assert!(conversation.is_some());
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_leave_conversation_deletes_when_empty() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id], None)
+        .await
+        .expect("Failed to create conversation");
+
+    // Both users leave the conversation
+    conversations::leave_conversation(user1.id, conversation_id)
+        .await
+        .expect("Failed to leave conversation");
+
+    conversations::leave_conversation(user2.id, conversation_id)
+        .await
+        .expect("Failed to leave conversation");
+
+    // Conversation should be deleted
+    let conversation = conversation_orm::Entity::find_by_id(conversation_id)
+        .one(&db)
+        .await
+        .expect("Failed to find conversation");
+    assert!(conversation.is_none());
+}
+
+#[actix_rt::test]
+#[serial]
+async fn test_leave_conversation_non_participant() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    let user3 = create_test_user_with_email(&db, "charlie", "charlie@example.com", true)
+        .await
+        .expect("Failed to create charlie");
+
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id], None)
+        .await
+        .expect("Failed to create conversation");
+
+    // User3 (non-participant) tries to leave
+    let result = conversations::leave_conversation(user3.id, conversation_id).await;
+    assert!(result.is_err());
+}

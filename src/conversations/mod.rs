@@ -351,3 +351,37 @@ pub struct MessageDisplay {
     pub content: String,
     pub created_at: chrono::NaiveDateTime,
 }
+
+/// Leave a conversation (remove user as participant)
+/// If no participants remain, the conversation is deleted
+pub async fn leave_conversation(user_id: i32, conversation_id: i32) -> Result<(), DbErr> {
+    let db = get_db_pool();
+    let txn = db.begin().await?;
+
+    // Verify user is a participant
+    verify_participant(&txn, user_id, conversation_id).await?;
+
+    // Delete the participant record
+    conversation_participants::Entity::delete_many()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .exec(&txn)
+        .await?;
+
+    // Check if any participants remain
+    let remaining = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .count(&txn)
+        .await?;
+
+    // If no participants remain, delete the conversation (cascade will delete messages)
+    if remaining == 0 {
+        conversations::Entity::delete_by_id(conversation_id)
+            .exec(&txn)
+            .await?;
+    }
+
+    txn.commit().await?;
+
+    Ok(())
+}
