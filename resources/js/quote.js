@@ -84,13 +84,17 @@
     }
 
     // Build quote BBCode from a quote object
+    // Format: [quote=username;thread_id;post_id] for linked quotes
     function buildQuoteBBCode(quote) {
         const decodedContent = decodeHtmlEntities(quote.content);
+        if (quote.threadId && quote.postId) {
+            return `[quote=${quote.username};${quote.threadId};${quote.postId}]${decodedContent}[/quote]`;
+        }
         return `[quote=${quote.username}]${decodedContent}[/quote]`;
     }
 
     // Insert a single quote into textarea
-    function insertQuote(username, content) {
+    function insertQuote(username, content, threadId, postId) {
         const textarea = getReplyTextarea();
         if (!textarea) {
             alert('Reply form not found. You may need to scroll down to the reply form.');
@@ -98,7 +102,12 @@
         }
 
         const decodedContent = decodeHtmlEntities(content);
-        const quote = `[quote=${username}]${decodedContent}[/quote]\n\n`;
+        let quote;
+        if (threadId && postId) {
+            quote = `[quote=${username};${threadId};${postId}]${decodedContent}[/quote]\n\n`;
+        } else {
+            quote = `[quote=${username}]${decodedContent}[/quote]\n\n`;
+        }
 
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -209,13 +218,15 @@
 
         const username = button.dataset.username || 'Unknown';
         const content = button.dataset.content || '';
+        const threadId = button.dataset.threadId || '';
+        const postId = button.dataset.postId || '';
 
         if (!content.trim()) {
             alert('This post has no content to quote.');
             return;
         }
 
-        insertQuote(username, content);
+        insertQuote(username, content, threadId, postId);
     }
 
     // Handle add/remove quote button click (multi-quote)

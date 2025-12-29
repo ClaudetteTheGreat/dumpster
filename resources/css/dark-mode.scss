@@ -143,6 +143,29 @@ html.dark {
         background-color: var(--quote-bg);
         border-left-color: var(--quote-border);
         color: var(--text-secondary);
+
+        &.tagQuote {
+            border-color: var(--border-color);
+
+            .quote-link {
+                color: var(--text-secondary);
+                background: var(--bg-tertiary);
+
+                &:hover {
+                    background: var(--quote-border);
+                    color: var(--text-primary);
+                }
+            }
+
+            .attribution {
+                color: var(--text-secondary);
+            }
+
+            // Nested quotes in dark mode
+            blockquote.tagQuote {
+                background: var(--bg-tertiary);
+            }
+        }
     }
 
     // Messages/Posts

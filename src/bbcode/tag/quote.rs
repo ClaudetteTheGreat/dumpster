@@ -2,16 +2,43 @@ use super::Element;
 use std::cell::RefMut;
 
 impl super::Tag {
-    /// Opens a quote tag. Returns <blockquote> with optional attribution
+    /// Opens a quote tag. Returns <blockquote> with optional attribution and link
+    /// Format: [quote=username] or [quote=username;thread_id;post_id]
     pub fn open_quote_tag(el: RefMut<Element>) -> String {
         if let Some(arg) = el.get_argument() {
             // Strip leading = if present
             let attribution = arg.strip_prefix('=').unwrap_or(arg).trim();
             if !attribution.is_empty() {
-                let sanitized = sanitize_html(attribution);
+                // Parse format: username or username;thread_id;post_id
+                let parts: Vec<&str> = attribution.split(';').collect();
+                let username = sanitize_html(parts[0].trim());
+
+                // Check if we have thread_id and post_id for linking
+                if parts.len() >= 3 {
+                    let thread_id = parts[1].trim();
+                    let post_id = parts[2].trim();
+
+                    // Validate IDs are numeric
+                    if thread_id.chars().all(|c| c.is_ascii_digit())
+                        && post_id.chars().all(|c| c.is_ascii_digit())
+                    {
+                        let link = format!("/threads/{}/post-{}", thread_id, post_id);
+                        return format!(
+                            "<blockquote class=\"bbCode tagQuote\" data-author=\"{}\" data-thread=\"{}\" data-post=\"{}\">\
+                            <a href=\"{}\" class=\"quote-link\" title=\"Go to original post\">↑</a>\
+                            <div class=\"attribution\">{} said:</div>\
+                            <div class=\"quoted\">",
+                            username, thread_id, post_id, link, username
+                        );
+                    }
+                }
+
+                // No valid link, just show attribution
                 return format!(
-                    "<blockquote class=\"bbCode tagQuote\" data-author=\"{}\"><div class=\"attribution\">{} said:</div><div class=\"quoted\">",
-                    sanitized, sanitized
+                    "<blockquote class=\"bbCode tagQuote\" data-author=\"{}\">\
+                    <div class=\"attribution\">{} said:</div>\
+                    <div class=\"quoted\">",
+                    username, username
                 );
             }
         }
