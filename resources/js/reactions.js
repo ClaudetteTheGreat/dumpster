@@ -165,11 +165,16 @@ async function renderReactionPicker(container) {
  * Initialize reactions on page load
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // Pre-load reaction types
-    await loadReactionTypes();
-
     // Find all reaction containers
     const containers = document.querySelectorAll('.reactions-container');
+
+    // Only proceed if there are reaction containers on the page
+    if (containers.length === 0) {
+        return;
+    }
+
+    // Pre-load reaction types
+    await loadReactionTypes();
 
     // Load and display reactions for each container
     for (const container of containers) {
