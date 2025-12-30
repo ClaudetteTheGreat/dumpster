@@ -31,9 +31,14 @@
             <label for="content">Content *</label>
             <div class="bbcode-editor-container">
                 {% include "components/bbcode_toolbar.html" %}
-                <textarea id="content" name="content" rows="12" cols="80" required
-                    data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"
-                    placeholder="Write your post here..."></textarea>
+                <div class="textarea-with-template">
+                    {% if let Some(template) = forum.thread_template.as_ref() %}
+                    <div class="thread-template-overlay" id="thread-template-overlay">{{ template }}</div>
+                    {% endif %}
+                    <textarea id="content" name="content" rows="12" cols="80" required
+                        data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"
+                        {% if forum.thread_template.is_none() %}placeholder="Write your post here..."{% endif %}></textarea>
+                </div>
             </div>
         </div>
 
@@ -152,6 +157,35 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
         }
     });
 });
+
+// Thread template overlay - hide when user types
+(function() {
+    const textarea = document.getElementById('content');
+    const overlay = document.getElementById('thread-template-overlay');
+    if (!textarea || !overlay) return;
+
+    function updateOverlayVisibility() {
+        if (textarea.value.trim().length > 0) {
+            overlay.classList.add('hidden');
+        } else {
+            overlay.classList.remove('hidden');
+        }
+    }
+
+    textarea.addEventListener('input', updateOverlayVisibility);
+    textarea.addEventListener('focus', function() {
+        // Keep overlay visible but dimmed when focused with no content
+        if (textarea.value.trim().length === 0) {
+            overlay.classList.add('focused');
+        }
+    });
+    textarea.addEventListener('blur', function() {
+        overlay.classList.remove('focused');
+    });
+
+    // Initial check
+    updateOverlayVisibility();
+})();
 </script>
 
 <style>
@@ -218,6 +252,48 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
     margin-top: 5px;
     color: var(--text-muted, #666);
     font-size: 0.85em;
+}
+
+/* Thread template overlay */
+.textarea-with-template {
+    position: relative;
+}
+
+.thread-template-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px 12px;
+    color: var(--text-muted, #888);
+    font-size: 1em;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    pointer-events: none;
+    user-select: none;
+    overflow: hidden;
+    opacity: 0.6;
+    z-index: 1;
+    background: transparent;
+}
+
+.thread-template-overlay.focused {
+    opacity: 0.4;
+}
+
+.thread-template-overlay.hidden {
+    display: none;
+}
+
+.textarea-with-template textarea {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+}
+
+.textarea-with-template textarea:not(:focus) {
+    background: var(--bg-input, #fff);
 }
 
 /* Tags */
@@ -430,6 +506,14 @@ html.dark .poll-settings {
 html.dark .tags-checkbox-grid {
     background: var(--bg-primary, #222);
     border-color: var(--border-color, #444);
+}
+
+html.dark .thread-template-overlay {
+    color: var(--text-muted, #666);
+}
+
+html.dark .textarea-with-template textarea:not(:focus) {
+    background: var(--bg-input, #1a1a1a);
 }
 
 @media (max-width: 600px) {

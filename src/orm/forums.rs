@@ -29,6 +29,9 @@ pub struct Model {
     pub tags_enabled: bool,
     /// If true, only existing/admin-created tags can be used (no ad-hoc tags)
     pub restrict_tags: bool,
+    /// Template/placeholder text shown in new thread content box
+    #[sea_orm(column_type = "Text", nullable)]
+    pub thread_template: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

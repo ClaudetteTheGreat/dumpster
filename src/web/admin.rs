@@ -5386,6 +5386,7 @@ async fn update_forum(
     let mut remove_icon_new_image = false;
     let mut tags_enabled = false;
     let mut restrict_tags = false;
+    let mut thread_template: Option<String> = existing.thread_template.clone();
 
     // Helper to load attachments for error display
     async fn load_attachments(
@@ -5513,6 +5514,20 @@ async fn update_forum(
             }
             "restrict_tags" => {
                 restrict_tags = true;
+            }
+            "thread_template" => {
+                let mut buf = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
+                }
+                let val = String::from_utf8_lossy(&buf).to_string();
+                thread_template = if val.trim().is_empty() {
+                    None
+                } else {
+                    Some(val)
+                };
             }
             "icon_image" => {
                 if let Some(payload) = save_field_as_temp_file(&mut field).await? {
@@ -5686,6 +5701,7 @@ async fn update_forum(
     updated.icon_new_attachment_id = Set(final_icon_new_attachment_id);
     updated.tags_enabled = Set(tags_enabled);
     updated.restrict_tags = Set(restrict_tags);
+    updated.thread_template = Set(thread_template);
 
     updated.update(db).await.map_err(|e| {
         log::error!("Failed to update forum: {}", e);

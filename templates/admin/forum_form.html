@@ -154,6 +154,20 @@
             </p>
         </div>
 
+        <div class="form-section">
+            <h3>Thread Template</h3>
+
+            <div class="form-group">
+                <label for="thread_template">New Thread Template Text</label>
+                <textarea id="thread_template" name="thread_template" rows="6"
+                    placeholder="Enter template text that will appear as a guide when users create new threads...">{% if let Some(template) = forum.thread_template.as_ref() %}{{ template }}{% endif %}</textarea>
+                <small class="form-help">
+                    This text appears as a faded placeholder in the content box when users create new threads.
+                    It helps guide users on what to include in their posts. The text disappears when they start typing.
+                </small>
+            </div>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">Save Changes</button>
             <a href="/admin/forums" class="btn btn-secondary">Cancel</a>
