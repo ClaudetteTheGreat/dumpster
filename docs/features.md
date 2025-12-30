@@ -40,13 +40,16 @@ This document covers the user-facing features and interface elements.
 ## Thread Features
 
 - **Thread Prefixes** - Categorize threads with prefixes like [SOLVED], [QUESTION], [DISCUSSION] displayed as badges
-- **Thread Tags** - Add tags during thread creation for categorization and discoverability
-  - Comma-separated tag input with auto-slug generation
+- **Thread Tags** - Select tags during thread creation for categorization and discoverability
+  - Admin-managed tag system via `/admin/tags`
+  - Checkbox selection from predefined tags (no user-created tags)
+  - Tags can be global (available in all forums) or forum-specific
+  - Multi-forum tag support via junction table (one tag can be in multiple forums)
   - Colored badge display in listings and thread views
-  - Forum-specific or global tag scope
   - Automatic tag use count tracking
   - Filter threads by tag via `?tag=slug` query parameter
   - Active filter indicator with clear button
+  - Per-forum tag settings: enable/disable tags entirely
 - **Watch Threads** - Subscribe to threads for notifications on new posts
 - **Deleted Post Handling** - Placeholder display for deleted posts with deletion timestamp
 - **Post History** - Track post edits with revision history
