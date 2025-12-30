@@ -75,7 +75,11 @@
         {% if client.can("moderate.approval.view") %}
         <a href="/admin/approval-queue" class="quick-link">
             <span class="link-icon">&#128203;</span>
-            <span class="link-text">Approval Queue</span>
+            <span class="link-text">User Approval</span>
+        </a>
+        <a href="/admin/post-approval-queue" class="quick-link">
+            <span class="link-icon">&#128221;</span>
+            <span class="link-text">Post Approval</span>
         </a>
         {% endif %}
         {% if client.can("admin.permissions.manage") %}
