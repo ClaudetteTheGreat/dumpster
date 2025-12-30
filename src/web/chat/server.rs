@@ -20,6 +20,8 @@ pub struct ChatServer {
     pub connections: HashMap<usize, Connection>,
     /// Room Id -> Vec<Conn Ids>
     pub rooms: HashMap<u32, HashSet<usize>>,
+    /// User Id -> Last message timestamp (for rate limiting)
+    pub user_last_message: HashMap<u32, u64>,
     // Message BbCode Constructor
     pub constructor: Constructor,
 }
@@ -47,6 +49,7 @@ impl ChatServer {
             rng: rand::thread_rng(),
             connections: HashMap::new(),
             rooms: HashMap::from_iter(rooms.into_iter().map(|r| (r.id, Default::default()))),
+            user_last_message: HashMap::new(),
             constructor,
             layer,
             config,
@@ -152,6 +155,37 @@ impl ChatServer {
                 }
             }
         }
+    }
+
+    /// Check if user is rate limited. Returns seconds remaining if limited.
+    fn check_rate_limit(&self, user_id: u32) -> Option<u64> {
+        let rate_limit_seconds = self.config.chat_rate_limit_seconds();
+        if rate_limit_seconds == 0 {
+            return None; // Rate limiting disabled
+        }
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+
+        if let Some(&last_message_time) = self.user_last_message.get(&user_id) {
+            let elapsed = now.saturating_sub(last_message_time);
+            if elapsed < rate_limit_seconds {
+                return Some(rate_limit_seconds - elapsed);
+            }
+        }
+
+        None
+    }
+
+    /// Update the last message time for a user
+    fn update_last_message_time(&mut self, user_id: u32) {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.user_last_message.insert(user_id, now);
     }
 }
 
@@ -366,37 +400,49 @@ impl Handler<message::Post> for ChatServer {
     type Result = ResponseActFuture<Self, ()>;
 
     fn handle(&mut self, msg: message::Post, _: &mut Context<Self>) -> Self::Result {
-        if msg.session.can_send_message() {
-            let id = msg.id;
-            let layer = self.layer.to_owned();
-            let session = msg.session.to_owned();
-
-            Box::pin(
-                async move { layer.insert_chat_message(&msg).await }
-                    .into_actor(self)
-                    .map(move |message, actor, _| {
-                        if let Some(message) = message {
-                            let room_id = message.room_id;
-
-                            actor.send_message_to_room(
-                                room_id,
-                                serde_json::to_string(&message::SanitaryPosts {
-                                    messages: vec![actor.prepare_message(
-                                        implement::Author::from(&session),
-                                        message,
-                                    )],
-                                })
-                                .expect("message::Post serialize failure"),
-                            );
-                        } else {
-                            actor.send_message_to_conn(id, "Failed to send message.".to_string());
-                        }
-                    }),
-            )
-        } else {
+        if !msg.session.can_send_message() {
             self.send_message_to_conn(msg.id, "You cannot send messages.".to_string());
-            Box::pin(async {}.into_actor(self))
+            return Box::pin(async {}.into_actor(self));
         }
+
+        // Check rate limit
+        if let Some(seconds_remaining) = self.check_rate_limit(msg.session.id) {
+            self.send_message_to_conn(
+                msg.id,
+                format!("Please wait {} seconds before sending another message.", seconds_remaining),
+            );
+            return Box::pin(async {}.into_actor(self));
+        }
+
+        // Update rate limit timestamp before sending (optimistic)
+        self.update_last_message_time(msg.session.id);
+
+        let id = msg.id;
+        let layer = self.layer.to_owned();
+        let session = msg.session.to_owned();
+
+        Box::pin(
+            async move { layer.insert_chat_message(&msg).await }
+                .into_actor(self)
+                .map(move |message, actor, _| {
+                    if let Some(message) = message {
+                        let room_id = message.room_id;
+
+                        actor.send_message_to_room(
+                            room_id,
+                            serde_json::to_string(&message::SanitaryPosts {
+                                messages: vec![actor.prepare_message(
+                                    implement::Author::from(&session),
+                                    message,
+                                )],
+                            })
+                            .expect("message::Post serialize failure"),
+                        );
+                    } else {
+                        actor.send_message_to_conn(id, "Failed to send message.".to_string());
+                    }
+                }),
+        )
     }
 }
 impl Handler<message::Restart> for ChatServer {
