@@ -409,7 +409,10 @@ impl Handler<message::Post> for ChatServer {
         if let Some(seconds_remaining) = self.check_rate_limit(msg.session.id) {
             self.send_message_to_conn(
                 msg.id,
-                format!("Please wait {} seconds before sending another message.", seconds_remaining),
+                format!(
+                    "Please wait {} seconds before sending another message.",
+                    seconds_remaining
+                ),
             );
             return Box::pin(async {}.into_actor(self));
         }
@@ -431,10 +434,8 @@ impl Handler<message::Post> for ChatServer {
                         actor.send_message_to_room(
                             room_id,
                             serde_json::to_string(&message::SanitaryPosts {
-                                messages: vec![actor.prepare_message(
-                                    implement::Author::from(&session),
-                                    message,
-                                )],
+                                messages: vec![actor
+                                    .prepare_message(implement::Author::from(&session), message)],
                             })
                             .expect("message::Post serialize failure"),
                         );

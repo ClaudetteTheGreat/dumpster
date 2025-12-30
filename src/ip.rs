@@ -6,7 +6,7 @@ use crate::db::get_db_pool;
 use crate::orm::ip;
 use actix_web::HttpRequest;
 use chrono::Utc;
-use sea_orm::{ConnectionTrait, FromQueryResult, Statement, DbErr};
+use sea_orm::{ConnectionTrait, DbErr, FromQueryResult, Statement};
 use std::net::IpAddr;
 
 /// Extract the real client IP address from an HTTP request.

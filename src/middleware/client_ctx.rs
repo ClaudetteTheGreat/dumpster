@@ -440,8 +440,7 @@ where
 
                 match session {
                     Ok(session) => {
-                        let inner =
-                            ClientCtxInner::from_session(&session, perm_arc, config).await;
+                        let inner = ClientCtxInner::from_session(&session, perm_arc, config).await;
                         req.extensions_mut().insert(Data::new(inner))
                     }
                     Err(err) => {

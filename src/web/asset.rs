@@ -32,7 +32,10 @@ async fn view_file_by_hash(req: HttpRequest) -> impl Responder {
         .and_then(|r| r.to_str().ok())
         .map(From::from);
 
-    let res = match crate::filesystem::get_storage().get_object(&key, range).await {
+    let res = match crate::filesystem::get_storage()
+        .get_object(&key, range)
+        .await
+    {
         Ok(output) => output,
         Err(err) => {
             log::debug!("{:?}", err);

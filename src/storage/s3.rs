@@ -83,9 +83,9 @@ impl StorageBackend for S3Storage {
         // Convert the S3 body stream to our ByteStream type
         let body: ByteStream = match output.body {
             Some(stream) => {
-                let mapped = stream
-                    .map_ok(Bytes::from)
-                    .map_err(|e: std::io::Error| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                let mapped = stream.map_ok(Bytes::from).map_err(|e: std::io::Error| {
+                    std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                });
                 Box::pin(mapped)
             }
             None => {

@@ -6,7 +6,8 @@ use crate::middleware::ClientCtx;
 use crate::orm::posts::Entity as Post;
 use crate::orm::threads::Entity as Thread;
 use crate::orm::{
-    poll_options, poll_votes, polls, posts, tags, thread_read, thread_tags, threads, ugc_deletions, users,
+    poll_options, poll_votes, polls, posts, tags, thread_read, thread_tags, threads, ugc_deletions,
+    users,
 };
 use crate::template::{Paginator, PaginatorToHtml};
 use crate::user::Profile as UserProfile;
@@ -918,10 +919,8 @@ pub async fn create_reply(
             authenticated_user_id,
             thread_id
         );
-        return Ok(HttpResponse::Ok()
-            .content_type("text/html")
-            .body(format!(
-                r#"<!DOCTYPE html>
+        return Ok(HttpResponse::Ok().content_type("text/html").body(format!(
+            r#"<!DOCTYPE html>
 <html>
 <head><title>Reply Pending Approval</title></head>
 <body>
@@ -931,8 +930,8 @@ pub async fn create_reply(
 <p><a href="/threads/{}/">Return to thread</a></p>
 </body>
 </html>"#,
-                thread_id
-            )));
+            thread_id
+        )));
     }
 
     // Update thread (only if post was approved)

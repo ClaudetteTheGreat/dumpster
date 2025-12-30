@@ -19,7 +19,11 @@ pub struct Model {
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "post_moderation_status")]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "Enum",
+    enum_name = "post_moderation_status"
+)]
 pub enum ModerationStatus {
     #[sea_orm(string_value = "pending")]
     Pending,

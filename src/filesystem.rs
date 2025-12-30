@@ -63,7 +63,10 @@ pub fn init() {
     let storage_config = crate::app_config::storage();
     let storage: Box<dyn StorageBackend> = match storage_config.backend.as_str() {
         "local" => {
-            log::info!("Initializing local storage at: {}", storage_config.local_path);
+            log::info!(
+                "Initializing local storage at: {}",
+                storage_config.local_path
+            );
             Box::new(
                 crate::storage::local::LocalStorage::new(storage_config.local_path.into())
                     .expect("Failed to initialize local storage"),

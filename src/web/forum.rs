@@ -2,7 +2,10 @@ use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
 use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads, user_names, users};
+use crate::orm::{
+    forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads,
+    user_names, users,
+};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection, FromQueryResult};
@@ -641,10 +644,8 @@ pub async fn create_thread(
             thread_res.last_insert_id,
             user_id
         );
-        return Ok(HttpResponse::Ok()
-            .content_type("text/html")
-            .body(format!(
-                r#"<!DOCTYPE html>
+        return Ok(HttpResponse::Ok().content_type("text/html").body(format!(
+            r#"<!DOCTYPE html>
 <html>
 <head><title>Thread Pending Approval</title></head>
 <body>
@@ -654,8 +655,8 @@ pub async fn create_thread(
 <p><a href="/forums/{}/">Return to forum</a></p>
 </body>
 </html>"#,
-                forum_id
-            )));
+            forum_id
+        )));
     }
 
     // Check and award any automatic badges the user may have earned (async, non-blocking)
@@ -847,7 +848,9 @@ pub async fn view_forum(
     let sub_forums = get_sub_forums(forum_id).await.unwrap_or_default();
 
     // Fetch available tags for this forum (global tags + forum-specific tags)
-    let available_tags = get_available_tags_for_forum(forum_id).await.unwrap_or_default();
+    let available_tags = get_available_tags_for_forum(forum_id)
+        .await
+        .unwrap_or_default();
 
     Ok(ForumTemplate {
         client: client.to_owned(),

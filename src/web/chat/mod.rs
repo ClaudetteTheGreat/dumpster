@@ -38,9 +38,7 @@ pub async fn view_chat_socket(
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
 
-    let config = req
-        .app_data::<Data<Arc<Config>>>()
-        .expect("No config.");
+    let config = req.app_data::<Data<Arc<Config>>>().expect("No config.");
 
     let session = layer.get_session_from_user_id(user_id as u32).await;
 

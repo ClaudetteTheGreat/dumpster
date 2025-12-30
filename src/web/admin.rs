@@ -6,10 +6,10 @@ use crate::db::get_db_pool;
 use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    attachments, badges, chat_rooms, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
-    moderator_notes, permission_categories, permission_collections, permission_values, permissions,
-    posts, reaction_types, reports, sessions, settings, tag_forums, tags, threads, user_bans, user_groups,
-    user_names, user_warnings, users, word_filters,
+    attachments, badges, chat_rooms, feature_flags, forum_permissions, forums, groups, ip_bans,
+    mod_log, moderator_notes, permission_categories, permission_collections, permission_values,
+    permissions, posts, reaction_types, reports, sessions, settings, tag_forums, tags, threads,
+    user_bans, user_groups, user_names, user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
@@ -3438,7 +3438,10 @@ async fn approve_post(
     // Mark user's first post as approved if this was their first post
     if let Some(user_id) = post.user_id {
         users::Entity::update_many()
-            .col_expr(users::Column::FirstPostApproved, sea_orm::sea_query::Expr::value(true))
+            .col_expr(
+                users::Column::FirstPostApproved,
+                sea_orm::sea_query::Expr::value(true),
+            )
             .filter(users::Column::Id.eq(user_id))
             .filter(users::Column::FirstPostApproved.eq(false))
             .exec(db)
@@ -3459,7 +3462,10 @@ async fn approve_post(
         // Only update if this post is newer than current last_post
         if post.created_at > thread.last_post_at.unwrap_or(post.created_at) {
             threads::Entity::update_many()
-                .col_expr(threads::Column::LastPostId, sea_orm::sea_query::Expr::value(post.id))
+                .col_expr(
+                    threads::Column::LastPostId,
+                    sea_orm::sea_query::Expr::value(post.id),
+                )
                 .col_expr(
                     threads::Column::LastPostAt,
                     sea_orm::sea_query::Expr::value(post.created_at),
@@ -4362,7 +4368,9 @@ async fn create_reaction_type(
     cookies: actix_session::Session,
     mut multipart: actix_multipart::Multipart,
 ) -> Result<impl Responder, Error> {
-    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use crate::filesystem::{
+        deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file,
+    };
     use futures::{StreamExt, TryStreamExt};
 
     client.require_login()?;
@@ -4381,41 +4389,55 @@ async fn create_reaction_type(
     let mut attachment_id: Option<i32> = None;
 
     while let Ok(Some(mut field)) = multipart.try_next().await {
-        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+        let field_name = field
+            .content_disposition()
+            .get_name()
+            .unwrap_or("")
+            .to_string();
 
         match field_name.as_str() {
             "csrf_token" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "name" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 name = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "emoji" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 emoji = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "display_order" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(0);
             }
             "reputation_value" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 reputation_value = String::from_utf8_lossy(&buf).parse().unwrap_or(0);
             }
@@ -4550,7 +4572,9 @@ async fn update_reaction_type(
     path: web::Path<i32>,
     mut multipart: actix_multipart::Multipart,
 ) -> Result<impl Responder, Error> {
-    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use crate::filesystem::{
+        deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file,
+    };
     use futures::{StreamExt, TryStreamExt};
 
     client.require_login()?;
@@ -4581,43 +4605,61 @@ async fn update_reaction_type(
     let mut remove_image = false;
 
     while let Ok(Some(mut field)) = multipart.try_next().await {
-        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+        let field_name = field
+            .content_disposition()
+            .get_name()
+            .unwrap_or("")
+            .to_string();
 
         match field_name.as_str() {
             "csrf_token" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "name" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 name = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "emoji" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 emoji = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "display_order" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
-                display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.display_order);
+                display_order = String::from_utf8_lossy(&buf)
+                    .parse()
+                    .unwrap_or(existing.display_order);
             }
             "reputation_value" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
-                reputation_value = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.reputation_value);
+                reputation_value = String::from_utf8_lossy(&buf)
+                    .parse()
+                    .unwrap_or(existing.reputation_value);
             }
             "is_positive" => {
                 is_positive = true;
@@ -4635,7 +4677,11 @@ async fn update_reaction_type(
                     if !payload.is_image() {
                         // Load attachment for error display
                         let attachment = if let Some(att_id) = existing.attachment_id {
-                            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+                            attachments::Entity::find_by_id(att_id)
+                                .one(db)
+                                .await
+                                .ok()
+                                .flatten()
                         } else {
                             None
                         };
@@ -4654,7 +4700,11 @@ async fn update_reaction_type(
                             Some(response) => response,
                             None => {
                                 let attachment = if let Some(att_id) = existing.attachment_id {
-                                    attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+                                    attachments::Entity::find_by_id(att_id)
+                                        .one(db)
+                                        .await
+                                        .ok()
+                                        .flatten()
                                 } else {
                                     None
                                 };
@@ -4683,7 +4733,11 @@ async fn update_reaction_type(
     let name = name.unwrap_or_default();
     if name.trim().is_empty() {
         let attachment = if let Some(att_id) = existing.attachment_id {
-            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+            attachments::Entity::find_by_id(att_id)
+                .one(db)
+                .await
+                .ok()
+                .flatten()
         } else {
             None
         };
@@ -5247,13 +5301,21 @@ async fn view_edit_forum(client: ClientCtx, path: web::Path<i32>) -> Result<impl
 
     // Load attachments for icon images
     let icon_attachment = if let Some(att_id) = forum.icon_attachment_id {
-        attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+        attachments::Entity::find_by_id(att_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten()
     } else {
         None
     };
 
     let icon_new_attachment = if let Some(att_id) = forum.icon_new_attachment_id {
-        attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+        attachments::Entity::find_by_id(att_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten()
     } else {
         None
     };
@@ -5279,7 +5341,9 @@ async fn update_forum(
     path: web::Path<i32>,
     mut multipart: actix_multipart::Multipart,
 ) -> Result<impl Responder, Error> {
-    use crate::filesystem::{deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file};
+    use crate::filesystem::{
+        deduplicate_payload, insert_payload_as_attachment, save_field_as_temp_file,
+    };
     use futures::{StreamExt, TryStreamExt};
 
     client.require_login()?;
@@ -5317,14 +5381,25 @@ async fn update_forum(
     let mut restrict_tags = false;
 
     // Helper to load attachments for error display
-    async fn load_attachments(forum: &forums::Model, db: &DatabaseConnection) -> (Option<attachments::Model>, Option<attachments::Model>) {
+    async fn load_attachments(
+        forum: &forums::Model,
+        db: &DatabaseConnection,
+    ) -> (Option<attachments::Model>, Option<attachments::Model>) {
         let icon_att = if let Some(att_id) = forum.icon_attachment_id {
-            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+            attachments::Entity::find_by_id(att_id)
+                .one(db)
+                .await
+                .ok()
+                .flatten()
         } else {
             None
         };
         let icon_new_att = if let Some(att_id) = forum.icon_new_attachment_id {
-            attachments::Entity::find_by_id(att_id).one(db).await.ok().flatten()
+            attachments::Entity::find_by_id(att_id)
+                .one(db)
+                .await
+                .ok()
+                .flatten()
         } else {
             None
         };
@@ -5332,35 +5407,51 @@ async fn update_forum(
     }
 
     while let Ok(Some(mut field)) = multipart.try_next().await {
-        let field_name = field.content_disposition().get_name().unwrap_or("").to_string();
+        let field_name = field
+            .content_disposition()
+            .get_name()
+            .unwrap_or("")
+            .to_string();
 
         match field_name.as_str() {
             "csrf_token" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 csrf_token = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "label" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 label = Some(String::from_utf8_lossy(&buf).to_string());
             }
             "description" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 let desc = String::from_utf8_lossy(&buf).to_string();
-                description = if desc.trim().is_empty() { None } else { Some(desc) };
+                description = if desc.trim().is_empty() {
+                    None
+                } else {
+                    Some(desc)
+                };
             }
             "icon" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 let val = String::from_utf8_lossy(&buf).to_string();
                 if !val.trim().is_empty() {
@@ -5370,7 +5461,9 @@ async fn update_forum(
             "icon_new" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 let val = String::from_utf8_lossy(&buf).to_string();
                 if !val.trim().is_empty() {
@@ -5380,17 +5473,27 @@ async fn update_forum(
             "display_order" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
-                display_order = String::from_utf8_lossy(&buf).parse().unwrap_or(existing.display_order);
+                display_order = String::from_utf8_lossy(&buf)
+                    .parse()
+                    .unwrap_or(existing.display_order);
             }
             "parent_id" => {
                 let mut buf = Vec::new();
                 while let Some(chunk) = field.next().await {
-                    buf.extend_from_slice(&chunk.map_err(|_| error::ErrorBadRequest("Read error"))?);
+                    buf.extend_from_slice(
+                        &chunk.map_err(|_| error::ErrorBadRequest("Read error"))?,
+                    );
                 }
                 let val = String::from_utf8_lossy(&buf).to_string();
-                parent_id = val.trim().parse().ok().filter(|&pid: &i32| pid != 0 && pid != id);
+                parent_id = val
+                    .trim()
+                    .parse()
+                    .ok()
+                    .filter(|&pid: &i32| pid != 0 && pid != id);
             }
             "remove_icon_image" => {
                 remove_icon_image = true;
@@ -5421,7 +5524,9 @@ async fn update_forum(
                             selected_parent_id,
                             icon_attachment: icon_att,
                             icon_new_attachment: icon_new_att,
-                            error: Some("Only image files (PNG, GIF, WebP, SVG) are allowed".to_string()),
+                            error: Some(
+                                "Only image files (PNG, GIF, WebP, SVG) are allowed".to_string(),
+                            ),
                         }
                         .to_response());
                     }
@@ -5436,7 +5541,8 @@ async fn update_forum(
                                     .all(db)
                                     .await
                                     .map_err(error::ErrorInternalServerError)?;
-                                let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                                let (icon_att, icon_new_att) =
+                                    load_attachments(&existing, db).await;
                                 return Ok(ForumFormTemplate {
                                     client,
                                     forum: existing,
@@ -5470,7 +5576,9 @@ async fn update_forum(
                             selected_parent_id,
                             icon_attachment: icon_att,
                             icon_new_attachment: icon_new_att,
-                            error: Some("Only image files (PNG, GIF, WebP, SVG) are allowed".to_string()),
+                            error: Some(
+                                "Only image files (PNG, GIF, WebP, SVG) are allowed".to_string(),
+                            ),
                         }
                         .to_response());
                     }
@@ -5485,7 +5593,8 @@ async fn update_forum(
                                     .all(db)
                                     .await
                                     .map_err(error::ErrorInternalServerError)?;
-                                let (icon_att, icon_new_att) = load_attachments(&existing, db).await;
+                                let (icon_att, icon_new_att) =
+                                    load_attachments(&existing, db).await;
                                 return Ok(ForumFormTemplate {
                                     client,
                                     forum: existing,
@@ -5493,7 +5602,9 @@ async fn update_forum(
                                     selected_parent_id,
                                     icon_attachment: icon_att,
                                     icon_new_attachment: icon_new_att,
-                                    error: Some("Failed to process new content icon image".to_string()),
+                                    error: Some(
+                                        "Failed to process new content icon image".to_string(),
+                                    ),
                                 }
                                 .to_response());
                             }
@@ -5552,8 +5663,16 @@ async fn update_forum(
     let mut updated: forums::ActiveModel = existing.into();
     updated.label = Set(label.trim().to_string());
     updated.description = Set(description);
-    updated.icon = Set(if icon.trim().is_empty() { "📁".to_string() } else { icon });
-    updated.icon_new = Set(if icon_new.trim().is_empty() { "📂".to_string() } else { icon_new });
+    updated.icon = Set(if icon.trim().is_empty() {
+        "📁".to_string()
+    } else {
+        icon
+    });
+    updated.icon_new = Set(if icon_new.trim().is_empty() {
+        "📂".to_string()
+    } else {
+        icon_new
+    });
     updated.display_order = Set(display_order);
     updated.parent_id = Set(parent_id);
     updated.icon_attachment_id = Set(final_icon_attachment_id);
@@ -5859,8 +5978,10 @@ async fn save_forum_permissions(
             error::ErrorInternalServerError("Database error")
         })?;
 
-    let existing_collection_ids: Vec<i32> =
-        existing_forum_perms.iter().map(|fp| fp.collection_id).collect();
+    let existing_collection_ids: Vec<i32> = existing_forum_perms
+        .iter()
+        .map(|fp| fp.collection_id)
+        .collect();
 
     // Get existing collections for these IDs
     let existing_collections = if !existing_collection_ids.is_empty() {
@@ -6000,7 +6121,10 @@ async fn save_forum_permissions(
     }
 
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
+        .append_header((
+            "Location",
+            format!("/admin/forums/{}/permissions", forum_id),
+        ))
         .finish())
 }
 
@@ -6054,7 +6178,8 @@ async fn view_tags(client: ClientCtx) -> Result<impl Responder, Error> {
             })?;
 
     // Build a map of tag_id -> Vec<forum_name>
-    let mut tag_forum_map: std::collections::HashMap<i32, Vec<String>> = std::collections::HashMap::new();
+    let mut tag_forum_map: std::collections::HashMap<i32, Vec<String>> =
+        std::collections::HashMap::new();
     for (tf, forum_opt) in tag_forum_associations {
         if let Some(forum) = forum_opt {
             tag_forum_map
@@ -6177,7 +6302,9 @@ async fn create_tag(
         .join("-");
 
     if slug.is_empty() {
-        return Err(error::ErrorBadRequest("Tag name must contain valid characters"));
+        return Err(error::ErrorBadRequest(
+            "Tag name must contain valid characters",
+        ));
     }
 
     // Validate color (should be hex color)
@@ -6201,7 +6328,9 @@ async fn create_tag(
         })?;
 
     if existing.is_some() {
-        return Err(error::ErrorBadRequest("A tag with this name already exists"));
+        return Err(error::ErrorBadRequest(
+            "A tag with this name already exists",
+        ));
     }
 
     // Create the tag
@@ -6215,13 +6344,10 @@ async fn create_tag(
         ..Default::default()
     };
 
-    let insert_result = tags::Entity::insert(new_tag)
-        .exec(db)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to create tag: {}", e);
-            error::ErrorInternalServerError("Failed to create tag")
-        })?;
+    let insert_result = tags::Entity::insert(new_tag).exec(db).await.map_err(|e| {
+        log::error!("Failed to create tag: {}", e);
+        error::ErrorInternalServerError("Failed to create tag")
+    })?;
 
     let tag_id = insert_result.last_insert_id;
 
@@ -6255,10 +6381,7 @@ async fn create_tag(
 
 /// GET /admin/tags/{id}/edit - Show edit tag form
 #[get("/admin/tags/{id}/edit")]
-async fn view_edit_tag(
-    client: ClientCtx,
-    path: web::Path<i32>,
-) -> Result<impl Responder, Error> {
+async fn view_edit_tag(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     client.require_permission("admin.settings")?;
 
     let db = get_db_pool();
@@ -6347,7 +6470,9 @@ async fn update_tag(
         .join("-");
 
     if slug.is_empty() {
-        return Err(error::ErrorBadRequest("Tag name must contain valid characters"));
+        return Err(error::ErrorBadRequest(
+            "Tag name must contain valid characters",
+        ));
     }
 
     // Validate color
@@ -6372,7 +6497,9 @@ async fn update_tag(
         })?;
 
     if existing.is_some() {
-        return Err(error::ErrorBadRequest("A tag with this name already exists"));
+        return Err(error::ErrorBadRequest(
+            "A tag with this name already exists",
+        ));
     }
 
     // Update the tag
@@ -6461,9 +6588,22 @@ async fn delete_tag(
             error::ErrorInternalServerError("Failed to delete tag")
         })?;
 
-    log_moderation_action(db, moderator_id, "delete_tag", "tag", tag_id, Some(&tag_name)).await?;
+    log_moderation_action(
+        db,
+        moderator_id,
+        "delete_tag",
+        "tag",
+        tag_id,
+        Some(&tag_name),
+    )
+    .await?;
 
-    log::info!("Tag {} ('{}') deleted by user {}", tag_id, tag_name, moderator_id);
+    log::info!(
+        "Tag {} ('{}') deleted by user {}",
+        tag_id,
+        tag_name,
+        moderator_id
+    );
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/tags"))

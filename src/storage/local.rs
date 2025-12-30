@@ -144,33 +144,35 @@ impl StorageBackend for LocalStorage {
         let path_clone = path.clone();
 
         // Use web::block for blocking file operations
-        let result = web::block(move || -> Result<(Vec<u8>, std::fs::Metadata, Option<String>), StorageError> {
-            // Get file metadata
-            let metadata = fs::metadata(&path_clone)?;
-            let file_size = metadata.len();
+        let result = web::block(
+            move || -> Result<(Vec<u8>, std::fs::Metadata, Option<String>), StorageError> {
+                // Get file metadata
+                let metadata = fs::metadata(&path_clone)?;
+                let file_size = metadata.len();
 
-            // Handle range request
-            let (start, end, content_range) = if let Some(ref range_header) = range_clone {
-                let (start, end) = LocalStorage::parse_range(range_header, file_size)?;
-                let range_str = format!("bytes {}-{}/{}", start, end, file_size);
-                (start, end, Some(range_str))
-            } else {
-                (0, file_size.saturating_sub(1), None)
-            };
+                // Handle range request
+                let (start, end, content_range) = if let Some(ref range_header) = range_clone {
+                    let (start, end) = LocalStorage::parse_range(range_header, file_size)?;
+                    let range_str = format!("bytes {}-{}/{}", start, end, file_size);
+                    (start, end, Some(range_str))
+                } else {
+                    (0, file_size.saturating_sub(1), None)
+                };
 
-            let bytes_to_read = (end - start + 1) as usize;
+                let bytes_to_read = (end - start + 1) as usize;
 
-            // Read file content (with range support)
-            let mut file = fs::File::open(&path_clone)?;
-            if start > 0 {
-                file.seek(SeekFrom::Start(start))?;
-            }
+                // Read file content (with range support)
+                let mut file = fs::File::open(&path_clone)?;
+                if start > 0 {
+                    file.seek(SeekFrom::Start(start))?;
+                }
 
-            let mut buffer = vec![0u8; bytes_to_read];
-            file.read_exact(&mut buffer)?;
+                let mut buffer = vec![0u8; bytes_to_read];
+                file.read_exact(&mut buffer)?;
 
-            Ok((buffer, metadata, content_range))
-        })
+                Ok((buffer, metadata, content_range))
+            },
+        )
         .await
         .map_err(|e| StorageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
 
@@ -180,9 +182,7 @@ impl StorageBackend for LocalStorage {
         // Get modification time for ETag and Last-Modified
         let modified = metadata.modified().ok();
         let e_tag = modified.map(|t: std::time::SystemTime| {
-            let duration = t
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default();
+            let duration = t.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
             format!("\"{}\"", duration.as_secs())
         });
         let last_modified = modified.map(|t: std::time::SystemTime| {

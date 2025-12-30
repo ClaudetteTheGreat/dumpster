@@ -632,7 +632,10 @@ pub async fn get_post_and_author_for_template(
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
             .column_as(ugc_deletions::Column::Reason, "deleted_reason")
             // Cast enum to text for String field
-            .column_as(Expr::cust("ugc_deletions.deletion_type::TEXT"), "deletion_type"),
+            .column_as(
+                Expr::cust("ugc_deletions.deletion_type::TEXT"),
+                "deletion_type",
+            ),
         posts::Column::UserId,
     )
     .into_model::<PostForTemplate, UserProfile>()
@@ -660,29 +663,34 @@ pub async fn get_replies_and_author_for_template(
             .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
             .column_as(ugc_deletions::Column::Reason, "deleted_reason")
             // Cast enum to text for String field
-            .column_as(Expr::cust("ugc_deletions.deletion_type::TEXT"), "deletion_type"),
+            .column_as(
+                Expr::cust("ugc_deletions.deletion_type::TEXT"),
+                "deletion_type",
+            ),
         posts::Column::UserId,
     )
     .filter(posts::Column::ThreadId.eq(id))
-    .filter(posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page));
+    .filter(
+        posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page),
+    );
 
     // Filter out pending/rejected posts unless user is a moderator or the post author
     if !show_pending {
         // Only show approved posts, or user's own pending posts
         if let Some(user_id) = current_user_id {
             // Show approved posts OR user's own pending posts
-            query = query.filter(
-                Condition::any()
-                    .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
-                    .add(
-                        Condition::all()
-                            .add(posts::Column::UserId.eq(user_id))
-                            .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending))
-                    )
-            );
+            query =
+                query.filter(
+                    Condition::any()
+                        .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
+                        .add(Condition::all().add(posts::Column::UserId.eq(user_id)).add(
+                            posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending),
+                        )),
+                );
         } else {
             // Anonymous: only show approved posts
-            query = query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
+            query =
+                query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
         }
     }
 

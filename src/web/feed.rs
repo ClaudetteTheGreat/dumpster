@@ -621,7 +621,11 @@ pub async fn thread_atom_feed(
         let mut entry_builder = EntryBuilder::default();
         entry_builder
             .id(format!("post-{}", post.id))
-            .title(TextBuilder::default().value(format!("Reply #{}", post.position)).build())
+            .title(
+                TextBuilder::default()
+                    .value(format!("Reply #{}", post.position))
+                    .build(),
+            )
             .link(
                 LinkBuilder::default()
                     .href(link)

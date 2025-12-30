@@ -101,9 +101,7 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
 
             let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
 
-            let forum_vals = forum_perms_map
-                .entry(forum_id)
-                .or_insert_with(DashMap::new);
+            let forum_vals = forum_perms_map.entry(forum_id).or_insert_with(DashMap::new);
 
             if forum_vals.contains_key(&val_key) {
                 forum_vals.alter(&val_key, |_, v| cv.join(&v));
@@ -116,8 +114,10 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
     // Load forum parent relationships
     let forum_rows = forums::Entity::find().all(get_db_pool()).await?;
 
-    let forum_parents: HashMap<i32, Option<i32>> =
-        forum_rows.into_iter().map(|f| (f.id, f.parent_id)).collect();
+    let forum_parents: HashMap<i32, Option<i32>> = forum_rows
+        .into_iter()
+        .map(|f| (f.id, f.parent_id))
+        .collect();
 
     // Update the permission data
     perm_data.forum_permissions = forum_perms_map;
@@ -263,8 +263,7 @@ impl PermissionData {
                 }
 
                 // If we found any overrides for this forum, check if this permission is explicitly set
-                if has_override
-                    && forum_values.has_explicit_value(pindices.0 as usize, pindices.1)
+                if has_override && forum_values.has_explicit_value(pindices.0 as usize, pindices.1)
                 {
                     return forum_values.can(pindices.0 as usize, pindices.1);
                 }
@@ -403,9 +402,7 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
 
             let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
 
-            let forum_vals = forum_perms_map
-                .entry(forum_id)
-                .or_insert_with(DashMap::new);
+            let forum_vals = forum_perms_map.entry(forum_id).or_insert_with(DashMap::new);
 
             if forum_vals.contains_key(&val_key) {
                 forum_vals.alter(&val_key, |_, v| cv.join(&v));
@@ -416,9 +413,7 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
     }
 
     // Load forum parent relationships
-    let forum_rows = forums::Entity::find()
-        .all(get_db_pool())
-        .await?;
+    let forum_rows = forums::Entity::find().all(get_db_pool()).await?;
 
     let forum_parents: HashMap<i32, Option<i32>> = forum_rows
         .into_iter()

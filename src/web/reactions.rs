@@ -252,10 +252,7 @@ async fn get_reactions(client: ClientCtx, path: web::Path<i32>) -> Result<HttpRe
     let summaries: Vec<ReactionSummary> = reaction_counts
         .into_iter()
         .map(|(id, (name, emoji, count))| {
-            let image_url = reaction_types_with_attachments
-                .get(&id)
-                .cloned()
-                .flatten();
+            let image_url = reaction_types_with_attachments.get(&id).cloned().flatten();
             ReactionSummary {
                 reaction_type_id: id,
                 name,
