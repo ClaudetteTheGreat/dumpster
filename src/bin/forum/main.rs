@@ -55,7 +55,7 @@ async fn main() -> std::io::Result<()> {
     let layer = Arc::new(ruforo::web::chat::implement::default::Layer {
         db: get_db_pool().to_owned(),
     });
-    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone())
+    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone(), config.clone())
         .await
         .start();
 

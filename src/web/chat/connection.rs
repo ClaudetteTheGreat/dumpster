@@ -20,6 +20,8 @@ pub struct Connection {
     pub addr: Addr<ChatServer>,
     /// Last command (any) sent
     pub last_command: Instant,
+    /// Maximum message length in bytes (from config)
+    pub max_message_length: usize,
 }
 
 impl Connection {
@@ -223,7 +225,10 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Connection {
             ws::Message::Text(text) => {
                 let m = text.trim();
 
-                if m.is_empty() || m.len() >= 1024 {
+                // Check message length (0 means unlimited)
+                if m.is_empty()
+                    || (self.max_message_length > 0 && m.len() > self.max_message_length)
+                {
                     return;
                 }
 

@@ -12,6 +12,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::config::Config;
 use crate::middleware::ClientCtx;
 
 /// How often heartbeat pings are sent
@@ -37,6 +38,10 @@ pub async fn view_chat_socket(
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
 
+    let config = req
+        .app_data::<Data<Arc<Config>>>()
+        .expect("No config.");
+
     let session = layer.get_session_from_user_id(user_id as u32).await;
 
     ws::start(
@@ -50,6 +55,7 @@ pub async fn view_chat_socket(
                 .expect("No chat server.")
                 .clone(),
             last_command: Instant::now(),
+            max_message_length: config.chat_max_message_length(),
         },
         &req,
         stream,
@@ -66,6 +72,12 @@ pub async fn view_xf_chat_socket(
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
 
+    // Get max message length from config if available, otherwise use default
+    let max_message_length = req
+        .app_data::<Data<Arc<Config>>>()
+        .map(|c| c.chat_max_message_length())
+        .unwrap_or(1024);
+
     let token = layer.get_session_key_from_request(&req);
     let user_id = layer.get_user_id_from_token(token).await;
     let session = layer.get_session_from_user_id(user_id).await;
@@ -81,6 +93,7 @@ pub async fn view_xf_chat_socket(
                 .expect("No chat server.")
                 .clone(),
             last_command: Instant::now(),
+            max_message_length,
         },
         &req,
         stream,

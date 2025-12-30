@@ -375,6 +375,28 @@ impl Config {
     pub fn min_posts_to_create_thread(&self) -> i32 {
         self.get_int_or("min_posts_to_create_thread", 0) as i32
     }
+
+    // Chat settings
+
+    /// Get maximum chat message length in bytes (0 for unlimited)
+    pub fn chat_max_message_length(&self) -> usize {
+        self.get_int_or("chat_max_message_length", 1024) as usize
+    }
+
+    /// Get number of messages to load when joining a chat room
+    pub fn chat_history_limit(&self) -> usize {
+        self.get_int_or("chat_history_limit", 40) as usize
+    }
+
+    /// Get minimum approved posts required to send chat messages (0 to disable)
+    pub fn chat_min_posts_to_send(&self) -> i32 {
+        self.get_int_or("chat_min_posts_to_send", 0) as i32
+    }
+
+    /// Get minimum seconds between chat messages per user (0 to disable)
+    pub fn chat_rate_limit_seconds(&self) -> u64 {
+        self.get_int_or("chat_rate_limit_seconds", 0) as u64
+    }
 }
 
 /// Create a new Arc-wrapped Config

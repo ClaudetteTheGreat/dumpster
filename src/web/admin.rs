@@ -6,7 +6,7 @@ use crate::db::get_db_pool;
 use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    attachments, badges, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
+    attachments, badges, chat_rooms, feature_flags, forum_permissions, forums, groups, ip_bans, mod_log,
     moderator_notes, permission_categories, permission_collections, permission_values, permissions,
     posts, reaction_types, reports, sessions, settings, tag_forums, tags, threads, user_bans, user_groups,
     user_names, user_warnings, users, word_filters,
@@ -174,7 +174,14 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(create_tag)
         .service(view_edit_tag)
         .service(update_tag)
-        .service(delete_tag);
+        .service(delete_tag)
+        // Chat room management
+        .service(view_chat_rooms)
+        .service(view_create_chat_room_form)
+        .service(create_chat_room)
+        .service(view_edit_chat_room)
+        .service(update_chat_room)
+        .service(delete_chat_room);
 }
 
 // ============================================================================
@@ -6460,5 +6467,280 @@ async fn delete_tag(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/tags"))
+        .finish())
+}
+
+// ============================================================================
+// Chat Room Management
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/chat_rooms.html")]
+struct ChatRoomsTemplate {
+    client: ClientCtx,
+    rooms: Vec<chat_rooms::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/chat_room_form.html")]
+struct ChatRoomFormTemplate {
+    client: ClientCtx,
+    room: Option<chat_rooms::Model>,
+    error: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ChatRoomForm {
+    csrf_token: String,
+    title: String,
+    description: Option<String>,
+    display_order: i16,
+    min_posts_required: i32,
+    min_account_age_hours: i32,
+    is_staff_only: Option<String>,
+}
+
+/// GET /admin/chat-rooms - List all chat rooms
+#[get("/admin/chat-rooms")]
+async fn view_chat_rooms(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let rooms = chat_rooms::Entity::find()
+        .order_by_asc(chat_rooms::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch chat rooms: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(ChatRoomsTemplate { client, rooms }.to_response())
+}
+
+/// GET /admin/chat-rooms/new - Show form to create new chat room
+#[get("/admin/chat-rooms/new")]
+async fn view_create_chat_room_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    Ok(ChatRoomFormTemplate {
+        client,
+        room: None,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/chat-rooms - Create a new chat room
+#[post("/admin/chat-rooms")]
+async fn create_chat_room(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<ChatRoomForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Validate input
+    if form.title.trim().is_empty() {
+        return Ok(ChatRoomFormTemplate {
+            client,
+            room: None,
+            error: Some("Title is required".to_string()),
+        }
+        .to_response());
+    }
+
+    let new_room = chat_rooms::ActiveModel {
+        title: Set(form.title.trim().to_string()),
+        description: Set(form.description.clone().filter(|s| !s.trim().is_empty())),
+        display_order: Set(form.display_order),
+        min_posts_required: Set(form.min_posts_required),
+        min_account_age_hours: Set(form.min_account_age_hours),
+        is_staff_only: Set(form.is_staff_only.is_some()),
+        ..Default::default()
+    };
+
+    let room = new_room.insert(db).await.map_err(|e| {
+        log::error!("Failed to create chat room: {}", e);
+        error::ErrorInternalServerError("Failed to create chat room")
+    })?;
+
+    log_moderation_action(
+        db,
+        moderator_id,
+        "create_chat_room",
+        "chat_room",
+        room.id,
+        Some(&room.title),
+    )
+    .await?;
+
+    log::info!(
+        "Chat room {} ('{}') created by user {}",
+        room.id,
+        room.title,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/chat-rooms"))
+        .finish())
+}
+
+/// GET /admin/chat-rooms/{id}/edit - Show form to edit chat room
+#[get("/admin/chat-rooms/{id}/edit")]
+async fn view_edit_chat_room(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    let room = chat_rooms::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch chat room: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Chat room not found"))?;
+
+    Ok(ChatRoomFormTemplate {
+        client,
+        room: Some(room),
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/chat-rooms/{id} - Update a chat room
+#[post("/admin/chat-rooms/{id}")]
+async fn update_chat_room(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ChatRoomForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let id = path.into_inner();
+    let db = get_db_pool();
+
+    // Fetch existing room
+    let existing = chat_rooms::Entity::find_by_id(id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch chat room: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Chat room not found"))?;
+
+    // Validate input
+    if form.title.trim().is_empty() {
+        return Ok(ChatRoomFormTemplate {
+            client,
+            room: Some(existing),
+            error: Some("Title is required".to_string()),
+        }
+        .to_response());
+    }
+
+    let mut updated: chat_rooms::ActiveModel = existing.into();
+    updated.title = Set(form.title.trim().to_string());
+    updated.description = Set(form.description.clone().filter(|s| !s.trim().is_empty()));
+    updated.display_order = Set(form.display_order);
+    updated.min_posts_required = Set(form.min_posts_required);
+    updated.min_account_age_hours = Set(form.min_account_age_hours);
+    updated.is_staff_only = Set(form.is_staff_only.is_some());
+
+    updated.update(db).await.map_err(|e| {
+        log::error!("Failed to update chat room: {}", e);
+        error::ErrorInternalServerError("Failed to update chat room")
+    })?;
+
+    log_moderation_action(
+        db,
+        moderator_id,
+        "update_chat_room",
+        "chat_room",
+        id,
+        Some(&form.title),
+    )
+    .await?;
+
+    log::info!("Chat room {} updated by user {}", id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .insert_header(("Location", "/admin/chat-rooms"))
+        .finish())
+}
+
+/// POST /admin/chat-rooms/{id}/delete - Delete a chat room
+#[post("/admin/chat-rooms/{id}/delete")]
+async fn delete_chat_room(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let room_id = path.into_inner();
+
+    let room = chat_rooms::Entity::find_by_id(room_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch chat room: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Chat room not found"))?;
+
+    let room_title = room.title.clone();
+
+    // Delete the chat room (messages will remain but room reference will be gone)
+    chat_rooms::Entity::delete_by_id(room_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete chat room: {}", e);
+            error::ErrorInternalServerError("Failed to delete chat room")
+        })?;
+
+    log_moderation_action(
+        db,
+        moderator_id,
+        "delete_chat_room",
+        "chat_room",
+        room_id,
+        Some(&room_title),
+    )
+    .await?;
+
+    log::info!(
+        "Chat room {} ('{}') deleted by user {}",
+        room_id,
+        room_title,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/chat-rooms"))
         .finish())
 }

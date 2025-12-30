@@ -200,7 +200,7 @@ pub mod default {
     use super::super::message;
     use super::*;
     use crate::middleware::ClientCtx;
-    use crate::orm::{chat_messages, ugc_deletions, ugc_revisions};
+    use crate::orm::{chat_messages, chat_rooms, posts, ugc_deletions, ugc_revisions, users};
     use crate::ugc::{create_ugc, create_ugc_revision, NewUgcPartial};
     use crate::user::{find_also_user, Profile as UserProfile};
     use sea_orm::{entity::*, query::*, DatabaseConnection, EntityTrait, QuerySelect, Set};
@@ -209,14 +209,95 @@ pub mod default {
         pub db: DatabaseConnection,
     }
 
+    impl Layer {
+        /// Check if a user can access a specific room based on room restrictions
+        async fn check_room_access(&self, user_id: u32, room: &chat_rooms::Model) -> bool {
+            // No restrictions if all are 0/false
+            if room.min_posts_required == 0
+                && room.min_account_age_hours == 0
+                && !room.is_staff_only
+            {
+                return true;
+            }
+
+            // Guest users (id=0) can't access restricted rooms
+            if user_id == 0 {
+                return false;
+            }
+
+            // Load user info
+            let user = match users::Entity::find_by_id(user_id as i32)
+                .one(&self.db)
+                .await
+            {
+                Ok(Some(u)) => u,
+                _ => return false,
+            };
+
+            // Check staff-only restriction
+            if room.is_staff_only {
+                // Check if user is in admin group (id=4) or moderator group
+                use crate::orm::user_groups;
+                let is_staff = user_groups::Entity::find()
+                    .filter(user_groups::Column::UserId.eq(user_id as i32))
+                    .filter(user_groups::Column::GroupId.is_in([3, 4])) // Moderators and Administrators
+                    .one(&self.db)
+                    .await
+                    .map(|r| r.is_some())
+                    .unwrap_or(false);
+
+                if !is_staff {
+                    return false;
+                }
+            }
+
+            // Check minimum account age
+            if room.min_account_age_hours > 0 {
+                let account_age_hours = (Utc::now().naive_utc() - user.created_at).num_hours();
+                if account_age_hours < room.min_account_age_hours as i64 {
+                    return false;
+                }
+            }
+
+            // Check minimum posts
+            if room.min_posts_required > 0 {
+                let post_count = posts::Entity::find()
+                    .filter(posts::Column::UserId.eq(user_id as i32))
+                    .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
+                    .count(&self.db)
+                    .await
+                    .unwrap_or(0) as i32;
+
+                if post_count < room.min_posts_required {
+                    return false;
+                }
+            }
+
+            true
+        }
+    }
+
     #[async_trait::async_trait]
     impl super::ChatLayer for Layer {
-        async fn can_send_message(&self, _: &Session) -> bool {
+        async fn can_send_message(&self, session: &Session) -> bool {
+            // User must be logged in
+            if session.id == 0 {
+                return false;
+            }
             true
         }
 
-        async fn can_view(&self, _: u32, _: u32) -> bool {
-            true
+        async fn can_view(&self, session_id: u32, room_id: u32) -> bool {
+            // Load the room
+            let room = match chat_rooms::Entity::find_by_id(room_id as i32)
+                .one(&self.db)
+                .await
+            {
+                Ok(Some(r)) => r,
+                _ => return false, // Room not found
+            };
+
+            self.check_room_access(session_id, &room).await
         }
 
         async fn delete_message(&self, id: u32) {
@@ -331,13 +412,26 @@ pub mod default {
         }
 
         async fn get_room_list(&self) -> Vec<Room> {
-            vec![super::Room {
-                id: 1,
-                title: "Test".to_owned(),
-                description: "Dummy room for testing".to_owned(),
-                motd: None,
-                display_order: 1,
-            }]
+            match chat_rooms::Entity::find()
+                .order_by_asc(chat_rooms::Column::DisplayOrder)
+                .all(&self.db)
+                .await
+            {
+                Ok(rooms) => rooms
+                    .into_iter()
+                    .map(|r| super::Room {
+                        id: r.id as u32,
+                        title: r.title,
+                        description: r.description.unwrap_or_default(),
+                        motd: None,
+                        display_order: r.display_order as u32,
+                    })
+                    .collect(),
+                Err(err) => {
+                    log::error!("Failed to get chat room list: {:?}", err);
+                    Vec::new()
+                }
+            }
         }
 
         async fn get_room_history(&self, id: u32, limit: usize) -> Vec<(Author, super::Message)> {

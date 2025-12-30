@@ -12,6 +12,12 @@ pub struct Model {
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
     pub display_order: i16,
+    /// Minimum approved posts required to access this room (0 = no restriction)
+    pub min_posts_required: i32,
+    /// Minimum account age in hours required to access this room (0 = no restriction)
+    pub min_account_age_hours: i32,
+    /// Whether this room is restricted to staff members only
+    pub is_staff_only: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

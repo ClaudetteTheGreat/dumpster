@@ -2,6 +2,7 @@ use super::implement::{self, UserActivity};
 use super::implement::{ChatLayer, Connection};
 use super::message::{self, SanitaryPost, SanitaryPosts};
 use crate::bbcode::{tokenize, Constructor, Parser, Smilies};
+use crate::config::Config;
 use actix::prelude::*;
 use rand::{self, rngs::ThreadRng, Rng};
 use std::collections::{HashMap, HashSet};
@@ -13,6 +14,7 @@ use std::time::SystemTime;
 pub struct ChatServer {
     pub rng: ThreadRng,
     pub layer: Arc<dyn ChatLayer>,
+    pub config: Arc<Config>,
 
     /// Random Id -> Recipient Addr
     pub connections: HashMap<usize, Connection>,
@@ -23,7 +25,7 @@ pub struct ChatServer {
 }
 
 impl ChatServer {
-    pub async fn new(layer: Arc<dyn implement::ChatLayer>) -> Self {
+    pub async fn new(layer: Arc<dyn implement::ChatLayer>, config: Arc<Config>) -> Self {
         log::info!("Chat actor starting up.");
 
         // Populate rooms
@@ -47,6 +49,7 @@ impl ChatServer {
             rooms: HashMap::from_iter(rooms.into_iter().map(|r| (r.id, Default::default()))),
             constructor,
             layer,
+            config,
         }
     }
 
@@ -312,10 +315,11 @@ impl Handler<message::Join> for ChatServer {
         self.disconnect_message(msg.id);
 
         let layer = self.layer.clone();
+        let history_limit = self.config.chat_history_limit();
         Box::pin(
             async move {
                 if layer.can_view(session.id, room_id).await {
-                    (true, layer.get_room_history(room_id, 40).await)
+                    (true, layer.get_room_history(room_id, history_limit).await)
                 } else {
                     (false, Vec::default())
                 }

@@ -1,0 +1,287 @@
+{% extends "container/public.html" %}
+
+{% block title %}Chat Rooms - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Chat Rooms</h1>
+        <p class="panel-subtitle">Manage chat rooms and access restrictions</p>
+        <a href="/admin/chat-rooms/new" class="btn btn-primary">Add Room</a>
+    </div>
+
+    {% if rooms.is_empty() %}
+    <div class="empty-state">
+        <p>No chat rooms have been configured yet.</p>
+        <p class="text-muted">Create a room to allow users to participate in real-time chat.</p>
+    </div>
+    {% else %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Title</th>
+                    <th>Access Restrictions</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for room in rooms %}
+                <tr>
+                    <td>{{ room.display_order }}</td>
+                    <td>
+                        <strong>{{ room.title }}</strong>
+                        {% match room.description %}
+                        {% when Some with (desc) %}
+                        <div class="text-muted text-small">{{ desc }}</div>
+                        {% when None %}
+                        {% endmatch %}
+                    </td>
+                    <td>
+                        {% if room.is_staff_only %}
+                        <span class="badge badge-warning">Staff Only</span>
+                        {% endif %}
+                        {% if room.min_posts_required > 0 %}
+                        <span class="badge badge-info">{{ room.min_posts_required }} posts</span>
+                        {% endif %}
+                        {% if room.min_account_age_hours > 0 %}
+                        <span class="badge badge-info">{{ room.min_account_age_hours }}h account age</span>
+                        {% endif %}
+                        {% if !room.is_staff_only && room.min_posts_required == 0 && room.min_account_age_hours == 0 %}
+                        <span class="badge badge-success">Open</span>
+                        {% endif %}
+                    </td>
+                    <td class="actions-cell">
+                        <a href="/admin/chat-rooms/{{ room.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
+                        <form action="/admin/chat-rooms/{{ room.id }}/delete" method="post" class="inline-form" onsubmit="return confirm('Delete this chat room?');">
+                            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="help-section">
+        <h3>Access Control</h3>
+        <ul>
+            <li><strong>Staff Only:</strong> Room is only visible to staff members (moderators and administrators).</li>
+            <li><strong>Minimum Posts:</strong> Users must have at least this many approved posts to access the room.</li>
+            <li><strong>Minimum Account Age:</strong> Users must have had their account for at least this many hours.</li>
+        </ul>
+        <p>Multiple restrictions stack - users must meet ALL requirements to access a room.</p>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+}
+
+.panel-header h1 {
+    margin: 0;
+    color: #333;
+    flex-grow: 1;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+    width: 100%;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    color: #666;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table th,
+.data-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+    color: #333;
+}
+
+.data-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.text-small {
+    font-size: 0.85em;
+}
+
+.text-muted {
+    color: #999;
+}
+
+.badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.badge-success {
+    background: #28a745;
+    color: #fff;
+}
+
+.badge-warning {
+    background: #ffc107;
+    color: #212529;
+}
+
+.badge-info {
+    background: #17a2b8;
+    color: #fff;
+}
+
+.btn {
+    display: inline-block;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #545b62;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+.btn-sm {
+    padding: 4px 8px;
+    font-size: 0.85em;
+}
+
+.help-section {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.help-section h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.help-section ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.help-section li {
+    margin-bottom: 8px;
+}
+
+/* Dark mode support */
+html.dark .admin-panel h1,
+html.dark .admin-panel h3 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle,
+html.dark .text-muted {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+    color: #ccc;
+}
+
+html.dark .data-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .data-table th {
+    background: #333;
+    color: #fff;
+}
+
+html.dark .data-table td {
+    border-color: #444;
+}
+
+html.dark .data-table tbody tr:hover {
+    background: #333;
+}
+
+html.dark .help-section {
+    background: #333;
+    color: #ccc;
+}
+</style>
+{% endblock %}

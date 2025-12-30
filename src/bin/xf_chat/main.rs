@@ -11,6 +11,7 @@ use actix::Actor;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use env_logger::Env;
+use ruforo::config::create_config;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,8 +60,11 @@ async fn main() -> std::io::Result<()> {
     //        panic!("{:?}", err);
     //    }
     //};
+    // Create a default config for XF compatibility (uses built-in defaults)
+    let config = create_config();
+
     let layer = Arc::new(xf::XfLayer { db: mysql.clone() });
-    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone())
+    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone(), config)
         .await
         .start();
 
