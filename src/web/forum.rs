@@ -5,9 +5,60 @@ use crate::middleware::ClientCtx;
 use crate::orm::{forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads, user_names, users};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
-use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
+use sea_orm::{entity::*, query::*, sea_query::Expr, DatabaseConnection, FromQueryResult};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::sync::Arc;
+
+/// Helper struct for pending post query
+#[derive(Debug, FromQueryResult)]
+struct PendingPostInfo {
+    thread_id: i32,
+    user_id: Option<i32>,
+}
+
+/// Filter threads to hide those with pending first posts from non-moderators.
+/// Returns a set of thread IDs that should be hidden.
+async fn get_threads_with_pending_first_posts(
+    db: &DatabaseConnection,
+    thread_ids: &[i32],
+    can_view_pending: bool,
+    current_user_id: Option<i32>,
+) -> HashSet<i32> {
+    // If user can view pending posts (moderator), don't hide any
+    if can_view_pending {
+        return HashSet::new();
+    }
+
+    // Get first posts for these threads that are pending
+    let pending_first_posts: Vec<PendingPostInfo> = match posts::Entity::find()
+        .select_only()
+        .column(posts::Column::ThreadId)
+        .column(posts::Column::UserId)
+        .filter(posts::Column::ThreadId.is_in(thread_ids.to_vec()))
+        .filter(posts::Column::Position.eq(1))
+        .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending))
+        .into_model::<PendingPostInfo>()
+        .all(db)
+        .await
+    {
+        Ok(posts) => posts,
+        Err(_) => return HashSet::new(),
+    };
+
+    // Filter out threads where the first post is pending and user is not the author
+    pending_first_posts
+        .into_iter()
+        .filter(|post| {
+            // Hide if user is not the author
+            match (current_user_id, post.user_id) {
+                (Some(current), Some(author)) => current != author,
+                _ => true, // Hide if no current user or no author
+            }
+        })
+        .map(|post| post.thread_id)
+        .collect()
+}
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
@@ -257,8 +308,6 @@ pub struct ForumWithChildren {
     pub children: Vec<ForumWithStats>,
 }
 
-use std::collections::HashSet;
-
 #[derive(Template)]
 #[template(path = "forums.html")]
 pub struct ForumIndexTemplate<'a> {
@@ -326,13 +375,26 @@ pub async fn create_thread(
     // Run form data through validator.
     let (form, validated_poll) = validate_thread_form(form)?;
 
-    // Spam detection for thread content
+    // Get user's approved post count
     let user_post_count = posts::Entity::find()
         .filter(posts::Column::UserId.eq(user_id))
+        .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
         .count(get_db_pool())
         .await
         .unwrap_or(0) as i32;
 
+    // Check minimum posts requirement for thread creation
+    let min_posts = config.min_posts_to_create_thread();
+    if min_posts > 0 && user_post_count < min_posts {
+        return Err(error::ErrorForbidden(format!(
+            "You need at least {} approved post{} before you can create threads. You currently have {}.",
+            min_posts,
+            if min_posts == 1 { "" } else { "s" },
+            user_post_count
+        )));
+    }
+
+    // Spam detection for thread content
     // Check both title and content for spam
     let title_spam = crate::spam::analyze_content(&form.title, user_post_count);
     let content_spam = crate::spam::analyze_content(&form.content, user_post_count);
@@ -744,10 +806,26 @@ pub async fn view_forum(
         (threads, None)
     };
 
+    // Filter out threads with pending first posts (unless moderator or author)
+    let can_view_pending = client.can("moderate.approval.view");
+    let current_user_id = client.get_id();
+    let thread_ids: Vec<i32> = threads.iter().map(|t| t.id).collect();
+    let hidden_threads = get_threads_with_pending_first_posts(
+        get_db_pool(),
+        &thread_ids,
+        can_view_pending,
+        current_user_id,
+    )
+    .await;
+    let threads: Vec<ThreadForTemplate> = threads
+        .into_iter()
+        .filter(|t| !hidden_threads.contains(&t.id))
+        .collect();
+
     // Build breadcrumbs (including parent forums)
     let breadcrumbs = build_forum_breadcrumbs(&forum).await;
 
-    // Fetch tags for all threads
+    // Fetch tags for all threads (re-compute thread_ids after filtering)
     let thread_ids: Vec<i32> = threads.iter().map(|t| t.id).collect();
     let mut thread_tags_map = super::thread::get_tags_for_threads(&thread_ids)
         .await

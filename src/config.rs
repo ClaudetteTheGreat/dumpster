@@ -369,6 +369,12 @@ impl Config {
     pub fn require_first_post_approval(&self) -> bool {
         self.get_bool_or("require_first_post_approval", false)
     }
+
+    /// Get the minimum number of posts required to create a thread
+    /// Returns 0 if disabled (no minimum)
+    pub fn min_posts_to_create_thread(&self) -> i32 {
+        self.get_int_or("min_posts_to_create_thread", 0) as i32
+    }
 }
 
 /// Create a new Arc-wrapped Config

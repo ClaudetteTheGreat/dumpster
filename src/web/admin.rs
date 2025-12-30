@@ -17,8 +17,75 @@ use askama::Template;
 use askama_actix::TemplateToResponse;
 use chrono::{Duration, Utc};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::sync::Arc;
+
+/// Deserialize a form field that can be either a single value or a sequence into a Vec
+/// This is needed because HTML forms send single values as strings, not arrays
+fn deserialize_vec_or_single<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + std::str::FromStr,
+    T::Err: std::fmt::Display,
+{
+    use serde::de::{self, SeqAccess, Visitor};
+    use std::fmt;
+    use std::marker::PhantomData;
+
+    struct VecOrSingleVisitor<T>(PhantomData<T>);
+
+    impl<'de, T> Visitor<'de> for VecOrSingleVisitor<T>
+    where
+        T: Deserialize<'de> + std::str::FromStr,
+        T::Err: std::fmt::Display,
+    {
+        type Value = Vec<T>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a sequence or a single value")
+        }
+
+        fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: SeqAccess<'de>,
+        {
+            let mut vec = Vec::new();
+            while let Some(elem) = seq.next_element()? {
+                vec.push(elem);
+            }
+            Ok(vec)
+        }
+
+        fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            if value.is_empty() {
+                return Ok(Vec::new());
+            }
+            value
+                .parse::<T>()
+                .map(|v| vec![v])
+                .map_err(|e| de::Error::custom(format!("failed to parse value: {}", e)))
+        }
+
+        fn visit_none<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Vec::new())
+        }
+
+        fn visit_unit<E>(self) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(Vec::new())
+        }
+    }
+
+    deserializer.deserialize_any(VecOrSingleVisitor(PhantomData))
+}
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(view_dashboard)
@@ -1981,7 +2048,7 @@ struct UserEditForm {
     location: Option<String>,
     website_url: Option<String>,
     signature: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_vec_or_single")]
     groups: Vec<i32>,
     new_password: Option<String>,
     reset_lockout: Option<String>,
@@ -3351,24 +3418,15 @@ async fn approve_post(
         return Err(error::ErrorBadRequest("Post is not pending approval"));
     }
 
-    // Approve the post
-    posts::Entity::update_many()
-        .col_expr(
-            posts::Column::ModerationStatus,
-            sea_orm::sea_query::Expr::value(posts::ModerationStatus::Approved),
-        )
-        .col_expr(posts::Column::ModeratedAt, sea_orm::sea_query::Expr::value(now))
-        .col_expr(
-            posts::Column::ModeratedBy,
-            sea_orm::sea_query::Expr::value(moderator_id),
-        )
-        .filter(posts::Column::Id.eq(post_id))
-        .exec(db)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to approve post: {}", e);
-            error::ErrorInternalServerError("Failed to approve post")
-        })?;
+    // Approve the post using ActiveModel
+    let mut active_post: posts::ActiveModel = post.clone().into();
+    active_post.moderation_status = Set(posts::ModerationStatus::Approved);
+    active_post.moderated_at = Set(Some(now));
+    active_post.moderated_by = Set(Some(moderator_id));
+    active_post.update(db).await.map_err(|e| {
+        log::error!("Failed to approve post: {}", e);
+        error::ErrorInternalServerError("Failed to approve post")
+    })?;
 
     // Mark user's first post as approved if this was their first post
     if let Some(user_id) = post.user_id {
@@ -3448,28 +3506,16 @@ async fn reject_post(
         return Err(error::ErrorBadRequest("Post is not pending approval"));
     }
 
-    // Reject the post
-    posts::Entity::update_many()
-        .col_expr(
-            posts::Column::ModerationStatus,
-            sea_orm::sea_query::Expr::value(posts::ModerationStatus::Rejected),
-        )
-        .col_expr(posts::Column::ModeratedAt, sea_orm::sea_query::Expr::value(now))
-        .col_expr(
-            posts::Column::ModeratedBy,
-            sea_orm::sea_query::Expr::value(moderator_id),
-        )
-        .col_expr(
-            posts::Column::RejectionReason,
-            sea_orm::sea_query::Expr::value(form.reason.clone()),
-        )
-        .filter(posts::Column::Id.eq(post_id))
-        .exec(db)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to reject post: {}", e);
-            error::ErrorInternalServerError("Failed to reject post")
-        })?;
+    // Reject the post using ActiveModel
+    let mut active_post: posts::ActiveModel = post.into();
+    active_post.moderation_status = Set(posts::ModerationStatus::Rejected);
+    active_post.moderated_at = Set(Some(now));
+    active_post.moderated_by = Set(Some(moderator_id));
+    active_post.rejection_reason = Set(form.reason.clone());
+    active_post.update(db).await.map_err(|e| {
+        log::error!("Failed to reject post: {}", e);
+        error::ErrorInternalServerError("Failed to reject post")
+    })?;
 
     // Log moderation action
     log_moderation_action(
