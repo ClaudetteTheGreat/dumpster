@@ -173,12 +173,7 @@
     <div class="tags-input-container">
         <label>Tags (max 10):</label>
         {% if available_tags.is_empty() %}
-        {% if forum.restrict_tags %}
         <p class="tags-hint">No tags are available for this forum.</p>
-        {% else %}
-        <input type="text" id="tags-input" name="tags" placeholder="e.g., discussion, help, news" maxlength="500" />
-        <small class="tags-hint">Enter tags separated by commas. Max 50 characters per tag.</small>
-        {% endif %}
         {% else %}
         <div class="tags-checkbox-grid">
             {% for tag in available_tags %}
@@ -189,15 +184,7 @@
             {% endfor %}
         </div>
         <input type="hidden" name="tags" id="tags-hidden" value="" />
-        {% if forum.restrict_tags %}
         <small class="tags-hint">Select up to 10 tags from the list above.</small>
-        {% else %}
-        <div class="custom-tags-section">
-            <label for="custom-tags-input">Or add custom tags:</label>
-            <input type="text" id="custom-tags-input" placeholder="e.g., my-topic, custom-tag" maxlength="200" />
-            <small class="tags-hint">Enter additional tags separated by commas.</small>
-        </div>
-        {% endif %}
         {% endif %}
     </div>
     {% endif %}
@@ -269,14 +256,6 @@ function updateTagsHidden() {
 
     const selectedTags = Array.from(document.querySelectorAll('.tag-checkbox:checked'))
         .map(cb => cb.dataset.tagName);
-
-    const customTagsInput = document.getElementById('custom-tags-input');
-    if (customTagsInput && customTagsInput.value.trim()) {
-        const customTags = customTagsInput.value.split(',')
-            .map(t => t.trim())
-            .filter(t => t.length > 0);
-        selectedTags.push(...customTags);
-    }
 
     // Limit to 10 tags
     tagsHidden.value = selectedTags.slice(0, 10).join(',');
@@ -620,24 +599,9 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
         font-weight: 500;
     }
 
-    .custom-tags-section {
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid #eee;
-    }
-
-    .custom-tags-section label {
-        font-weight: normal;
-        font-size: 0.9em;
-    }
-
     html.dark .tags-checkbox-grid {
         background: #333;
         border-color: #555;
-    }
-
-    html.dark .custom-tags-section {
-        border-top-color: #444;
     }
 
     /* Thread listing tags */

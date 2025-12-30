@@ -477,22 +477,18 @@ pub async fn create_thread(
         }
     }
 
-    // Step 6. Create/link tags if provided and enabled for this forum.
+    // Step 6. Link tags if provided and enabled for this forum.
+    // Only existing tags that are available in this forum can be used.
     if !form.tags.is_empty() && forum.tags_enabled {
         for tag_name in &form.tags {
-            // Create slug from tag name
-            let slug = tag_name
-                .chars()
-                .filter(|c| c.is_alphanumeric() || *c == '-' || *c == '_')
-                .collect::<String>();
-
-            if slug.is_empty() {
+            let tag_name_trimmed = tag_name.trim();
+            if tag_name_trimmed.is_empty() {
                 continue;
             }
 
-            // Find existing tag by slug
+            // Find existing tag by name (case-insensitive)
             let existing_tag = tags::Entity::find()
-                .filter(tags::Column::Slug.eq(slug.clone()))
+                .filter(tags::Column::Name.eq(tag_name_trimmed))
                 .one(&txn)
                 .await
                 .map_err(error::ErrorInternalServerError)?;
@@ -517,34 +513,8 @@ pub async fn create_thread(
                         None // Tag exists but not available in this forum
                     }
                 }
-            } else if forum.restrict_tags {
-                // Forum restricts to predefined tags only - skip non-existent tags
-                None
             } else {
-                // Create new forum-specific tag
-                let new_tag = tags::ActiveModel {
-                    name: Set(tag_name.clone()),
-                    slug: Set(slug),
-                    is_global: Set(false),
-                    created_at: Set(revision.created_at),
-                    ..Default::default()
-                };
-                let tag_res = tags::Entity::insert(new_tag)
-                    .exec(&txn)
-                    .await
-                    .map_err(error::ErrorInternalServerError)?;
-
-                let new_tag_id = tag_res.last_insert_id;
-
-                // Associate the new tag with this forum
-                let tag_forum = tag_forums::ActiveModel {
-                    tag_id: Set(new_tag_id),
-                    forum_id: Set(forum_id),
-                    ..Default::default()
-                };
-                let _ = tag_forums::Entity::insert(tag_forum).exec(&txn).await;
-
-                Some(new_tag_id)
+                None // Tag doesn't exist - users cannot create new tags
             };
 
             // Link tag to thread if we have a valid tag_id
