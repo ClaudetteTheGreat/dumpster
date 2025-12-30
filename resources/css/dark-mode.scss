@@ -1,5 +1,9 @@
 // Dark mode styles
 // Applied when html.dark class is present
+//
+// Note: Many component styles (reactions, quotes, code blocks, tables, mentions)
+// are now handled by CSS variables in var.scss which define both light and dark
+// values. This file handles styles not covered by those component variables.
 
 html.dark {
     // ==========================================================================
@@ -115,7 +119,6 @@ html.dark {
     // ==========================================================================
 
     // Note: Header/nav colors are handled by --nav-* variables in var.scss
-    // The header element inherits styles from nav.scss which uses those variables
     header {
         border-bottom: 1px solid var(--border-primary);
 
@@ -184,7 +187,7 @@ html.dark {
     }
 
     // ==========================================================================
-    // TABLES
+    // TABLES (generic, not BBCode tables which use --table-* vars)
     // ==========================================================================
 
     table {
@@ -205,7 +208,7 @@ html.dark {
     }
 
     // ==========================================================================
-    // CODE BLOCKS
+    // CODE BLOCKS (generic, UGC code uses --code-* vars in thread.scss)
     // ==========================================================================
 
     code,
@@ -213,46 +216,6 @@ html.dark {
         background-color: var(--bg-code);
         color: var(--text-primary);
         border-color: var(--border-primary);
-    }
-
-    // UGC code blocks (posts)
-    .ugc {
-        pre {
-            background: var(--bg-code);
-            border: 1px solid var(--border-secondary);
-
-            // Code header with language and copy button
-            .code-header {
-                background: var(--overlay-light);
-
-                .code-language {
-                    color: var(--border-light);
-                }
-
-                .code-copy-btn {
-                    color: var(--border-light);
-
-                    &:hover {
-                        color: var(--text-faint);
-                        background: var(--overlay-medium);
-                    }
-
-                    &.copied {
-                        color: var(--success-icon);
-                    }
-                }
-            }
-
-            code {
-                background: transparent;
-            }
-        }
-
-        // Inline code
-        :not(pre) > code {
-            background: var(--bg-input);
-            border-color: var(--border-tertiary);
-        }
     }
 
     // ==========================================================================
@@ -467,59 +430,7 @@ html.dark {
     }
 
     // ==========================================================================
-    // REACTIONS
-    // ==========================================================================
-
-    .reaction-badge {
-        background: var(--bg-tertiary);
-        border-color: var(--border-tertiary);
-
-        &:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-light);
-        }
-
-        &.reaction-badge--active {
-            background: var(--accent-selected-bg);
-            border-color: var(--accent-selected-border);
-        }
-
-        .reaction-count {
-            color: var(--text-light);
-        }
-    }
-
-    .reaction-picker-toggle {
-        background: var(--bg-tertiary);
-        border-color: var(--border-tertiary);
-        color: var(--text-hint);
-
-        &:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-light);
-            color: var(--text-white);
-        }
-    }
-
-    .reaction-picker-dropdown {
-        background: var(--bg-modal);
-        border-color: var(--border-tertiary);
-        box-shadow: 0 4px 12px var(--shadow-dropdown);
-    }
-
-    .reaction-option {
-        &:hover {
-            background: var(--bg-hover);
-        }
-
-        &.reaction-option--active {
-            background: var(--accent-selected-bg);
-            border-color: var(--accent-selected-border);
-        }
-    }
-
-    // ==========================================================================
-    // @MENTION AUTOCOMPLETE
+    // @MENTION AUTOCOMPLETE (dropdown, not inline mention links)
     // ==========================================================================
 
     .mention-dropdown {
@@ -564,39 +475,6 @@ html.dark {
 
     .recipient-username {
         color: var(--text-primary);
-    }
-
-    // ==========================================================================
-    // @MENTION LINKS IN POSTS
-    // ==========================================================================
-
-    .ugc a.mention {
-        color: var(--accent-mention);
-        background-color: var(--accent-mention-bg);
-
-        &:hover {
-            background-color: var(--accent-mention-hover-bg);
-        }
-    }
-
-    // ==========================================================================
-    // QUOTE BUTTON
-    // ==========================================================================
-
-    .quote-btn {
-        background: none;
-        border-color: var(--border-tertiary);
-        color: var(--text-hint);
-
-        &:hover {
-            background-color: var(--bg-tertiary);
-            border-color: var(--border-light);
-            color: var(--text-white);
-        }
-
-        &:active {
-            background-color: var(--bg-hover);
-        }
     }
 
     // ==========================================================================
@@ -725,63 +603,6 @@ html.dark {
     }
 
     // ==========================================================================
-    // MULTI-QUOTE
-    // ==========================================================================
-
-    .add-quote-btn {
-        background: none;
-        border-color: var(--border-tertiary);
-        color: var(--text-hint);
-
-        &:hover {
-            background-color: var(--accent-selected-bg);
-            border-color: var(--accent-selected-border);
-            color: var(--accent-mention);
-        }
-
-        &:active {
-            background-color: var(--accent-active-bg);
-        }
-
-        &.quote-selected {
-            background-color: var(--quote-selected-bg);
-            border-color: var(--quote-selected-border);
-            color: var(--text-white);
-
-            &:hover {
-                background-color: var(--danger-remove-hover);
-                border-color: var(--danger-remove);
-            }
-        }
-    }
-
-    #multi-quote-indicator {
-        background: var(--bg-primary);
-        border: 1px solid var(--border-secondary);
-        box-shadow: 0 4px 12px var(--shadow-heavy);
-
-        .mq-count {
-            color: var(--text-primary);
-        }
-
-        .mq-insert {
-            background: var(--success-btn);
-
-            &:hover {
-                background: var(--success-btn-hover);
-            }
-        }
-
-        .mq-clear {
-            background: var(--border-tertiary);
-
-            &:hover {
-                background: var(--danger-remove);
-            }
-        }
-    }
-
-    // ==========================================================================
     // DRAFT INDICATOR
     // ==========================================================================
 
@@ -859,45 +680,12 @@ html.dark {
     }
 
     // ==========================================================================
-    // MEDIA EMBEDS
+    // MEDIA EMBEDS (audio only - video uses --video-bg in thread.scss)
     // ==========================================================================
 
     .ugc {
-        .video-embed {
-            &.video-embed--youtube,
-            &.video-embed--vimeo {
-                background: var(--bg-video);
-            }
-
-            &.video-embed--direct {
-                background: var(--bg-video);
-            }
-        }
-
-        // Audio player styling is mostly handled by browser
-        // but we can ensure it fits dark mode
         .audio-embed {
             filter: invert(1) hue-rotate(180deg);
-        }
-
-        // BBCode Tables
-        .bbcode-table {
-            tr {
-                border-color: var(--border-secondary);
-            }
-
-            th, td {
-                border-color: var(--border-secondary);
-            }
-
-            th {
-                background-color: var(--bg-tertiary);
-                color: var(--text-primary);
-            }
-
-            tr:hover {
-                background-color: var(--bg-input);
-            }
         }
     }
 
