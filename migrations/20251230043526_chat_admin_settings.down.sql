@@ -2,7 +2,6 @@
 DELETE FROM settings WHERE key IN (
     'chat_max_message_length',
     'chat_history_limit',
-    'chat_min_posts_to_send',
     'chat_rate_limit_seconds'
 );
 

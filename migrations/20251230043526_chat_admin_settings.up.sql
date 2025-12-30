@@ -2,7 +2,6 @@
 INSERT INTO settings (key, value, value_type, description, category, is_public) VALUES
 ('chat_max_message_length', '1024', 'int', 'Maximum message length in bytes (0 for unlimited)', 'chat', FALSE),
 ('chat_history_limit', '40', 'int', 'Number of messages to load when joining a room', 'chat', FALSE),
-('chat_min_posts_to_send', '0', 'int', 'Minimum approved posts required to send chat messages (0 to disable)', 'chat', FALSE),
 ('chat_rate_limit_seconds', '0', 'int', 'Minimum seconds between chat messages per user (0 to disable)', 'chat', FALSE);
 
 -- Per-room access control settings

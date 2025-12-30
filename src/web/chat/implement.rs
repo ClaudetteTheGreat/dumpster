@@ -284,26 +284,7 @@ pub mod default {
     impl super::ChatLayer for Layer {
         async fn can_send_message(&self, session: &Session) -> bool {
             // User must be logged in
-            if session.id == 0 {
-                return false;
-            }
-
-            // Check minimum posts requirement
-            let min_posts = self.config.chat_min_posts_to_send();
-            if min_posts > 0 {
-                let post_count = posts::Entity::find()
-                    .filter(posts::Column::UserId.eq(session.id as i32))
-                    .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
-                    .count(&self.db)
-                    .await
-                    .unwrap_or(0) as i32;
-
-                if post_count < min_posts {
-                    return false;
-                }
-            }
-
-            true
+            session.id > 0
         }
 
         async fn can_view(&self, session_id: u32, room_id: u32) -> bool {
