@@ -52,13 +52,14 @@
             <div class="checkbox-grid">
                 {% for forum in forums %}
                 <label class="checkbox-label">
-                    <input type="checkbox" name="forum_ids" value="{{ forum.id }}" class="forum-checkbox" />
+                    <input type="checkbox" data-forum-id="{{ forum.id }}" class="forum-checkbox" />
                     {{ forum.label }}
                 </label>
                 {% endfor %}
             </div>
             <small class="form-help">Select which forums this tag can be used in.</small>
         </div>
+        <input type="hidden" name="forum_ids" id="forum-ids-hidden" value="" />
 
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{% if is_edit %}Update{% else %}Create{% endif %} Tag</button>
@@ -74,6 +75,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const preview = document.getElementById('tag-preview');
     const isGlobalCheckbox = document.getElementById('is_global');
     const forumsSection = document.getElementById('forums-section');
+    const forumIdsHidden = document.getElementById('forum-ids-hidden');
+    const forumCheckboxes = document.querySelectorAll('.forum-checkbox');
 
     function updatePreview() {
         preview.textContent = nameInput.value || 'Tag Name';
@@ -84,17 +87,35 @@ document.addEventListener('DOMContentLoaded', function() {
         forumsSection.style.display = isGlobalCheckbox.checked ? 'none' : 'block';
     }
 
+    function updateForumIdsHidden() {
+        const selectedIds = [];
+        forumCheckboxes.forEach(function(checkbox) {
+            if (checkbox.checked) {
+                selectedIds.push(checkbox.dataset.forumId);
+            }
+        });
+        forumIdsHidden.value = selectedIds.join(',');
+    }
+
     nameInput.addEventListener('input', updatePreview);
     colorInput.addEventListener('input', updatePreview);
     isGlobalCheckbox.addEventListener('change', toggleForumsSection);
 
-    // Set selected forum checkboxes
-    const selectedForumIds = [{% for id in selected_forum_ids %}{{ id }}{% if !loop.last %}, {% endif %}{% endfor %}];
-    document.querySelectorAll('.forum-checkbox').forEach(function(checkbox) {
-        if (selectedForumIds.includes(parseInt(checkbox.value))) {
+    // Update hidden field when checkboxes change
+    forumCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', updateForumIdsHidden);
+    });
+
+    // Set selected forum checkboxes from server data
+    const selectedForumIds = [{% for id in selected_forum_ids %}{{ id }},{% endfor %}];
+    forumCheckboxes.forEach(function(checkbox) {
+        if (selectedForumIds.includes(parseInt(checkbox.dataset.forumId))) {
             checkbox.checked = true;
         }
     });
+
+    // Initialize hidden field
+    updateForumIdsHidden();
 });
 </script>
 

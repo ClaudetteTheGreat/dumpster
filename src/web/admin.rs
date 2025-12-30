@@ -5761,7 +5761,20 @@ struct TagFormData {
     color: String,
     is_global: Option<String>,
     #[serde(default)]
-    forum_ids: Vec<i32>,
+    forum_ids: String,
+}
+
+impl TagFormData {
+    /// Parse the comma-separated forum_ids string into a Vec<i32>
+    fn parse_forum_ids(&self) -> Vec<i32> {
+        if self.forum_ids.is_empty() {
+            return Vec::new();
+        }
+        self.forum_ids
+            .split(',')
+            .filter_map(|s| s.trim().parse::<i32>().ok())
+            .collect()
+    }
 }
 
 /// POST /admin/tags/create - Create a new tag
@@ -5844,8 +5857,9 @@ async fn create_tag(
     let tag_id = insert_result.last_insert_id;
 
     // If not global, create forum associations
-    if !is_global && !form.forum_ids.is_empty() {
-        for forum_id in &form.forum_ids {
+    let forum_ids = form.parse_forum_ids();
+    if !is_global && !forum_ids.is_empty() {
+        for forum_id in &forum_ids {
             let tag_forum = tag_forums::ActiveModel {
                 tag_id: Set(tag_id),
                 forum_id: Set(*forum_id),
@@ -6015,8 +6029,9 @@ async fn update_tag(
         })?;
 
     // If not global, create new forum associations
-    if !is_global && !form.forum_ids.is_empty() {
-        for forum_id in &form.forum_ids {
+    let forum_ids = form.parse_forum_ids();
+    if !is_global && !forum_ids.is_empty() {
+        for forum_id in &forum_ids {
             let tag_forum = tag_forums::ActiveModel {
                 tag_id: Set(tag_id),
                 forum_id: Set(*forum_id),
