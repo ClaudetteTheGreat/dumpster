@@ -5,6 +5,7 @@
  */
 
 import { WysiwygEditor } from './wysiwyg/index.js';
+import { undo, redo } from 'prosemirror-history';
 
 // Store editor instances per container
 const editorInstances = new WeakMap();
@@ -32,12 +33,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // Store editor instance
         editorInstances.set(container, wysiwygEditor);
 
+        // Set up dropdown menu toggles
+        setupDropdownMenus(toolbar);
+
         // Set up toolbar button handlers
         toolbar.querySelectorAll('[data-bbcode]').forEach(button => {
             button.addEventListener('click', (e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 const tag = button.dataset.bbcode;
                 const param = button.dataset.param || '';
+
+                // Close any open dropdowns
+                closeAllDropdowns(toolbar);
 
                 if (wysiwygEditor.isRichMode()) {
                     // Handle in WYSIWYG mode
@@ -57,6 +65,49 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    /**
+     * Set up dropdown menu toggle functionality
+     */
+    function setupDropdownMenus(toolbar) {
+        toolbar.querySelectorAll('.toolbar-dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const dropdown = toggle.closest('.toolbar-dropdown');
+                const menu = dropdown.querySelector('.toolbar-dropdown-menu');
+                const isOpen = menu.classList.contains('show');
+
+                // Close all other dropdowns first
+                closeAllDropdowns(toolbar);
+
+                // Toggle this dropdown
+                if (!isOpen) {
+                    menu.classList.add('show');
+                    toggle.setAttribute('aria-expanded', 'true');
+                }
+            });
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.toolbar-dropdown')) {
+                closeAllDropdowns(toolbar);
+            }
+        });
+    }
+
+    /**
+     * Close all dropdown menus in the toolbar
+     */
+    function closeAllDropdowns(toolbar) {
+        toolbar.querySelectorAll('.toolbar-dropdown-menu.show').forEach(menu => {
+            menu.classList.remove('show');
+        });
+        toolbar.querySelectorAll('.toolbar-dropdown-toggle[aria-expanded="true"]').forEach(toggle => {
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
 
     /**
      * Handle formatting in rich/WYSIWYG mode
@@ -121,7 +172,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 break;
             case 'list':
-                editor.executeCommand('insertList', { listType: 'bullet' });
+                // Check if param indicates ordered list
+                const listType = param === '1' ? 'ordered' : 'bullet';
+                editor.executeCommand('insertList', { listType });
+                break;
+            case 'hr':
+                // Insert horizontal rule
+                editor.insertBBCodeContent('[hr]');
+                break;
+            case 'left':
+            case 'center':
+            case 'right':
+                // Text alignment - insert as BBCode wrapper
+                editor.insertBBCodeContent(`[${tag}][/${tag}]`);
                 break;
             default:
                 // Unknown tag - try to apply as a mark or insert as BBCode
@@ -157,13 +220,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const modeBtn = toolbar.querySelector('.mode-toggle-btn');
         if (modeBtn) {
             if (mode === 'rich') {
-                modeBtn.textContent = 'Raw';
                 modeBtn.classList.add('mode-toggle-btn--rich');
-                modeBtn.title = 'Switch to raw BBCode mode';
+                modeBtn.title = 'Switch to raw BBCode mode (currently in rich mode)';
             } else {
-                modeBtn.textContent = 'Rich';
                 modeBtn.classList.remove('mode-toggle-btn--rich');
-                modeBtn.title = 'Switch to rich WYSIWYG mode';
+                modeBtn.title = 'Switch to rich WYSIWYG mode (currently in BBCode mode)';
             }
         }
 
@@ -290,12 +351,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
 
             case 'list':
+                // Check if ordered list (param === '1')
+                const listTag = param === '1' ? '[list=1]' : '[list]';
+                const listCloseTag = '[/list]';
                 // Insert a list template
                 if (!selectedText) {
-                    const listContent = '[list]\n[*] Item 1\n[*] Item 2\n[*] Item 3\n[/list]';
+                    const listContent = `${listTag}\n[*] Item 1\n[*] Item 2\n[*] Item 3\n${listCloseTag}`;
                     textarea.value = beforeText + listContent + afterText;
-                    textarea.selectionStart = start + 11;
-                    textarea.selectionEnd = start + 17;
+                    textarea.selectionStart = start + listTag.length + 5;
+                    textarea.selectionEnd = start + listTag.length + 11;
                     textarea.focus();
                     triggerInput(textarea);
                     return;
@@ -303,11 +367,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Wrap selected text as list items
                 const items = selectedText.split('\n').filter(line => line.trim());
                 const listItems = items.map(item => `[*] ${item.trim()}`).join('\n');
-                textarea.value = beforeText + `[list]\n${listItems}\n[/list]` + afterText;
-                textarea.selectionStart = textarea.selectionEnd = beforeText.length + 7 + listItems.length + 8;
+                textarea.value = beforeText + `${listTag}\n${listItems}\n${listCloseTag}` + afterText;
+                textarea.selectionStart = textarea.selectionEnd = beforeText.length + listTag.length + 1 + listItems.length + listCloseTag.length + 1;
                 textarea.focus();
                 triggerInput(textarea);
                 return;
+
+            case 'hr':
+                // Insert horizontal rule (self-closing tag)
+                textarea.value = beforeText + '[hr]\n' + afterText;
+                textarea.selectionStart = textarea.selectionEnd = start + 5;
+                textarea.focus();
+                triggerInput(textarea);
+                return;
+
+            case 'left':
+            case 'center':
+            case 'right':
+                // Text alignment
+                openTag = `[${tag}]`;
+                closeTag = `[/${tag}]`;
+                break;
 
             default:
                 // Simple tags like [b], [i], [u], [s], [code], [center], etc.
@@ -343,6 +423,34 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case 'toggle-mode':
                 toggleEditorMode(container, editor);
+                break;
+            case 'undo':
+                if (editor && editor.isRichMode() && editor.editorView) {
+                    undo(editor.editorView.state, editor.editorView.dispatch);
+                }
+                break;
+            case 'redo':
+                if (editor && editor.isRichMode() && editor.editorView) {
+                    redo(editor.editorView.state, editor.editorView.dispatch);
+                }
+                break;
+            case 'clear-formatting':
+                if (editor && editor.isRichMode()) {
+                    // Remove all marks from selection
+                    const state = editor.editorView.state;
+                    const { from, to } = state.selection;
+                    if (from !== to) {
+                        let tr = state.tr;
+                        state.doc.nodesBetween(from, to, (node, pos) => {
+                            if (node.marks.length) {
+                                node.marks.forEach(mark => {
+                                    tr = tr.removeMark(Math.max(from, pos), Math.min(to, pos + node.nodeSize), mark.type);
+                                });
+                            }
+                        });
+                        editor.editorView.dispatch(tr);
+                    }
+                }
                 break;
         }
     }
