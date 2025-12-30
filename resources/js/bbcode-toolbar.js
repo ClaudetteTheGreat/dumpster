@@ -426,29 +426,32 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case 'undo':
                 if (editor && editor.isRichMode() && editor.editorView) {
-                    undo(editor.editorView.state, editor.editorView.dispatch);
+                    const view = editor.editorView;
+                    undo(view.state, view.dispatch.bind(view));
+                    view.focus();
                 }
                 break;
             case 'redo':
                 if (editor && editor.isRichMode() && editor.editorView) {
-                    redo(editor.editorView.state, editor.editorView.dispatch);
+                    const view = editor.editorView;
+                    redo(view.state, view.dispatch.bind(view));
+                    view.focus();
                 }
                 break;
             case 'clear-formatting':
-                if (editor && editor.isRichMode()) {
+                if (editor && editor.isRichMode() && editor.editorView) {
                     // Remove all marks from selection
-                    const state = editor.editorView.state;
+                    const view = editor.editorView;
+                    const state = view.state;
                     const { from, to } = state.selection;
                     if (from !== to) {
                         let tr = state.tr;
-                        state.doc.nodesBetween(from, to, (node, pos) => {
-                            if (node.marks.length) {
-                                node.marks.forEach(mark => {
-                                    tr = tr.removeMark(Math.max(from, pos), Math.min(to, pos + node.nodeSize), mark.type);
-                                });
-                            }
+                        // Remove all marks in the selection range
+                        Object.keys(state.schema.marks).forEach(markName => {
+                            tr = tr.removeMark(from, to, state.schema.marks[markName]);
                         });
-                        editor.editorView.dispatch(tr);
+                        view.dispatch(tr);
+                        view.focus();
                     }
                 }
                 break;
