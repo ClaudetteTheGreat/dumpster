@@ -173,17 +173,6 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
     }
 
     textarea.addEventListener('input', updateOverlayVisibility);
-    textarea.addEventListener('focus', function() {
-        // Keep overlay visible but dimmed when focused with no content
-        if (textarea.value.trim().length === 0) {
-            overlay.classList.add('focused');
-        }
-    });
-    textarea.addEventListener('blur', function() {
-        overlay.classList.remove('focused');
-    });
-
-    // Initial check
     updateOverlayVisibility();
 })();
 </script>
@@ -257,6 +246,8 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
 /* Thread template overlay */
 .textarea-with-template {
     position: relative;
+    background: var(--bg-input, #fff);
+    border-radius: 4px;
 }
 
 .thread-template-overlay {
@@ -275,11 +266,6 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
     overflow: hidden;
     opacity: 0.6;
     z-index: 1;
-    background: transparent;
-}
-
-.thread-template-overlay.focused {
-    opacity: 0.4;
 }
 
 .thread-template-overlay.hidden {
@@ -290,10 +276,6 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
     position: relative;
     z-index: 2;
     background: transparent;
-}
-
-.textarea-with-template textarea:not(:focus) {
-    background: var(--bg-input, #fff);
 }
 
 /* Tags */
@@ -508,12 +490,12 @@ html.dark .tags-checkbox-grid {
     border-color: var(--border-color, #444);
 }
 
-html.dark .thread-template-overlay {
-    color: var(--text-muted, #666);
+html.dark .textarea-with-template {
+    background: var(--bg-input, #1a1a1a);
 }
 
-html.dark .textarea-with-template textarea:not(:focus) {
-    background: var(--bg-input, #1a1a1a);
+html.dark .thread-template-overlay {
+    color: var(--text-muted, #666);
 }
 
 @media (max-width: 600px) {
