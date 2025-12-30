@@ -645,8 +645,10 @@ pub async fn get_replies_and_author_for_template(
     id: i32,
     page: i32,
     posts_per_page: i32,
+    show_pending: bool,
+    current_user_id: Option<i32>,
 ) -> Result<Vec<(PostForTemplate, Option<UserProfile>)>, DbErr> {
-    crate::user::find_also_user(
+    let mut query = crate::user::find_also_user(
         posts::Entity::find()
             .left_join(ugc_revisions::Entity)
             .column_as(ugc_revisions::Column::Id, "ugc_revision_id")
@@ -662,12 +664,34 @@ pub async fn get_replies_and_author_for_template(
         posts::Column::UserId,
     )
     .filter(posts::Column::ThreadId.eq(id))
-    .filter(posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page))
-    .order_by_asc(posts::Column::Position)
-    .order_by_asc(posts::Column::CreatedAt)
-    .into_model::<PostForTemplate, UserProfile>()
-    .all(db)
-    .await
+    .filter(posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page));
+
+    // Filter out pending/rejected posts unless user is a moderator or the post author
+    if !show_pending {
+        // Only show approved posts, or user's own pending posts
+        if let Some(user_id) = current_user_id {
+            // Show approved posts OR user's own pending posts
+            query = query.filter(
+                Condition::any()
+                    .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
+                    .add(
+                        Condition::all()
+                            .add(posts::Column::UserId.eq(user_id))
+                            .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending))
+                    )
+            );
+        } else {
+            // Anonymous: only show approved posts
+            query = query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
+        }
+    }
+
+    query
+        .order_by_asc(posts::Column::Position)
+        .order_by_asc(posts::Column::CreatedAt)
+        .into_model::<PostForTemplate, UserProfile>()
+        .all(db)
+        .await
 }
 
 async fn view_post(id: i32) -> Result<HttpResponse, Error> {

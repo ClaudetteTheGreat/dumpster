@@ -1,0 +1,403 @@
+{% extends "container/public.html" %}
+
+{% block title %}Post Approval Queue{% endblock %}
+
+{% block content %}
+<div class="admin-panel">
+    <div class="panel-header">
+        <h1>Post Approval Queue</h1>
+        <p class="panel-subtitle">{{ pending_posts.len() }} pending first posts</p>
+    </div>
+
+    <div class="panel-actions">
+        <a href="/admin" class="btn btn-secondary">Back to Dashboard</a>
+        <a href="/admin/approval-queue" class="btn btn-secondary">User Queue</a>
+    </div>
+
+    <div class="queue-list">
+        {% if pending_posts.is_empty() %}
+        <div class="empty-state">
+            <p>No pending posts.</p>
+            <p class="empty-hint">First posts from new users will appear here when first post approval is enabled in settings.</p>
+        </div>
+        {% else %}
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Thread</th>
+                    <th>Content Preview</th>
+                    <th>Created</th>
+                    {% if can_manage %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in pending_posts %}
+                <tr>
+                    <td>
+                        <a href="/members/{{ post.user_id }}" class="user-link">{{ post.username }}</a>
+                    </td>
+                    <td>
+                        <a href="/threads/{{ post.thread_id }}/#post-{{ post.post_id }}" class="thread-link" target="_blank">{{ post.thread_title }}</a>
+                    </td>
+                    <td class="content-preview">{{ post.content_preview }}</td>
+                    <td>{{ post.created_at.format("%Y-%m-%d %H:%M") }}</td>
+                    {% if can_manage %}
+                    <td class="actions-cell">
+                        <form action="/admin/posts/{{ post.post_id }}/approve" method="post" class="inline-form">
+                            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+                            <button type="submit" class="btn btn-approve" title="Approve post">Approve</button>
+                        </form>
+                        <button type="button" class="btn btn-reject" onclick="showRejectModal({{ post.post_id }}, '{{ post.username }}', '{{ post.thread_title }}')" title="Reject post">Reject</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div id="reject-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Reject Post</h2>
+            <button type="button" class="modal-close" onclick="hideRejectModal()">&times;</button>
+        </div>
+        <form id="reject-form" method="post">
+            <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}" />
+            <div class="modal-body">
+                <p>Rejecting post by <strong id="reject-username"></strong> in thread <strong id="reject-thread"></strong></p>
+                <div class="form-group">
+                    <label for="reject-reason">Reason (optional)</label>
+                    <textarea id="reject-reason" name="reason" rows="3" placeholder="Reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="hideRejectModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Reject Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.admin-panel {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.panel-actions {
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.empty-state p {
+    margin: 0;
+    color: #666;
+}
+
+.empty-hint {
+    margin-top: 10px !important;
+    font-size: 0.9em;
+    color: #999 !important;
+}
+
+.queue-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.queue-table th,
+.queue-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.queue-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.queue-table tr:last-child td {
+    border-bottom: none;
+}
+
+.queue-table tr:hover {
+    background: #f8f9fa;
+}
+
+.user-link,
+.thread-link {
+    color: #4a90d9;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.user-link:hover,
+.thread-link:hover {
+    text-decoration: underline;
+}
+
+.content-preview {
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.actions-cell {
+    white-space: nowrap;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.btn {
+    display: inline-block;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+    margin-right: 5px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a6268;
+}
+
+.btn-approve {
+    background: #28a745;
+    color: #fff;
+}
+
+.btn-approve:hover {
+    background: #218838;
+}
+
+.btn-reject {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-reject:hover {
+    background: #c82333;
+}
+
+.btn-danger {
+    background: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: #c82333;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #333;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-body .form-group {
+    margin-top: 15px;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.modal-body textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px 20px;
+    border-top: 1px solid #eee;
+}
+
+/* Dark mode */
+html.dark .panel-header h1,
+html.dark .queue-table th {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .empty-state {
+    background: #333;
+}
+
+html.dark .queue-table {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .queue-table th {
+    background: #333;
+}
+
+html.dark .queue-table td {
+    border-color: #444;
+}
+
+html.dark .queue-table tr:hover {
+    background: #333;
+}
+
+html.dark .content-preview {
+    color: #aaa;
+}
+
+html.dark .modal-content {
+    background: #2a2a2a;
+}
+
+html.dark .modal-header,
+html.dark .modal-footer {
+    border-color: #444;
+}
+
+html.dark .modal-header h2,
+html.dark .modal-body label {
+    color: #fff;
+}
+
+html.dark .modal-body textarea {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+</style>
+
+<script>
+function showRejectModal(postId, username, threadTitle) {
+    document.getElementById('reject-form').action = '/admin/posts/' + postId + '/reject';
+    document.getElementById('reject-username').textContent = username;
+    document.getElementById('reject-thread').textContent = threadTitle;
+    document.getElementById('reject-reason').value = '';
+    document.getElementById('reject-modal').style.display = 'flex';
+}
+
+function hideRejectModal() {
+    document.getElementById('reject-modal').style.display = 'none';
+}
+
+// Close modal on click outside
+document.getElementById('reject-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideRejectModal();
+    }
+});
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideRejectModal();
+    }
+});
+</script>
+{% endblock %}

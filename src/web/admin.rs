@@ -62,10 +62,14 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_issue_warning_form)
         .service(issue_warning)
         .service(delete_warning)
-        // Approval queue
+        // User approval queue
         .service(view_approval_queue)
         .service(approve_user)
         .service(reject_user)
+        // Post approval queue
+        .service(view_post_approval_queue)
+        .service(approve_post)
+        .service(reject_post)
         // Mass moderation actions
         .service(mass_user_action)
         // Permission groups management
@@ -3170,6 +3174,302 @@ async fn reject_user(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/approval-queue"))
+        .finish())
+}
+
+// =============================================================================
+// Post Approval Queue
+// =============================================================================
+
+/// Pending post display for templates
+struct PendingPostDisplay {
+    post_id: i32,
+    thread_id: i32,
+    thread_title: String,
+    username: String,
+    user_id: i32,
+    content_preview: String,
+    created_at: chrono::NaiveDateTime,
+}
+
+#[derive(Template)]
+#[template(path = "admin/post_approval_queue.html")]
+struct PostApprovalQueueTemplate {
+    client: ClientCtx,
+    pending_posts: Vec<PendingPostDisplay>,
+    can_manage: bool,
+}
+
+#[derive(Deserialize)]
+struct PostRejectForm {
+    csrf_token: String,
+    reason: Option<String>,
+}
+
+/// GET /admin/post-approval-queue - View pending posts needing first post approval
+#[get("/admin/post-approval-queue")]
+async fn view_post_approval_queue(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("moderate.approval.view")?;
+
+    let db = get_db_pool();
+    let can_manage = client.can("moderate.approval.manage");
+
+    // Get pending posts with their thread info
+    let pending = posts::Entity::find()
+        .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending))
+        .order_by_asc(posts::Column::CreatedAt)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch pending posts: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build display list with thread titles and usernames
+    let mut pending_posts = Vec::new();
+    for post in pending {
+        // Get thread title
+        let thread = threads::Entity::find_by_id(post.thread_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten();
+
+        let thread_title = thread
+            .as_ref()
+            .map(|t| t.title.clone())
+            .unwrap_or_else(|| format!("Thread #{}", post.thread_id));
+
+        // Get username
+        let user_id = post.user_id.unwrap_or(0);
+        let username = if user_id > 0 {
+            user_names::Entity::find()
+                .filter(user_names::Column::UserId.eq(user_id))
+                .one(db)
+                .await
+                .ok()
+                .flatten()
+                .map(|un| un.name)
+                .unwrap_or_else(|| format!("User #{}", user_id))
+        } else {
+            "Guest".to_string()
+        };
+
+        // Get content preview from UGC revision
+        let content_preview = if let Some(ugc) = crate::orm::ugc::Entity::find_by_id(post.ugc_id)
+            .one(db)
+            .await
+            .ok()
+            .flatten()
+        {
+            if let Some(revision_id) = ugc.ugc_revision_id {
+                crate::orm::ugc_revisions::Entity::find_by_id(revision_id)
+                    .one(db)
+                    .await
+                    .ok()
+                    .flatten()
+                    .map(|r| {
+                        let content = r.content;
+                        if content.len() > 200 {
+                            format!("{}...", &content[..197])
+                        } else {
+                            content
+                        }
+                    })
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        pending_posts.push(PendingPostDisplay {
+            post_id: post.id,
+            thread_id: post.thread_id,
+            thread_title,
+            username,
+            user_id,
+            content_preview,
+            created_at: post.created_at,
+        });
+    }
+
+    Ok(PostApprovalQueueTemplate {
+        client,
+        pending_posts,
+        can_manage,
+    }
+    .to_response())
+}
+
+/// POST /admin/posts/{id}/approve - Approve a pending post
+#[post("/admin/posts/{id}/approve")]
+async fn approve_post(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    post_id: web::Path<i32>,
+    form: web::Form<ModerationForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.approval.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let post_id = post_id.into_inner();
+    let now = Utc::now().naive_utc();
+
+    // Find the post
+    let post = posts::Entity::find_by_id(post_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch post: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Post not found"))?;
+
+    // Check if post is pending
+    if post.moderation_status != posts::ModerationStatus::Pending {
+        return Err(error::ErrorBadRequest("Post is not pending approval"));
+    }
+
+    // Approve the post
+    posts::Entity::update_many()
+        .col_expr(
+            posts::Column::ModerationStatus,
+            sea_orm::sea_query::Expr::value(posts::ModerationStatus::Approved),
+        )
+        .col_expr(posts::Column::ModeratedAt, sea_orm::sea_query::Expr::value(now))
+        .col_expr(
+            posts::Column::ModeratedBy,
+            sea_orm::sea_query::Expr::value(moderator_id),
+        )
+        .filter(posts::Column::Id.eq(post_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to approve post: {}", e);
+            error::ErrorInternalServerError("Failed to approve post")
+        })?;
+
+    // Mark user's first post as approved if this was their first post
+    if let Some(user_id) = post.user_id {
+        users::Entity::update_many()
+            .col_expr(users::Column::FirstPostApproved, sea_orm::sea_query::Expr::value(true))
+            .filter(users::Column::Id.eq(user_id))
+            .filter(users::Column::FirstPostApproved.eq(false))
+            .exec(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to update user first_post_approved: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?;
+    }
+
+    // Update thread post count and last_post info since we deferred it
+    let thread = threads::Entity::find_by_id(post.thread_id)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    if let Some(thread) = thread {
+        // Only update if this post is newer than current last_post
+        if post.created_at > thread.last_post_at.unwrap_or(post.created_at) {
+            threads::Entity::update_many()
+                .col_expr(threads::Column::LastPostId, sea_orm::sea_query::Expr::value(post.id))
+                .col_expr(
+                    threads::Column::LastPostAt,
+                    sea_orm::sea_query::Expr::value(post.created_at),
+                )
+                .filter(threads::Column::Id.eq(post.thread_id))
+                .exec(db)
+                .await
+                .ok();
+        }
+    }
+
+    // Log moderation action
+    log_moderation_action(db, moderator_id, "approve_post", "post", post_id, None).await?;
+
+    log::info!("Post {} approved by moderator {}", post_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/post-approval-queue"))
+        .finish())
+}
+
+/// POST /admin/posts/{id}/reject - Reject a pending post
+#[post("/admin/posts/{id}/reject")]
+async fn reject_post(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    post_id: web::Path<i32>,
+    form: web::Form<PostRejectForm>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("moderate.approval.manage")?;
+
+    crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    let db = get_db_pool();
+    let post_id = post_id.into_inner();
+    let now = Utc::now().naive_utc();
+
+    // Find the post
+    let post = posts::Entity::find_by_id(post_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch post: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Post not found"))?;
+
+    // Check if post is pending
+    if post.moderation_status != posts::ModerationStatus::Pending {
+        return Err(error::ErrorBadRequest("Post is not pending approval"));
+    }
+
+    // Reject the post
+    posts::Entity::update_many()
+        .col_expr(
+            posts::Column::ModerationStatus,
+            sea_orm::sea_query::Expr::value(posts::ModerationStatus::Rejected),
+        )
+        .col_expr(posts::Column::ModeratedAt, sea_orm::sea_query::Expr::value(now))
+        .col_expr(
+            posts::Column::ModeratedBy,
+            sea_orm::sea_query::Expr::value(moderator_id),
+        )
+        .col_expr(
+            posts::Column::RejectionReason,
+            sea_orm::sea_query::Expr::value(form.reason.clone()),
+        )
+        .filter(posts::Column::Id.eq(post_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to reject post: {}", e);
+            error::ErrorInternalServerError("Failed to reject post")
+        })?;
+
+    // Log moderation action
+    log_moderation_action(
+        db,
+        moderator_id,
+        "reject_post",
+        "post",
+        post_id,
+        form.reason.as_deref(),
+    )
+    .await?;
+
+    log::info!("Post {} rejected by moderator {}", post_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/post-approval-queue"))
         .finish())
 }
 

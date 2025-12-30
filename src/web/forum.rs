@@ -1,11 +1,13 @@
 use super::thread::{validate_thread_form, NewThreadFormData, ThreadForTemplate};
+use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads, user_names};
+use crate::orm::{forum_read, forums, poll_options, polls, posts, tag_forums, tags, thread_tags, threads, user_names, users};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, FromQueryResult};
 use serde::Deserialize;
+use std::sync::Arc;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
@@ -273,6 +275,7 @@ pub async fn create_thread(
     req: actix_web::HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
+    config: web::Data<Arc<Config>>,
     form: web::Form<NewThreadFormData>,
     path: web::Path<i32>,
 ) -> Result<impl Responder, Error> {
@@ -385,6 +388,25 @@ pub async fn create_thread(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Check if first post approval is needed
+    let needs_approval = if config.require_first_post_approval() {
+        // Load user to check first_post_approved status
+        let user = users::Entity::find_by_id(user_id)
+            .one(&txn)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+            .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+        !user.first_post_approved
+    } else {
+        false
+    };
+
+    let moderation_status = if needs_approval {
+        posts::ModerationStatus::Pending
+    } else {
+        posts::ModerationStatus::Approved
+    };
+
     // Step 1. Create the UGC.
     let revision = create_ugc(
         &txn,
@@ -424,6 +446,7 @@ pub async fn create_thread(
         ugc_id: Set(revision.ugc_id),
         created_at: Set(revision.created_at),
         position: Set(1),
+        moderation_status: Set(moderation_status),
         ..Default::default()
     }
     .insert(&txn)
@@ -531,10 +554,47 @@ pub async fn create_thread(
         }
     }
 
+    // If the post was approved (not pending), mark user's first post as approved
+    if !needs_approval {
+        // Only update if they haven't already had first post approved
+        // This handles the case where the setting was disabled when they first posted
+        users::Entity::update_many()
+            .col_expr(users::Column::FirstPostApproved, Expr::value(true))
+            .filter(users::Column::Id.eq(user_id))
+            .filter(users::Column::FirstPostApproved.eq(false))
+            .exec(&txn)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
     // Close transaction
     txn.commit()
         .await
         .map_err(error::ErrorInternalServerError)?;
+
+    // If post is pending approval, show a message instead of redirecting to thread
+    if needs_approval {
+        log::info!(
+            "Thread {} by user {} is pending first post approval",
+            thread_res.last_insert_id,
+            user_id
+        );
+        return Ok(HttpResponse::Ok()
+            .content_type("text/html")
+            .body(format!(
+                r#"<!DOCTYPE html>
+<html>
+<head><title>Thread Pending Approval</title></head>
+<body>
+<h1>Your thread has been submitted for approval</h1>
+<p>As a new user, your first post requires moderator approval before it becomes visible.</p>
+<p>A moderator will review your thread shortly.</p>
+<p><a href="/forums/{}/">Return to forum</a></p>
+</body>
+</html>"#,
+                forum_id
+            )));
+    }
 
     // Check and award any automatic badges the user may have earned (async, non-blocking)
     actix::spawn(async move {

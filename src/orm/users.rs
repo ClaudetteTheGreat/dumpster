@@ -34,6 +34,7 @@ pub struct Model {
     pub allow_profile_posts: bool,
     pub follower_count: i32,
     pub following_count: i32,
+    pub first_post_approved: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

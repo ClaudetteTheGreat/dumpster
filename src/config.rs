@@ -364,6 +364,11 @@ impl Config {
     pub fn max_upload_size_mb(&self) -> i64 {
         self.get_int_or("max_upload_size_mb", 10)
     }
+
+    /// Check if first post approval is required for new users
+    pub fn require_first_post_approval(&self) -> bool {
+        self.get_bool_or("require_first_post_approval", false)
+    }
 }
 
 /// Create a new Arc-wrapped Config

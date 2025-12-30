@@ -1,11 +1,12 @@
 use super::post::PostForTemplate;
 use crate::attachment::AttachmentForTemplate;
+use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::posts::Entity as Post;
 use crate::orm::threads::Entity as Thread;
 use crate::orm::{
-    poll_options, poll_votes, polls, posts, tags, thread_read, thread_tags, threads, ugc_deletions,
+    poll_options, poll_votes, polls, posts, tags, thread_read, thread_tags, threads, ugc_deletions, users,
 };
 use crate::template::{Paginator, PaginatorToHtml};
 use crate::user::Profile as UserProfile;
@@ -14,7 +15,7 @@ use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{entity::*, query::*, sea_query::Expr, DbErr, FromQueryResult, QueryFilter};
 use serde::Deserialize;
-use std::{collections::HashMap, str};
+use std::{collections::HashMap, str, sync::Arc};
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_reply)
@@ -506,10 +507,21 @@ async fn get_thread_and_replies_for_page(
             .await
     });
 
+    // Check if user can view pending posts (moderators)
+    let can_view_pending = client.can("moderate.approval.view");
+    let current_user_id = client.get_id();
+
     // Load posts, their ugc associations, and their living revision.
-    let posts = get_replies_and_author_for_template(db, thread_id, page, posts_per_page)
-        .await
-        .map_err(error::ErrorInternalServerError)?;
+    let posts = get_replies_and_author_for_template(
+        db,
+        thread_id,
+        page,
+        posts_per_page,
+        can_view_pending,
+        current_user_id,
+    )
+    .await
+    .map_err(error::ErrorInternalServerError)?;
 
     let attachments =
         get_attachments_for_ugc_by_id(posts.iter().map(|p| p.0.ugc_id).collect()).await;
@@ -652,6 +664,7 @@ pub async fn create_reply(
     req: actix_web::HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
+    config: web::Data<Arc<Config>>,
     path: web::Path<(i32,)>,
     mutipart: Option<Multipart>,
 ) -> Result<impl Responder, Error> {
@@ -819,6 +832,25 @@ pub async fn create_reply(
         ));
     }
 
+    // Check if first post approval is needed
+    let needs_approval = if config.require_first_post_approval() {
+        // Load user to check first_post_approved status
+        let user = users::Entity::find_by_id(authenticated_user_id)
+            .one(&txn)
+            .await
+            .map_err(error::ErrorInternalServerError)?
+            .ok_or_else(|| error::ErrorNotFound("User not found"))?;
+        !user.first_post_approved
+    } else {
+        false
+    };
+
+    let moderation_status = if needs_approval {
+        posts::ModerationStatus::Pending
+    } else {
+        posts::ModerationStatus::Approved
+    };
+
     // Insert ugc and first revision
     let ugc_revision = create_ugc(
         &txn,
@@ -838,6 +870,7 @@ pub async fn create_reply(
         ugc_id: Set(ugc_revision.ugc_id),
         created_at: Set(ugc_revision.created_at),
         position: Set(our_thread.post_count + 1),
+        moderation_status: Set(moderation_status),
         ..Default::default()
     }
     .insert(&txn)
@@ -862,12 +895,47 @@ pub async fn create_reply(
         .map_err(error::ErrorInternalServerError)?;
     }
 
+    // If post was approved (not pending), mark user's first post as approved
+    if !needs_approval {
+        users::Entity::update_many()
+            .col_expr(users::Column::FirstPostApproved, Expr::value(true))
+            .filter(users::Column::Id.eq(authenticated_user_id))
+            .filter(users::Column::FirstPostApproved.eq(false))
+            .exec(&txn)
+            .await
+            .map_err(error::ErrorInternalServerError)?;
+    }
+
     // Commit transaction
     txn.commit()
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    // Update thread
+    // If post is pending approval, show message
+    if needs_approval {
+        log::info!(
+            "Reply by user {} in thread {} is pending first post approval",
+            authenticated_user_id,
+            thread_id
+        );
+        return Ok(HttpResponse::Ok()
+            .content_type("text/html")
+            .body(format!(
+                r#"<!DOCTYPE html>
+<html>
+<head><title>Reply Pending Approval</title></head>
+<body>
+<h1>Your reply has been submitted for approval</h1>
+<p>As a new user, your first post requires moderator approval before it becomes visible.</p>
+<p>A moderator will review your reply shortly.</p>
+<p><a href="/threads/{}/">Return to thread</a></p>
+</body>
+</html>"#,
+                thread_id
+            )));
+    }
+
+    // Update thread (only if post was approved)
     let post_id = new_post.id;
     threads::Entity::update_many()
         .col_expr(

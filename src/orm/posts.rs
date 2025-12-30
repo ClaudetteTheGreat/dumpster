@@ -12,6 +12,21 @@ pub struct Model {
     pub ugc_id: i32,
     pub user_id: Option<i32>,
     pub created_at: DateTime,
+    pub moderation_status: ModerationStatus,
+    pub moderated_at: Option<DateTime>,
+    pub moderated_by: Option<i32>,
+    pub rejection_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "post_moderation_status")]
+pub enum ModerationStatus {
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "approved")]
+    Approved,
+    #[sea_orm(string_value = "rejected")]
+    Rejected,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
