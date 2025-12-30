@@ -52,55 +52,246 @@ body {
     background: var(--page-background, var(--background-color));
 }
 
-/* Page wrapper - provides the background behind the content box */
+/* ==========================================================================
+   Page Wrapper - Outer container that fills the viewport
+   ========================================================================== */
 .page-wrapper {
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: var(--page-wrapper-padding, 24px 16px);
-    min-height: 0;
+    align-items: center;
+    padding: var(--page-wrapper-padding, 0);
+    min-height: 100vh;
 }
 
-/* Page box - the main content container with opaque background */
+/* ==========================================================================
+   Page Box - The main content container (XenForo-style boxed layout)
+   ========================================================================== */
 .page-box {
-    flex: 1;
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: var(--page-box-max-width, 1200px);
-    margin: 0 auto;
+    max-width: var(--page-box-max-width, 80%);
+    min-height: 100vh;
     background: var(--page-box-background, var(--bg-primary, #ffffff));
-    border: var(--page-box-border, 1px solid var(--border-color, #d0d7de));
-    border-radius: var(--page-box-radius, 8px);
-    box-shadow: var(--page-box-shadow, 0 1px 3px rgba(0, 0, 0, 0.08));
-    overflow: hidden;
+    border-left: var(--page-box-border-side, 1px solid var(--border-color, #d0d7de));
+    border-right: var(--page-box-border-side, 1px solid var(--border-color, #d0d7de));
+    box-shadow: var(--page-box-shadow, 0 0 8px rgba(0, 0, 0, 0.15));
 }
 
-main {
-    flex: 1;
-    padding: var(--main-padding, 24px);
+/* ==========================================================================
+   Navigation (p-nav) - XenForo-style navigation bar
+   ========================================================================== */
+.p-nav {
+    background: var(--nav-background, hsl(210, 10%, 15%));
+    color: var(--nav-text, #ffffff);
+    border-bottom: var(--nav-border-bottom, 1px solid rgba(0, 0, 0, 0.2));
 }
 
-header {
-    padding-bottom: 0;
-}
-
-footer {
-    padding: var(--footer-padding, 16px 24px);
-    border-top: 1px solid var(--border-color, #e0e0e0);
-    background: var(--footer-background, var(--bg-secondary, transparent));
+.p-nav-inner {
     display: flex;
     align-items: center;
-    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0 10px;
+    min-height: 44px;
 }
 
+.p-nav-logo {
+    color: inherit;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-decoration: none;
+    padding: 8px 10px 8px 0;
+    margin-right: auto;
+
+    &:hover {
+        text-decoration: none;
+        opacity: 0.9;
+    }
+}
+
+.p-nav-list {
+    display: flex;
+    flex-wrap: wrap;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 0;
+
+    > li {
+        display: inline-block;
+        font-size: 1rem;
+    }
+
+    &.p-nav-list--right {
+        margin-left: auto;
+    }
+}
+
+.p-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: inherit;
+    text-decoration: none;
+    padding: 10px 10px;
+    font-size: 0.95rem;
+    transition: background 0.15s ease, opacity 0.15s ease;
+
+    &:hover {
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    &.p-nav-link--user {
+        .avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+    }
+}
+
+.p-nav-username {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.p-nav-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--badge-bg, #e74c3c);
+    color: var(--badge-text, #ffffff);
+    border-radius: 9px;
+    margin-left: 4px;
+
+    &.hidden {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   Body (p-body) - Main content area
+   ========================================================================== */
+.p-body {
+    flex: 1;
+    display: flex;
+    align-items: stretch;
+}
+
+.p-body-inner {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: var(--body-padding, 16px);
+}
+
+.p-body-content {
+    flex: 1;
+}
+
+/* Legacy support for main element padding */
+main {
+    flex: 1;
+}
+
+/* ==========================================================================
+   Footer (p-footer)
+   ========================================================================== */
+.p-footer {
+    background: var(--footer-background, var(--bg-secondary, rgba(0, 0, 0, 0.03)));
+    border-top: 1px solid var(--border-color, #e0e0e0);
+    padding: 0;
+}
+
+.p-footer-inner {
+    padding: var(--footer-padding, 12px 16px);
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--text-muted, #666);
+
+    p {
+        margin: 4px 0;
+    }
+}
+
+/* ==========================================================================
+   Container (legacy support)
+   ========================================================================== */
 .container {
     margin: 0 auto;
-    width: 80%;
+    width: 100%;
+    max-width: var(--container-max-width, 100%);
     padding: 0 16px;
 }
 
 .footer-inner {
     font-size: 0.8rem;
     text-align: center;
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+@media (max-width: 1400px) {
+    .page-box {
+        max-width: 100%;
+        border-left: none;
+        border-right: none;
+    }
+}
+
+@media (max-width: 750px) {
+    .p-nav-inner {
+        flex-wrap: wrap;
+    }
+
+    .p-nav-list {
+        width: 100%;
+        justify-content: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 4px;
+        margin-top: 4px;
+
+        &.p-nav-list--right {
+            margin-left: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    }
+
+    .p-nav-logo {
+        width: 100%;
+        text-align: center;
+        padding: 8px 0;
+        margin-right: 0;
+    }
+
+    .p-nav-link {
+        padding: 8px 8px;
+        font-size: 0.85rem;
+    }
+
+    .p-body-inner {
+        padding: var(--body-padding-mobile, 12px);
+    }
+}
+
+@media (max-width: 480px) {
+    .p-nav-link {
+        padding: 6px 6px;
+        font-size: 0.8rem;
+    }
+
+    .p-nav-username {
+        display: none;
+    }
 }
