@@ -76,6 +76,9 @@
         <a href="/admin/approval-queue" class="quick-link">
             <span class="link-icon">&#128203;</span>
             <span class="link-text">User Approval</span>
+            {% if stats.pending_users > 0 %}
+            <span class="badge badge-warning">{{ stats.pending_users }}</span>
+            {% endif %}
         </a>
         <a href="/admin/post-approval-queue" class="quick-link">
             <span class="link-icon">&#128221;</span>
