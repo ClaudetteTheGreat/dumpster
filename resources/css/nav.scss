@@ -1,5 +1,5 @@
 #primary-nav {
-    background-color: #333;
+    background-color: var(--nav-background);
     padding: 12px 0;
 
     .brand {
@@ -8,7 +8,11 @@
         font-weight: bold;
         text-decoration: none;
         margin: 0 0 6px 0;
-        color: white;
+        color: var(--nav-text);
+
+        &:hover {
+            color: var(--nav-text-hover);
+        }
     }
 
     ul {
@@ -23,9 +27,17 @@
     }
 
     .nav-link {
-        color: white;
+        color: var(--nav-text);
         text-align: center;
         text-decoration: none;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: background-color 0.15s ease;
+
+        &:hover {
+            color: var(--nav-text-hover);
+            background-color: var(--nav-hover-background);
+        }
     }
 
     &::after {
