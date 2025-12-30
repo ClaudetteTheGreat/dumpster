@@ -2,119 +2,94 @@
 
 ## Executive Summary
 
-**Feasibility: EXCELLENT (85% Complete)**
+**Status: Phase 1 COMPLETE**
 
-Dark/light theming infrastructure already exists and works. Extending to support custom themes requires consolidating hardcoded colors into CSS variables.
+Dark/light theming infrastructure is now fully consolidated. All hardcoded colors have been extracted to CSS variables, enabling easy theme customization.
 
-## Current State
+## Completed Work (Phase 1)
 
-### Existing Infrastructure
+### ✅ Fixed Selector Inconsistency
+- Changed `body.style-dark` to `html.dark` in `var.scss`
+- All dark mode styles now use consistent `html.dark` selector
+- Commit: `268811a`
 
-#### User Preference Storage
-- `users.theme` column (VARCHAR(20), DEFAULT 'light')
-- Supported values: `light`, `dark`, `auto` (system preference)
-- CHECK constraint enforces valid values
-- Migration: `20251123000000_user_theme_preference.up.sql`
+### ✅ Extracted Hardcoded Colors from dark-mode.scss
+- Created 61 semantic CSS variables organized by category
+- Replaced 100+ hardcoded hex values with `var()` references
+- Variables organized into: backgrounds, text, borders, accents, status colors, shadows
+- Commit: `e3a0391`
 
-#### Account Settings UI
-- Theme selector at `/account` preferences
-- Options: Light, Dark, Auto (follow system)
-- PATCH endpoint validates and saves preference
+### ✅ Updated nav.scss for Theming
+- Added `--nav-background`, `--nav-text`, `--nav-text-hover`, `--nav-hover-background`
+- Navigation now responds to light/dark mode
+- Commit: `fe002ce`
 
-#### Template Integration
-- Base template (`container/public.html`) sets `data-theme` attribute
-- JavaScript applies `html.dark` class based on preference
-- Auto mode listens for system preference changes via `matchMedia`
+### ✅ Updated _variables.scss and thread.scss
+- Removed unused SCSS color variables (kept only `$padding`)
+- Added 40+ component-specific CSS variables to `var.scss`
+- Updated `thread.scss` to use CSS variables (~50 hardcoded values eliminated)
+- Commit: `efdac3e`
 
-#### CSS Architecture
-- **17 SCSS files** totaling ~4,114 lines
-- **CSS Custom Properties** defined in `var.scss`:
-  - `:root` - light mode defaults
-  - `body.style-dark` - dark mode overrides
-- **Dedicated dark mode file** (`dark-mode.scss`, 768 lines)
-- Variables: `--background-color`, `--text-color`, `--border-color`, etc.
+### ✅ Cleaned Up Redundant Overrides
+- Removed 220 lines of redundant component overrides from `dark-mode.scss`
+- Components now themed via centralized variables in `var.scss`
+- Reduced compiled CSS by ~4KB
+- Commit: `86d877d`
 
-### Known Issues
+## Current Architecture
 
-| Issue | Location | Impact |
-|-------|----------|--------|
-| Class selector mismatch | `var.scss` uses `body.style-dark`, `dark-mode.scss` uses `html.dark` | Styles may not apply correctly |
-| Hardcoded colors | `dark-mode.scss` has ~100+ hardcoded hex values | Cannot easily add new themes |
-| Navigation not themed | `nav.scss` uses `#333`, `white` | Nav doesn't respond to theme |
-| Minimal SCSS variables | `_variables.scss` only 6 lines | No central color palette |
+### CSS Variable Organization
 
-## Implementation Options
+**var.scss** (`:root` and `html.dark`):
+- Base variables: `--background-color`, `--text-color`, `--border-color`
+- Navigation: `--nav-background`, `--nav-text`, `--nav-hover-background`
+- Buttons: `--btn-secondary-*`, `--btn-quote-*`
+- Multi-quote: `--mq-indicator-*`, `--mq-insert-*`, `--mq-clear-*`
+- Code blocks: `--code-bg`, `--code-border`, `--inline-code-*`
+- Mentions: `--mention-text`, `--mention-bg`
+- Tables: `--table-border`, `--table-header-bg`, `--table-hover-bg`
+- Reactions: `--reaction-bg`, `--reaction-border`, `--reaction-picker-*`
+- Signature: `--signature-text`
 
-### Option A: Fix Current System (Recommended First)
+**dark-mode.scss** (`html.dark`):
+- Color palette variables (61 total)
+- Base/layout styles not covered by component variables
+- Forms, blockquotes, messages, modals, toolbar, etc.
 
-Consolidate the existing light/dark implementation:
-- Standardize on `html.dark` selector
-- Move hardcoded colors to CSS variables
-- Ensure all components use variables
+### File Summary
 
-**Effort**: 4-6 hours
-**Risk**: Low
+| File | Purpose | Lines |
+|------|---------|-------|
+| `var.scss` | Light/dark CSS variables for components | ~175 |
+| `dark-mode.scss` | Dark mode palette + base styles | ~700 |
+| `nav.scss` | Navigation using CSS variables | ~55 |
+| `thread.scss` | Thread/post styles using CSS variables | ~545 |
+| `_variables.scss` | SCSS spacing variables only | 5 |
 
-### Option B: Admin-Defined Custom Themes
+## Phase 2: Expand Theme Options (Optional)
 
-Allow admins to create custom color themes:
-- Store theme definitions in database
-- Generate CSS dynamically or at build time
-- Users select from available themes
+If there's demand for custom themes, the infrastructure is now ready:
 
-**Effort**: 2-3 days
-**Risk**: Medium (CSS generation complexity)
+### Option A: Add Built-in Themes
+- High contrast
+- Sepia/warm
+- OLED dark (pure black)
 
-### Option C: User Custom Colors
+Simply create additional variable sets in `var.scss`:
+```scss
+html.high-contrast {
+    --bg-primary: #000;
+    --text-primary: #fff;
+    // ...
+}
+```
 
-Allow users to customize individual colors:
-- Color picker UI for each variable
-- Store as JSON in user preferences
-- Apply via inline styles or CSS variables
+### Option B: Database-Backed Themes
+- `themes` table with color definitions
+- Admin UI to create/edit themes
+- User preference references theme ID
 
-**Effort**: 3-4 days
-**Risk**: Medium-High (performance, CSS conflicts)
-
-## Recommended Implementation
-
-### Phase 1: Consolidate Existing System
-
-1. **Fix selector inconsistency**
-   - Change `body.style-dark` to `html.dark` in `var.scss`
-   - Or vice versa (standardize on one)
-
-2. **Extract hardcoded colors**
-   - Audit `dark-mode.scss` for hardcoded values
-   - Create CSS variables for each unique color
-   - Replace hardcoded values with `var(--name)`
-
-3. **Theme navigation**
-   - Update `nav.scss` to use CSS variables
-
-### Phase 2: Expand Theme Options (Optional)
-
-1. **Add more built-in themes**
-   - High contrast
-   - Sepia/warm
-   - OLED dark (pure black)
-
-2. **Database-backed themes**
-   - `themes` table with color definitions
-   - Admin UI to create/edit themes
-   - User preference references theme ID
-
-## Files to Modify
-
-### Phase 1 (Consolidation)
-
-| File | Changes |
-|------|---------|
-| `resources/css/var.scss` | Change `body.style-dark` to `html.dark` |
-| `resources/css/dark-mode.scss` | Replace hardcoded colors with variables |
-| `resources/css/nav.scss` | Use CSS variables for colors |
-| `resources/css/_variables.scss` | Expand SCSS variable definitions |
-
-### Phase 2 (Custom Themes)
+### Files to Modify (Phase 2)
 
 | File | Changes |
 |------|---------|
@@ -125,82 +100,79 @@ Allow users to customize individual colors:
 | `src/orm/users.rs` | Change theme column to reference themes |
 | `templates/container/public.html` | Load theme colors dynamically |
 
-## CSS Variable Inventory
+## CSS Variable Reference
 
-### Currently Defined (var.scss)
+### Defined in var.scss (both light and dark)
 
 ```scss
---background-color
---border-color
---text-color
---text-muted
---input-background
---button-text-color
+// Base
+--background-color, --border-color, --text-color, --text-muted
+--input-background, --scrollbar-thumb
+
+// Navigation
+--nav-background, --nav-text, --nav-text-hover, --nav-hover-background
+
+// Buttons
+--btn-secondary-bg, --btn-secondary-border, --btn-secondary-text
+--btn-secondary-hover-bg, --btn-secondary-hover-border, --btn-secondary-hover-text
+--btn-quote-hover-bg, --btn-quote-hover-border, --btn-quote-hover-text
+--btn-quote-selected-bg, --btn-quote-selected-border
+
+// Multi-quote
+--mq-indicator-bg, --mq-indicator-text
+--mq-insert-bg, --mq-insert-hover-bg
+--mq-clear-bg, --mq-clear-hover-bg
+
+// Code
+--code-bg, --code-border, --code-header-bg, --code-text-muted
+--code-copy-hover-bg, --code-copy-success
+--inline-code-bg, --inline-code-border
+
+// Mentions
+--mention-text, --mention-bg, --mention-hover-bg
+
+// Tables
+--table-border, --table-header-bg, --table-hover-bg
+
+// Reactions
+--reaction-bg, --reaction-border, --reaction-hover-bg, --reaction-hover-border
+--reaction-active-bg, --reaction-active-border, --reaction-count-text
+--reaction-picker-bg, --reaction-picker-shadow
+--reaction-option-hover-bg, --reaction-option-active-bg, --reaction-option-active-border
+
+// Other
+--video-bg, --signature-text
 ```
 
-### Needed for Full Theming
+### Defined in dark-mode.scss (dark mode only)
 
 ```scss
-// Backgrounds
---bg-primary
---bg-secondary
---bg-tertiary
---bg-input
---bg-code
---bg-quote
+// Background hierarchy
+--bg-primary, --bg-secondary, --bg-tertiary, --bg-hover, --bg-active
+--bg-header, --bg-code, --bg-modal, --bg-input, --bg-video
 
-// Text
---text-primary
---text-secondary
---text-muted
---text-link
+// Text hierarchy
+--text-primary, --text-secondary, --text-muted, --text-hint, --text-faint
+--text-light, --text-white
 
-// Borders
---border-primary
---border-secondary
---border-input
+// Border hierarchy
+--border-primary, --border-secondary, --border-tertiary, --border-light
 
 // Accents
---accent-primary
---accent-secondary
---accent-success
---accent-danger
---accent-warning
+--link-color, --link-hover
+--accent-selected-bg, --accent-selected-border, --accent-active-bg
+--accent-focus, --accent-focus-dark, --accent-mention, --accent-mention-bg
 
-// Components
---btn-primary-bg
---btn-primary-text
---btn-secondary-bg
---btn-secondary-text
---nav-bg
---nav-text
---nav-hover
---modal-bg
---modal-border
---post-bg
---post-border
+// Status colors
+--success-text, --success-bg, --success-border, --success-btn, --success-btn-hover
+--danger-text, --danger-bg, --danger-border, --danger-btn, --danger-accent
+--warning-text, --warning-bg, --warning-border
+--notification-badge-bg
+
+// Shadows
+--shadow-dropdown, --shadow-heavy, --shadow-light, --shadow-focus
+--overlay-light, --overlay-medium
 ```
-
-## Complexity Assessment
-
-| Task | Effort | Risk |
-|------|--------|------|
-| Fix selector inconsistency | 1 hour | Very Low |
-| Extract colors from dark-mode.scss | 3-4 hours | Low |
-| Theme navigation | 30 min | Very Low |
-| Add built-in themes | 2-3 hours each | Low |
-| Database-backed themes | 1-2 days | Medium |
-| User custom colors | 2-3 days | Medium-High |
-
-## Recommendation
-
-**Start with Phase 1** - The current dark mode works but has technical debt. Consolidating it will:
-
-1. Make the codebase cleaner
-2. Make future theme additions trivial
-3. Be low risk with immediate benefits
-
-**Phase 2 is optional** - Only implement if there's demand for custom themes. The infrastructure from Phase 1 makes it straightforward.
 
 ## Database Schema (Phase 2)
 
@@ -229,8 +201,8 @@ CREATE TABLE themes (
 
 ## Testing Considerations
 
-- Test theme switching without page reload
-- Test auto mode with system preference changes
+- ✅ Theme switching works without page reload
+- ✅ Auto mode responds to system preference changes
 - Test CSS variable fallbacks for older browsers
 - Test high contrast ratios for accessibility (WCAG AA minimum)
 - Test all UI components in each theme
