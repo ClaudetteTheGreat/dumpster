@@ -127,6 +127,7 @@ struct DashboardStats {
     active_bans: i64,
     active_ip_bans: i64,
     open_reports: i64,
+    pending_posts: i64,
     word_filters: i64,
     active_sessions: i64,
     db_size: String,
@@ -237,6 +238,12 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         .await
         .unwrap_or(0) as i64;
 
+    let pending_posts_count = posts::Entity::find()
+        .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending))
+        .count(db)
+        .await
+        .unwrap_or(0) as i64;
+
     let word_filter_count = word_filters::Entity::find()
         .filter(word_filters::Column::IsEnabled.eq(true))
         .count(db)
@@ -259,6 +266,7 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         active_bans,
         active_ip_bans,
         open_reports: open_reports_count,
+        pending_posts: pending_posts_count,
         word_filters: word_filter_count,
         active_sessions,
         db_size,

@@ -80,6 +80,9 @@
         <a href="/admin/post-approval-queue" class="quick-link">
             <span class="link-icon">&#128221;</span>
             <span class="link-text">Post Approval</span>
+            {% if stats.pending_posts > 0 %}
+            <span class="badge badge-warning">{{ stats.pending_posts }}</span>
+            {% endif %}
         </a>
         {% endif %}
         {% if client.can("admin.permissions.manage") %}
