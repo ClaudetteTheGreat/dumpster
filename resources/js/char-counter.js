@@ -17,8 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
         counterDiv.className = 'char-counter';
         counterDiv.innerHTML = `<span class="char-count">0</span> / <span class="char-limit">${maxLength.toLocaleString()}</span> characters`;
 
-        // Insert counter after textarea
-        textarea.parentNode.insertBefore(counterDiv, textarea.nextSibling);
+        // Insert counter after textarea, but after wysiwyg-editor-container if present
+        let insertBefore = textarea.nextSibling;
+        while (insertBefore && insertBefore.classList &&
+               insertBefore.classList.contains('wysiwyg-editor-container')) {
+            insertBefore = insertBefore.nextSibling;
+        }
+        textarea.parentNode.insertBefore(counterDiv, insertBefore);
 
         const countSpan = counterDiv.querySelector('.char-count');
 
