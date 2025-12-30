@@ -1,7 +1,5 @@
-$background-color: rgb(242, 243, 245);
-$border-color: rgba(106, 116, 128, 0.24);
-$input-background: rgb(235 237 239);
-$text-color: rgb(46, 51, 56);
-$text-muted: rgb(94, 103, 114);
+// SCSS Variables (compile-time)
+// Note: Color theming uses CSS custom properties in var.scss
+// Only non-color values that don't need runtime theming go here
 
 $padding: 8px;

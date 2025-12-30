@@ -26,6 +26,71 @@
     --nav-text: #fff;
     --nav-text-hover: #fff;
     --nav-hover-background: rgba(255, 255, 255, 0.1);
+
+    // Buttons (quote, add-quote, etc.)
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: #ccc;
+    --btn-secondary-text: #555;
+    --btn-secondary-hover-bg: #f0f0f0;
+    --btn-secondary-hover-border: #999;
+    --btn-secondary-hover-text: #333;
+    --btn-secondary-active-bg: #e0e0e0;
+
+    // Quote button accent (blue)
+    --btn-quote-hover-bg: #e8f4fc;
+    --btn-quote-hover-border: #4a9fd4;
+    --btn-quote-hover-text: #2980b9;
+    --btn-quote-active-bg: #d4edfc;
+    --btn-quote-selected-bg: #3498db;
+    --btn-quote-selected-border: #2980b9;
+
+    // Multi-quote indicator
+    --mq-indicator-bg: #2c3e50;
+    --mq-indicator-text: #fff;
+    --mq-insert-bg: #27ae60;
+    --mq-insert-hover-bg: #219a52;
+    --mq-clear-bg: #7f8c8d;
+    --mq-clear-hover-bg: #e74c3c;
+
+    // Code blocks
+    --code-bg: #f6f8fa;
+    --code-border: #ddd;
+    --code-header-bg: rgba(0, 0, 0, 0.05);
+    --code-text-muted: #888;
+    --code-copy-hover-bg: rgba(0, 0, 0, 0.1);
+    --code-copy-success: #28a745;
+    --inline-code-bg: #f6f8fa;
+    --inline-code-border: #e1e4e8;
+
+    // Mentions
+    --mention-text: #1976d2;
+    --mention-bg: rgba(25, 118, 210, 0.08);
+    --mention-hover-bg: rgba(25, 118, 210, 0.15);
+
+    // Video embeds
+    --video-bg: #000;
+
+    // Tables
+    --table-border: #ddd;
+    --table-header-bg: #f5f5f5;
+    --table-hover-bg: #fafafa;
+
+    // Reactions
+    --reaction-bg: #f0f0f0;
+    --reaction-border: #ddd;
+    --reaction-hover-bg: #e0e0e0;
+    --reaction-hover-border: #ccc;
+    --reaction-active-bg: #e3f2fd;
+    --reaction-active-border: #90caf9;
+    --reaction-count-text: #555;
+    --reaction-picker-bg: #fff;
+    --reaction-picker-shadow: rgba(0, 0, 0, 0.15);
+    --reaction-option-hover-bg: #f0f0f0;
+    --reaction-option-active-bg: #e3f2fd;
+    --reaction-option-active-border: #2196f3;
+
+    // Signature
+    --signature-text: #666;
 }
 
 html.dark {
@@ -41,4 +106,69 @@ html.dark {
     --nav-text: #e0e0e0;
     --nav-text-hover: #fff;
     --nav-hover-background: rgba(255, 255, 255, 0.1);
+
+    // Buttons (quote, add-quote, etc.)
+    --btn-secondary-bg: transparent;
+    --btn-secondary-border: #555;
+    --btn-secondary-text: #aaa;
+    --btn-secondary-hover-bg: #3a3a3a;
+    --btn-secondary-hover-border: #666;
+    --btn-secondary-hover-text: #fff;
+    --btn-secondary-active-bg: #454545;
+
+    // Quote button accent (blue)
+    --btn-quote-hover-bg: #1e3a5f;
+    --btn-quote-hover-border: #4a90d9;
+    --btn-quote-hover-text: #64b5f6;
+    --btn-quote-active-bg: #2a4a6f;
+    --btn-quote-selected-bg: #2980b9;
+    --btn-quote-selected-border: #3498db;
+
+    // Multi-quote indicator
+    --mq-indicator-bg: #1a1a1a;
+    --mq-indicator-text: #e0e0e0;
+    --mq-insert-bg: #27ae60;
+    --mq-insert-hover-bg: #2ecc71;
+    --mq-clear-bg: #555;
+    --mq-clear-hover-bg: #e74c3c;
+
+    // Code blocks
+    --code-bg: #252525;
+    --code-border: #444;
+    --code-header-bg: rgba(255, 255, 255, 0.05);
+    --code-text-muted: #666;
+    --code-copy-hover-bg: rgba(255, 255, 255, 0.1);
+    --code-copy-success: #5cb85c;
+    --inline-code-bg: #333;
+    --inline-code-border: #555;
+
+    // Mentions
+    --mention-text: #64b5f6;
+    --mention-bg: rgba(100, 181, 246, 0.15);
+    --mention-hover-bg: rgba(100, 181, 246, 0.25);
+
+    // Video embeds
+    --video-bg: #111;
+
+    // Tables
+    --table-border: #444;
+    --table-header-bg: #3a3a3a;
+    --table-hover-bg: #333;
+
+    // Reactions
+    --reaction-bg: #3a3a3a;
+    --reaction-border: #555;
+    --reaction-hover-bg: #454545;
+    --reaction-hover-border: #666;
+    --reaction-active-bg: #1e3a5f;
+    --reaction-active-border: #4a90d9;
+    --reaction-count-text: #ccc;
+    --reaction-picker-bg: #2a2a2a;
+    --reaction-picker-shadow: rgba(0, 0, 0, 0.4);
+    --reaction-option-hover-bg: #454545;
+    --reaction-option-active-bg: #1e3a5f;
+    --reaction-option-active-border: #4a90d9;
+
+    // Signature
+    --signature-text: #aaa;
 }
