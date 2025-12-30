@@ -171,9 +171,34 @@
 
     {% if forum.tags_enabled %}
     <div class="tags-input-container">
-        <label for="tags-input">Tags (comma-separated, max 10):</label>
+        <label>Tags (max 10):</label>
+        {% if available_tags.is_empty() %}
+        {% if forum.restrict_tags %}
+        <p class="tags-hint">No tags are available for this forum.</p>
+        {% else %}
         <input type="text" id="tags-input" name="tags" placeholder="e.g., discussion, help, news" maxlength="500" />
-        <small class="tags-hint">Tags help categorize and find threads. Max 50 characters per tag.{% if forum.restrict_tags %} Only predefined tags are allowed.{% endif %}</small>
+        <small class="tags-hint">Enter tags separated by commas. Max 50 characters per tag.</small>
+        {% endif %}
+        {% else %}
+        <div class="tags-checkbox-grid">
+            {% for tag in available_tags %}
+            <label class="tag-checkbox-label">
+                <input type="checkbox" class="tag-checkbox" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" />
+                <span class="tag-badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        <input type="hidden" name="tags" id="tags-hidden" value="" />
+        {% if forum.restrict_tags %}
+        <small class="tags-hint">Select up to 10 tags from the list above.</small>
+        {% else %}
+        <div class="custom-tags-section">
+            <label for="custom-tags-input">Or add custom tags:</label>
+            <input type="text" id="custom-tags-input" placeholder="e.g., my-topic, custom-tag" maxlength="200" />
+            <small class="tags-hint">Enter additional tags separated by commas.</small>
+        </div>
+        {% endif %}
+        {% endif %}
     </div>
     {% endif %}
 
@@ -232,6 +257,40 @@ document.querySelector('form[action*="post-thread"]').addEventListener('submit',
         .map(input => input.value.trim())
         .filter(val => val.length > 0);
     document.getElementById('poll-options-hidden').value = options.join('|||');
+
+    // Combine selected tags and custom tags into hidden field
+    updateTagsHidden();
+});
+
+// Update tags hidden field
+function updateTagsHidden() {
+    const tagsHidden = document.getElementById('tags-hidden');
+    if (!tagsHidden) return;
+
+    const selectedTags = Array.from(document.querySelectorAll('.tag-checkbox:checked'))
+        .map(cb => cb.dataset.tagName);
+
+    const customTagsInput = document.getElementById('custom-tags-input');
+    if (customTagsInput && customTagsInput.value.trim()) {
+        const customTags = customTagsInput.value.split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0);
+        selectedTags.push(...customTags);
+    }
+
+    // Limit to 10 tags
+    tagsHidden.value = selectedTags.slice(0, 10).join(',');
+}
+
+// Add change listeners to tag checkboxes
+document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        const checkedCount = document.querySelectorAll('.tag-checkbox:checked').length;
+        if (checkedCount > 10) {
+            this.checked = false;
+            alert('Maximum 10 tags allowed');
+        }
+    });
 });
 </script>
 {% endif %}
@@ -525,6 +584,60 @@ document.querySelector('form[action*="post-thread"]').addEventListener('submit',
 
     html.dark .tags-hint {
         color: #999;
+    }
+
+    /* Tags checkbox grid */
+    .tags-checkbox-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px;
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+
+    .tag-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+    }
+
+    .tag-checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .tag-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        color: #fff;
+        font-size: 0.9em;
+        font-weight: 500;
+    }
+
+    .custom-tags-section {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #eee;
+    }
+
+    .custom-tags-section label {
+        font-weight: normal;
+        font-size: 0.9em;
+    }
+
+    html.dark .tags-checkbox-grid {
+        background: #333;
+        border-color: #555;
+    }
+
+    html.dark .custom-tags-section {
+        border-top-color: #444;
     }
 
     /* Thread listing tags */

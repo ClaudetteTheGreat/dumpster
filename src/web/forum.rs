@@ -31,6 +31,7 @@ pub struct ForumTemplate<'a> {
     pub active_tag: Option<super::thread::TagForTemplate>,
     pub moderators: Vec<ModeratorForTemplate>,
     pub sub_forums: Vec<ForumWithStats>,
+    pub available_tags: Vec<super::thread::TagForTemplate>,
 }
 
 #[derive(Deserialize)]
@@ -83,6 +84,57 @@ pub async fn get_forum_moderators(
 struct ModeratorQueryResult {
     user_id: i32,
     username: Option<String>,
+}
+
+/// Fetch available tags for a forum (global tags + forum-specific tags)
+pub async fn get_available_tags_for_forum(
+    forum_id: i32,
+) -> Result<Vec<super::thread::TagForTemplate>, sea_orm::DbErr> {
+    let db = get_db_pool();
+
+    // Fetch global tags
+    let global_tags = tags::Entity::find()
+        .filter(tags::Column::IsGlobal.eq(true))
+        .order_by_asc(tags::Column::Name)
+        .all(db)
+        .await?;
+
+    // Fetch forum-specific tags via tag_forums junction table
+    let forum_tag_ids: Vec<i32> = tag_forums::Entity::find()
+        .filter(tag_forums::Column::ForumId.eq(forum_id))
+        .all(db)
+        .await?
+        .into_iter()
+        .map(|tf| tf.tag_id)
+        .collect();
+
+    let forum_specific_tags = if forum_tag_ids.is_empty() {
+        Vec::new()
+    } else {
+        tags::Entity::find()
+            .filter(tags::Column::Id.is_in(forum_tag_ids))
+            .filter(tags::Column::IsGlobal.eq(false))
+            .order_by_asc(tags::Column::Name)
+            .all(db)
+            .await?
+    };
+
+    // Combine and convert to TagForTemplate
+    let mut all_tags: Vec<super::thread::TagForTemplate> = global_tags
+        .into_iter()
+        .chain(forum_specific_tags.into_iter())
+        .map(|t| super::thread::TagForTemplate {
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            color: t.color.unwrap_or_else(|| "#6c757d".to_string()),
+        })
+        .collect();
+
+    // Sort by name
+    all_tags.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    Ok(all_tags)
 }
 
 /// Build breadcrumbs for a forum, including parent forums
@@ -686,6 +738,9 @@ pub async fn view_forum(
     // Fetch sub-forums
     let sub_forums = get_sub_forums(forum_id).await.unwrap_or_default();
 
+    // Fetch available tags for this forum (global tags + forum-specific tags)
+    let available_tags = get_available_tags_for_forum(forum_id).await.unwrap_or_default();
+
     Ok(ForumTemplate {
         client: client.to_owned(),
         forum: &forum,
@@ -694,6 +749,7 @@ pub async fn view_forum(
         active_tag,
         moderators,
         sub_forums,
+        available_tags,
     }
     .to_response())
 }
