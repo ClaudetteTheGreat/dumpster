@@ -54,10 +54,13 @@ export class WysiwygEditor {
     // Create ProseMirror editor
     this.createEditor();
 
-    // Set initial mode
-    if (this.mode === 'rich') {
+    // Set initial mode - temporarily set to opposite so switch functions work
+    const desiredMode = this.mode;
+    if (desiredMode === 'rich') {
+      this.mode = 'raw'; // Temporarily set to raw so switchToRichMode will execute
       await this.switchToRichMode();
     } else {
+      this.mode = 'rich'; // Temporarily set to rich so showRawMode path works
       this.showRawMode();
     }
 
