@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::db::get_db_pool;
+use crate::orm::themes;
 use crate::permission::PermissionData;
 use crate::user::Profile;
 use actix::fut::ready;
@@ -35,6 +36,10 @@ pub struct ClientCtxInner {
     pub unread_messages: i64,
     /// Time the request started for page load statistics.
     pub request_start: Instant,
+    /// Current theme for the user
+    pub theme: Option<themes::Model>,
+    /// Whether user is in auto theme mode
+    pub theme_auto: bool,
 }
 
 impl Default for ClientCtxInner {
@@ -52,6 +57,8 @@ impl Default for ClientCtxInner {
             unread_notifications: 0,
             unread_messages: 0,
             request_start: Instant::now(),
+            theme: crate::theme::get_theme("light"),
+            theme_auto: false,
         }
     }
 }
@@ -99,6 +106,17 @@ impl ClientCtxInner {
             });
         }
 
+        // Load theme for user
+        let (theme, theme_auto) = if let Some(ref user) = client {
+            let theme_auto = user.theme_auto;
+            let theme_slug = user.theme.as_deref().unwrap_or("light");
+            let theme = crate::theme::get_theme(theme_slug);
+            (theme, theme_auto)
+        } else {
+            // Guest gets light theme
+            (crate::theme::get_theme("light"), false)
+        };
+
         ClientCtxInner {
             client,
             groups,
@@ -107,6 +125,8 @@ impl ClientCtxInner {
             csrf_token,
             unread_notifications,
             unread_messages,
+            theme,
+            theme_auto,
             ..Default::default()
         }
     }
@@ -215,6 +235,25 @@ impl ClientCtx {
 
     pub fn get_unread_messages(&self) -> i64 {
         self.0.unread_messages
+    }
+
+    /// Get the user's active theme
+    pub fn get_theme(&self) -> Option<&themes::Model> {
+        self.0.theme.as_ref()
+    }
+
+    /// Check if user is in auto theme mode
+    pub fn is_theme_auto(&self) -> bool {
+        self.0.theme_auto
+    }
+
+    /// Get theme CSS to inject into page
+    pub fn get_theme_css(&self) -> String {
+        self.0
+            .theme
+            .as_ref()
+            .map(|t| t.get_full_css())
+            .unwrap_or_default()
     }
 
     pub fn is_user(&self) -> bool {

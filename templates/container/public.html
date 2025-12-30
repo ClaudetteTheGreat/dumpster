@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="no-js" data-theme="{% if let Some(user) = client.get_user() %}{{ user.theme }}{% else %}light{% endif %}">
+<html lang="en" class="no-js" data-theme="{% if let Some(theme) = client.get_theme() %}{{ theme.slug }}{% else %}light{% endif %}" data-theme-auto="{{ client.is_theme_auto() }}" data-theme-dark="{% if let Some(theme) = client.get_theme() %}{{ theme.is_dark }}{% else %}false{% endif %}">
 
 <head>
     {% block head %}
@@ -15,13 +15,16 @@
 
         // Apply theme based on user preference
         function applyTheme() {
-            const theme = document.documentElement.dataset.theme || 'light';
-            if (theme === 'auto') {
+            const isAuto = document.documentElement.dataset.themeAuto === 'true';
+            const isDark = document.documentElement.dataset.themeDark === 'true';
+
+            if (isAuto) {
                 // Use system preference
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
                 document.documentElement.classList.toggle('dark', prefersDark);
             } else {
-                document.documentElement.classList.toggle('dark', theme === 'dark');
+                // Use theme's is_dark flag
+                document.documentElement.classList.toggle('dark', isDark);
             }
         }
 
@@ -29,7 +32,7 @@
 
         // Listen for system theme changes when in auto mode
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-            if (document.documentElement.dataset.theme === 'auto') {
+            if (document.documentElement.dataset.themeAuto === 'true') {
                 applyTheme();
             }
         });
@@ -37,6 +40,14 @@
 
     {% block stylesheets %}
     <link rel="stylesheet" type="text/css" href="/public/assets/style.css" nonce="{{ client.get_nonce() }}" />
+    {# Inject theme-specific CSS #}
+    {% if let Some(theme) = client.get_theme() %}
+    {% if theme.has_custom_css() %}
+    <style nonce="{{ client.get_nonce() }}">
+{{ theme.get_full_css()|safe }}
+    </style>
+    {% endif %}
+    {% endif %}
     {#
     <link rel="stylesheet" type="text/css" href="/public/assets/print.css" media="print"
         nonce="{{ client.get_nonce() }}" /> #}
@@ -126,22 +137,26 @@
     {% block breadcrumbs %}
     {% endblock %}
 
-    {% block main %}
-    <main id="main-content" class="container" role="main" aria-label="Main content">
-        {% block content %}{% endblock %}
-    </main>
-    {% endblock %}
+    <div class="page-wrapper">
+        <div class="page-box">
+            {% block main %}
+            <main id="main-content" role="main" aria-label="Main content">
+                {% block content %}{% endblock %}
+            </main>
+            {% endblock %}
 
-    {% block bottom %}
-    <footer class="container" role="contentinfo" aria-label="Site footer">
+            {% block bottom %}
+            <footer role="contentinfo" aria-label="Site footer">
         <div class="footer-inner">
             {% block footer %}
             <p>{{ client.footer_message() }}</p>
             <p>Generated in {{ client.request_time_as_string() }}</p>
             {% endblock %}
         </div>
-    </footer>
-    {% endblock %}
+            </footer>
+            {% endblock %}
+        </div>
+    </div>
 
     <!-- Notification toast container -->
     <div id="notification-toasts" class="notification-toasts" aria-live="polite" aria-label="Notifications"></div>

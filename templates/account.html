@@ -194,9 +194,12 @@
         <div class="preference-item">
             <label for="theme">Theme:</label>
             <select name="theme" id="theme">
-                <option value="light" {% if profile.theme == "light" %}selected{% endif %}>☀️ Light</option>
-                <option value="dark" {% if profile.theme == "dark" %}selected{% endif %}>🌙 Dark</option>
-                <option value="auto" {% if profile.theme == "auto" %}selected{% endif %}>🔄 Auto (follow system)</option>
+                <option value="auto" {% if profile.theme_auto %}selected{% endif %}>🔄 Auto (follow system)</option>
+                {% for theme in available_themes %}
+                <option value="{{ theme.slug }}" {% if !profile.theme_auto && profile.theme.as_deref() == Some(theme.slug.as_str()) %}selected{% endif %}>
+                    {% if theme.is_dark %}🌙{% else %}☀️{% endif %} {{ theme.name }}
+                </option>
+                {% endfor %}
             </select>
             <p class="help-text">Choose your preferred color theme for the forum.</p>
         </div>

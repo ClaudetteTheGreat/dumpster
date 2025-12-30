@@ -32,6 +32,11 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to load word filters from database");
 
+    // Load themes into cache
+    ruforo::theme::load_themes()
+        .await
+        .expect("Failed to load themes from database");
+
     let permissions = ruforo::permission::new()
         .await
         .expect("Permission System failed to initialize.");

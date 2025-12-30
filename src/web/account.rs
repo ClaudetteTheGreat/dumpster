@@ -1,5 +1,6 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
+use crate::orm::themes;
 use crate::orm::user_social_links::{self, SocialPlatform};
 use crate::user::Profile as UserProfile;
 use actix_multipart::Multipart;
@@ -25,6 +26,7 @@ pub struct AccountTemplate {
     pub profile: UserProfile,
     pub social_links: Vec<user_social_links::Model>,
     pub available_platforms: Vec<SocialPlatform>,
+    pub available_themes: Vec<themes::Model>,
 }
 
 #[post("/account/avatar")]
@@ -195,16 +197,20 @@ async fn update_preferences(
     }
 
     // Get and validate theme
-    let theme = form
+    let theme_slug = form
         .get("theme")
         .ok_or_else(|| error::ErrorBadRequest("theme missing"))?;
 
-    // Validate it's one of the allowed values
-    if !["light", "dark", "auto"].contains(&theme.as_str()) {
-        return Err(error::ErrorBadRequest(
-            "theme must be one of: light, dark, auto",
-        ));
-    }
+    // Handle "auto" specially - set theme_auto flag and use light as fallback
+    let (theme_value, theme_auto) = if theme_slug == "auto" {
+        (Some("light".to_string()), true)
+    } else {
+        // Validate theme slug exists and is active
+        if !crate::theme::theme_exists(theme_slug) {
+            return Err(error::ErrorBadRequest("Invalid theme selection"));
+        }
+        (Some(theme_slug.to_string()), false)
+    };
 
     // Get show_online preference (checkbox, so may not be present if unchecked)
     let show_online = form
@@ -221,7 +227,8 @@ async fn update_preferences(
         .into();
 
     user.posts_per_page = Set(posts_per_page);
-    user.theme = Set(theme.to_string());
+    user.theme = Set(theme_value);
+    user.theme_auto = Set(theme_auto);
     user.show_online = Set(show_online);
     user.update(get_db_pool())
         .await
@@ -531,11 +538,15 @@ async fn view_account(client: ClientCtx) -> Result<impl Responder, Error> {
         .filter(|p| !used_platforms.contains(p))
         .collect();
 
+    // Get available themes
+    let available_themes = crate::theme::get_active_themes();
+
     Ok(AccountTemplate {
         client,
         profile,
         social_links,
         available_platforms,
+        available_themes,
     }
     .to_response())
 }

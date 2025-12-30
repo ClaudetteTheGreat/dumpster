@@ -29,6 +29,7 @@ pub mod session;
 pub mod spam;
 pub mod storage;
 pub mod template;
+pub mod theme;
 pub mod ugc;
 pub mod url;
 pub mod user;

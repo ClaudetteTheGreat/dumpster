@@ -8,8 +8,8 @@ use crate::middleware::ClientCtx;
 use crate::orm::{
     attachments, badges, chat_rooms, feature_flags, forum_permissions, forums, groups, ip_bans,
     mod_log, moderator_notes, permission_categories, permission_collections, permission_values,
-    permissions, posts, reaction_types, reports, sessions, settings, tag_forums, tags, threads,
-    user_bans, user_groups, user_names, user_warnings, users, word_filters,
+    permissions, posts, reaction_types, reports, sessions, settings, tag_forums, tags, themes,
+    threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
@@ -181,7 +181,14 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(create_chat_room)
         .service(view_edit_chat_room)
         .service(update_chat_room)
-        .service(delete_chat_room);
+        .service(delete_chat_room)
+        // Theme management
+        .service(view_themes)
+        .service(view_create_theme_form)
+        .service(create_theme)
+        .service(view_edit_theme)
+        .service(update_theme)
+        .service(delete_theme);
 }
 
 // ============================================================================
@@ -6882,5 +6889,323 @@ async fn delete_chat_room(
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/chat-rooms"))
+        .finish())
+}
+
+// ============================================================================
+// Theme Management
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/themes.html")]
+struct ThemesTemplate {
+    client: ClientCtx,
+    themes_list: Vec<themes::Model>,
+}
+
+#[derive(Template)]
+#[template(path = "admin/theme_form.html")]
+struct ThemeFormTemplate {
+    client: ClientCtx,
+    theme: Option<themes::Model>,
+    error: Option<String>,
+}
+
+/// GET /admin/themes - List all themes
+#[get("/admin/themes")]
+async fn view_themes(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let themes_list = themes::Entity::find()
+        .order_by_asc(themes::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch themes: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(ThemesTemplate {
+        client,
+        themes_list,
+    }
+    .to_response())
+}
+
+/// GET /admin/themes/new - Show form to create new theme
+#[get("/admin/themes/new")]
+async fn view_create_theme_form(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    Ok(ThemeFormTemplate {
+        client,
+        theme: None,
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/themes - Create a new theme
+#[post("/admin/themes")]
+async fn create_theme(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    form: web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    // Validate CSRF
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    let db = get_db_pool();
+
+    // Get form values
+    let name = form
+        .get("name")
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| error::ErrorBadRequest("Name is required"))?;
+
+    let slug = form
+        .get("slug")
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| error::ErrorBadRequest("Slug is required"))?;
+
+    // Validate slug format (lowercase letters, numbers, hyphens only)
+    if !slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        return Err(error::ErrorBadRequest(
+            "Slug must contain only lowercase letters, numbers, and hyphens",
+        ));
+    }
+
+    // Check for duplicate slug
+    let existing = themes::Entity::find()
+        .filter(themes::Column::Slug.eq(slug.as_str()))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check slug: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    if existing.is_some() {
+        return Ok(ThemeFormTemplate {
+            client,
+            theme: None,
+            error: Some("A theme with this slug already exists".to_string()),
+        }
+        .to_response());
+    }
+
+    let description = form.get("description").cloned();
+    let is_dark = form.contains_key("is_dark");
+    let is_active = form.contains_key("is_active");
+    let display_order: i32 = form
+        .get("display_order")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(10);
+
+    let css_variables = form
+        .get("css_variables")
+        .filter(|s| !s.is_empty())
+        .cloned();
+    let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
+
+    // Create the theme
+    let new_theme = themes::ActiveModel {
+        slug: Set(slug.to_string()),
+        name: Set(name.to_string()),
+        description: Set(description),
+        is_system: Set(false),
+        is_dark: Set(is_dark),
+        is_active: Set(is_active),
+        display_order: Set(display_order),
+        css_variables: Set(css_variables),
+        css_custom: Set(css_custom),
+        created_at: Set(chrono::Utc::now().into()),
+        updated_at: Set(chrono::Utc::now().into()),
+        created_by: Set(Some(moderator_id)),
+        ..Default::default()
+    };
+
+    new_theme.insert(db).await.map_err(|e| {
+        log::error!("Failed to create theme: {}", e);
+        error::ErrorInternalServerError("Failed to create theme")
+    })?;
+
+    // Reload theme cache
+    crate::theme::reload_cache().await;
+
+    log::info!("Theme '{}' created by user {}", slug, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/themes"))
+        .finish())
+}
+
+/// GET /admin/themes/{id}/edit - Show form to edit theme
+#[get("/admin/themes/{id}/edit")]
+async fn view_edit_theme(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+    let theme_id = path.into_inner();
+
+    let theme = themes::Entity::find_by_id(theme_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch theme: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Theme not found"))?;
+
+    Ok(ThemeFormTemplate {
+        client,
+        theme: Some(theme),
+        error: None,
+    }
+    .to_response())
+}
+
+/// POST /admin/themes/{id} - Update a theme
+#[post("/admin/themes/{id}")]
+async fn update_theme(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    // Validate CSRF
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    let db = get_db_pool();
+    let theme_id = path.into_inner();
+
+    let existing = themes::Entity::find_by_id(theme_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch theme: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Theme not found"))?;
+
+    // Get form values
+    let name = form
+        .get("name")
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| error::ErrorBadRequest("Name is required"))?;
+
+    let description = form.get("description").cloned();
+    let is_dark = form.contains_key("is_dark");
+    let is_active = form.contains_key("is_active");
+    let display_order: i32 = form
+        .get("display_order")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(existing.display_order);
+
+    let css_variables = form
+        .get("css_variables")
+        .filter(|s| !s.is_empty())
+        .cloned();
+    let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
+
+    // Update the theme
+    let mut theme: themes::ActiveModel = existing.into();
+    theme.name = Set(name.to_string());
+    theme.description = Set(description);
+    theme.is_dark = Set(is_dark);
+    theme.is_active = Set(is_active);
+    theme.display_order = Set(display_order);
+    theme.css_variables = Set(css_variables);
+    theme.css_custom = Set(css_custom);
+    theme.updated_at = Set(chrono::Utc::now().into());
+
+    theme.update(db).await.map_err(|e| {
+        log::error!("Failed to update theme: {}", e);
+        error::ErrorInternalServerError("Failed to update theme")
+    })?;
+
+    // Reload theme cache
+    crate::theme::reload_cache().await;
+
+    log::info!("Theme {} updated by user {}", theme_id, moderator_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/themes"))
+        .finish())
+}
+
+/// POST /admin/themes/{id}/delete - Delete a theme
+#[post("/admin/themes/{id}/delete")]
+async fn delete_theme(
+    client: ClientCtx,
+    cookies: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    let moderator_id = client.require_login()?;
+    client.require_permission("admin.settings")?;
+
+    // Validate CSRF
+    let csrf_token = form
+        .get("csrf_token")
+        .ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&cookies, csrf_token)?;
+
+    let db = get_db_pool();
+    let theme_id = path.into_inner();
+
+    let theme = themes::Entity::find_by_id(theme_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch theme: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Theme not found"))?;
+
+    // Cannot delete system themes
+    if theme.is_system {
+        return Err(error::ErrorForbidden("Cannot delete system themes"));
+    }
+
+    let theme_name = theme.name.clone();
+
+    themes::Entity::delete_by_id(theme_id)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete theme: {}", e);
+            error::ErrorInternalServerError("Failed to delete theme")
+        })?;
+
+    // Reload theme cache
+    crate::theme::reload_cache().await;
+
+    log::info!(
+        "Theme {} ('{}') deleted by user {}",
+        theme_id,
+        theme_name,
+        moderator_id
+    );
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", "/admin/themes"))
         .finish())
 }
