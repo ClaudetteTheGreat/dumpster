@@ -199,14 +199,17 @@ pub trait ChatLayer {
 pub mod default {
     use super::super::message;
     use super::*;
+    use crate::config::Config;
     use crate::middleware::ClientCtx;
     use crate::orm::{chat_messages, chat_rooms, posts, ugc_deletions, ugc_revisions, users};
     use crate::ugc::{create_ugc, create_ugc_revision, NewUgcPartial};
     use crate::user::{find_also_user, Profile as UserProfile};
     use sea_orm::{entity::*, query::*, DatabaseConnection, EntityTrait, QuerySelect, Set};
+    use std::sync::Arc;
 
     pub struct Layer {
         pub db: DatabaseConnection,
+        pub config: Arc<Config>,
     }
 
     impl Layer {
@@ -284,6 +287,22 @@ pub mod default {
             if session.id == 0 {
                 return false;
             }
+
+            // Check minimum posts requirement
+            let min_posts = self.config.chat_min_posts_to_send();
+            if min_posts > 0 {
+                let post_count = posts::Entity::find()
+                    .filter(posts::Column::UserId.eq(session.id as i32))
+                    .filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
+                    .count(&self.db)
+                    .await
+                    .unwrap_or(0) as i32;
+
+                if post_count < min_posts {
+                    return false;
+                }
+            }
+
             true
         }
 
