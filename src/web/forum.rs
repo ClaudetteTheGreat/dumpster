@@ -65,6 +65,7 @@ async fn get_threads_with_pending_first_posts(
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(create_thread)
+        .service(new_thread_form)
         .service(mark_forum_read)
         .service(mark_all_forums_read)
         .service(view_forums)
@@ -88,6 +89,16 @@ pub struct ForumTemplate<'a> {
     pub moderators: Vec<ModeratorForTemplate>,
     pub sub_forums: Vec<ForumWithStats>,
     pub available_tags: Vec<super::thread::TagForTemplate>,
+}
+
+#[derive(Template)]
+#[template(path = "forum_new_thread.html")]
+pub struct NewThreadFormTemplate<'a> {
+    pub client: ClientCtx,
+    pub forum: &'a crate::orm::forums::Model,
+    pub breadcrumbs: Vec<super::thread::Breadcrumb>,
+    pub available_tags: Vec<super::thread::TagForTemplate>,
+    pub error: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -686,6 +697,54 @@ pub async fn create_thread(
             format!("/threads/{}/", thread_res.last_insert_id),
         ))
         .finish())
+}
+
+/// Display the new thread form
+#[get("/forums/{forum}/new-thread")]
+pub async fn new_thread_form(
+    client: ClientCtx,
+    path: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let forum_id = path.into_inner();
+
+    // Fetch forum
+    let forum = forums::Entity::find_by_id(forum_id)
+        .one(get_db_pool())
+        .await
+        .map_err(|_| error::ErrorInternalServerError("Could not look up forum."))?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
+
+    // Check permission to create threads
+    if !client.can_create_thread_in_forum(&forum_id) {
+        return Err(error::ErrorForbidden(
+            "You do not have permission to create threads in this forum.",
+        ));
+    }
+
+    // Build breadcrumbs
+    let mut breadcrumbs = build_forum_breadcrumbs(&forum).await;
+    breadcrumbs.push(super::thread::Breadcrumb {
+        title: "New Thread".to_string(),
+        url: None,
+    });
+
+    // Get available tags for this forum if tags are enabled
+    let available_tags = if forum.tags_enabled {
+        get_available_tags_for_forum(forum_id)
+            .await
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    Ok(NewThreadFormTemplate {
+        client,
+        forum: &forum,
+        breadcrumbs,
+        available_tags,
+        error: None,
+    }
+    .to_response())
 }
 
 #[get("/forums/{forum}/")]

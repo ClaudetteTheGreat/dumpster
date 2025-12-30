@@ -159,119 +159,9 @@
 </div>
 
 {% if client.can_create_thread_in_forum(forum.id) %}
-<form action="/forums/{{ forum.id }}/post-thread" method="post">
-    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-    <h2>New Thread</h2>
-    <input type="text" name="title" placeholder="Title" />
-    <input type="text" name="subtitle" placeholder="Subtitle (optional)" />
-    <div class="bbcode-editor-container">
-        {% include "components/bbcode_toolbar.html" %}
-        <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
-    </div>
-
-    {% if forum.tags_enabled %}
-    <div class="tags-input-container">
-        <label>Tags (max 10):</label>
-        {% if available_tags.is_empty() %}
-        <p class="tags-hint">No tags are available for this forum.</p>
-        {% else %}
-        <div class="tags-checkbox-grid">
-            {% for tag in available_tags %}
-            <label class="tag-checkbox-label">
-                <input type="checkbox" class="tag-checkbox" data-tag-id="{{ tag.id }}" data-tag-name="{{ tag.name }}" />
-                <span class="tag-badge" style="background-color: {{ tag.color }}">{{ tag.name }}</span>
-            </label>
-            {% endfor %}
-        </div>
-        <input type="hidden" name="tags" id="tags-hidden" value="" />
-        <small class="tags-hint">Select up to 10 tags from the list above.</small>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    <details class="poll-section">
-        <summary>Add Poll (optional)</summary>
-        <div class="poll-form">
-            <input type="text" name="poll_question" placeholder="Poll question" maxlength="500" />
-            <input type="hidden" name="poll_options" id="poll-options-hidden" value="" />
-            <div class="poll-options-container" id="poll-options">
-                <input type="text" class="poll-option-input" placeholder="Option 1" maxlength="200" />
-                <input type="text" class="poll-option-input" placeholder="Option 2" maxlength="200" />
-            </div>
-            <button type="button" class="add-poll-option" onclick="addPollOption()">+ Add Option</button>
-            <div class="poll-settings">
-                <label>
-                    <span>Max choices:</span>
-                    <input type="number" name="poll_max_choices" value="1" min="1" max="20" />
-                </label>
-                <label>
-                    <input type="checkbox" name="poll_allow_change_vote" value="true" checked />
-                    Allow changing vote
-                </label>
-                <label>
-                    <input type="checkbox" name="poll_show_results_before_vote" value="true" />
-                    Show results before voting
-                </label>
-                <label>
-                    <span>Closes at (optional):</span>
-                    <input type="datetime-local" name="poll_closes_at" />
-                </label>
-            </div>
-        </div>
-    </details>
-
-    <button>Sneed</button>
-</form>
-<script>
-function addPollOption() {
-    const container = document.getElementById('poll-options');
-    const count = container.querySelectorAll('.poll-option-input').length;
-    if (count >= 20) {
-        alert('Maximum 20 options allowed');
-        return;
-    }
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'poll-option-input';
-    input.placeholder = 'Option ' + (count + 1);
-    input.maxLength = 200;
-    container.appendChild(input);
-}
-
-// Combine poll options into hidden field before form submission
-document.querySelector('form[action*="post-thread"]').addEventListener('submit', function(e) {
-    const options = Array.from(document.querySelectorAll('.poll-option-input'))
-        .map(input => input.value.trim())
-        .filter(val => val.length > 0);
-    document.getElementById('poll-options-hidden').value = options.join('|||');
-
-    // Combine selected tags and custom tags into hidden field
-    updateTagsHidden();
-});
-
-// Update tags hidden field
-function updateTagsHidden() {
-    const tagsHidden = document.getElementById('tags-hidden');
-    if (!tagsHidden) return;
-
-    const selectedTags = Array.from(document.querySelectorAll('.tag-checkbox:checked'))
-        .map(cb => cb.dataset.tagName);
-
-    // Limit to 10 tags
-    tagsHidden.value = selectedTags.slice(0, 10).join(',');
-}
-
-// Add change listeners to tag checkboxes
-document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
-    cb.addEventListener('change', function() {
-        const checkedCount = document.querySelectorAll('.tag-checkbox:checked').length;
-        if (checkedCount > 10) {
-            this.checked = false;
-            alert('Maximum 10 tags allowed');
-        }
-    });
-});
-</script>
+<div class="new-thread-cta">
+    <a href="/forums/{{ forum.id }}/new-thread" class="btn btn-new-thread">+ New Thread</a>
+</div>
 {% endif %}
 
 <style>
@@ -810,6 +700,45 @@ document.querySelectorAll('.tag-checkbox').forEach(function(cb) {
 
     html.dark .btn--secondary:hover {
         background: #5a6268;
+    }
+
+    /* New Thread CTA */
+    .new-thread-cta {
+        margin: 25px 0;
+        text-align: center;
+    }
+
+    .btn-new-thread {
+        display: inline-block;
+        padding: 12px 28px;
+        background: #28a745;
+        color: #fff;
+        text-decoration: none;
+        border-radius: 6px;
+        font-size: 1.1em;
+        font-weight: 600;
+        transition: background 0.2s, transform 0.1s;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-new-thread:hover {
+        background: #218838;
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-new-thread:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    html.dark .btn-new-thread {
+        background: #218838;
+    }
+
+    html.dark .btn-new-thread:hover {
+        background: #1e7e34;
     }
 </style>
 {% endblock %}
