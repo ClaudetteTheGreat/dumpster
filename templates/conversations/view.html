@@ -107,6 +107,12 @@
                         </div>
                     </div>
                 </div>
+                {% if let Some(signature_html) = msg.get_signature_html() %}
+                <div class="message-signature">
+                    <hr class="signature-divider" />
+                    <div class="signature-content">{{ signature_html|safe }}</div>
+                </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

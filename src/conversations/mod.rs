@@ -333,6 +333,7 @@ pub async fn get_conversation_messages(
                         post_count,
                         reputation_score,
                         custom_title,
+                        signature,
                     ) = if let Some(p) = profile {
                         (
                             p.name,
@@ -343,9 +344,10 @@ pub async fn get_conversation_messages(
                             p.post_count,
                             p.reputation_score,
                             p.custom_title,
+                            p.signature,
                         )
                     } else {
-                        ("Unknown".to_string(), None, None, None, None, None, 0, None)
+                        ("Unknown".to_string(), None, None, None, None, None, 0, None, None)
                     };
 
                     displays.push(MessageDisplay {
@@ -362,6 +364,7 @@ pub async fn get_conversation_messages(
                         post_count,
                         reputation_score,
                         custom_title,
+                        signature,
                     });
                 }
             }
@@ -387,6 +390,7 @@ pub struct MessageDisplay {
     pub post_count: Option<i64>,
     pub reputation_score: i32,
     pub custom_title: Option<String>,
+    pub signature: Option<String>,
 }
 
 impl MessageDisplay {
@@ -414,6 +418,14 @@ impl MessageDisplay {
         } else {
             self.author_name.clone()
         }
+    }
+
+    /// Renders the user's signature as HTML using BBCode parser.
+    pub fn get_signature_html(&self) -> Option<String> {
+        self.signature
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .map(|sig| crate::bbcode::parse(sig))
     }
 }
 
