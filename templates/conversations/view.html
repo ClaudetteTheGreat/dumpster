@@ -47,6 +47,7 @@
         {% for msg in messages %}
         <div class="message {% if msg.user_id == client.get_id() %}message--own{% endif %}">
             <div class="message-cell message-cell--author">
+                {{ msg.get_avatar_html(crate::attachment::AttachmentSize::L)|safe }}
                 <div class="username">{{ msg.author_name }}</div>
             </div>
             <div class="message-cell message-cell--main">

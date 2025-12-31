@@ -317,15 +317,19 @@ pub async fn get_conversation_messages(
                     .one(db)
                     .await?;
                 if let Some(rev) = revision {
-                    // Get author name
-                    let author_name = if let Some(author_id) = msg.user_id {
-                        Profile::get_by_id(db, author_id)
-                            .await?
-                            .map(|p| p.name)
-                            .unwrap_or_else(|| "Unknown".to_string())
+                    // Get author profile (includes name and avatar)
+                    let profile = if let Some(author_id) = msg.user_id {
+                        Profile::get_by_id(db, author_id).await?
                     } else {
-                        "Unknown".to_string()
+                        None
                     };
+
+                    let (author_name, avatar_filename, avatar_width, avatar_height) =
+                        if let Some(p) = profile {
+                            (p.name, p.avatar_filename, p.avatar_width, p.avatar_height)
+                        } else {
+                            ("Unknown".to_string(), None, None, None)
+                        };
 
                     displays.push(MessageDisplay {
                         id: msg.id,
@@ -333,6 +337,9 @@ pub async fn get_conversation_messages(
                         author_name,
                         content: rev.content,
                         created_at: msg.created_at,
+                        avatar_filename,
+                        avatar_width,
+                        avatar_height,
                     });
                 }
             }
@@ -350,6 +357,24 @@ pub struct MessageDisplay {
     pub author_name: String,
     pub content: String,
     pub created_at: chrono::NaiveDateTime,
+    pub avatar_filename: Option<String>,
+    pub avatar_width: Option<i32>,
+    pub avatar_height: Option<i32>,
+}
+
+impl MessageDisplay {
+    /// Provides semantically correct HTML for an avatar.
+    pub fn get_avatar_html(&self, size: crate::attachment::AttachmentSize) -> String {
+        if let (Some(filename), Some(width), Some(height)) = (
+            self.avatar_filename.as_ref(),
+            self.avatar_width,
+            self.avatar_height,
+        ) {
+            crate::attachment::get_avatar_html(filename, (width, height), size)
+        } else {
+            String::new()
+        }
+    }
 }
 
 /// Archive a conversation for a user (hides from inbox but preserves messages)
