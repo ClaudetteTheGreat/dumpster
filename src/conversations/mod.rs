@@ -293,6 +293,7 @@ pub async fn get_conversation_messages(
     limit: u64,
     offset: u64,
 ) -> Result<Vec<MessageDisplay>, DbErr> {
+    use crate::orm::ugc_deletions;
     use crate::user::Profile;
 
     let db = get_db_pool();
@@ -309,6 +310,12 @@ pub async fn get_conversation_messages(
     let mut displays = Vec::new();
 
     for msg in messages {
+        // Check if message is deleted
+        let deletion = ugc_deletions::Entity::find_by_id(msg.ugc_id)
+            .one(db)
+            .await?;
+        let is_deleted = deletion.is_some();
+
         // Get UGC content
         let ugc_model = ugc::Entity::find_by_id(msg.ugc_id).one(db).await?;
         if let Some(ugc) = ugc_model {
@@ -365,6 +372,7 @@ pub async fn get_conversation_messages(
                         reputation_score,
                         custom_title,
                         signature,
+                        is_deleted,
                     });
                 }
             }
@@ -391,6 +399,7 @@ pub struct MessageDisplay {
     pub reputation_score: i32,
     pub custom_title: Option<String>,
     pub signature: Option<String>,
+    pub is_deleted: bool,
 }
 
 impl MessageDisplay {
@@ -575,6 +584,51 @@ pub async fn get_message(message_id: i32) -> Result<Option<private_messages::Mod
     private_messages::Entity::find_by_id(message_id)
         .one(db)
         .await
+}
+
+/// Delete a message (soft delete via ugc_deletions)
+pub async fn delete_message(message_id: i32, user_id: i32) -> Result<(), DbErr> {
+    use crate::orm::ugc_deletions;
+
+    let db = get_db_pool();
+
+    // Get the message to verify ownership
+    let message = private_messages::Entity::find_by_id(message_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("Message not found".to_string()))?;
+
+    // Verify the user is the message author
+    if message.user_id != Some(user_id) {
+        return Err(DbErr::Custom(
+            "You can only delete your own messages".to_string(),
+        ));
+    }
+
+    // Check if already deleted
+    let existing = ugc_deletions::Entity::find_by_id(message.ugc_id)
+        .one(db)
+        .await?;
+
+    if existing.is_some() {
+        return Err(DbErr::Custom("Message already deleted".to_string()));
+    }
+
+    // Create soft delete record
+    let deletion = ugc_deletions::ActiveModel {
+        id: Set(message.ugc_id),
+        user_id: Set(Some(user_id)),
+        deleted_at: Set(chrono::Utc::now().naive_utc()),
+        reason: Set(None),
+        deletion_type: Set(ugc_deletions::DeletionType::Normal),
+        deleted_by_id: Set(Some(user_id)),
+        legal_hold_at: Set(None),
+        legal_hold_by: Set(None),
+        legal_hold_reason: Set(None),
+    };
+    deletion.insert(db).await?;
+
+    Ok(())
 }
 
 /// Leave a conversation (remove user as participant)

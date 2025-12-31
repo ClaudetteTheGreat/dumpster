@@ -21,6 +21,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_conversation) // Must be after /new and /archived
         .service(send_message_handler)
         .service(edit_message_handler)
+        .service(delete_message_handler)
         .service(leave_conversation_handler)
         .service(archive_conversation_handler)
         .service(unarchive_conversation_handler);
@@ -361,6 +362,38 @@ pub async fn edit_message_handler(
         })?;
 
     log::info!("User {} edited message {}", user_id, msg_id);
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}
+
+/// POST /conversations/messages/{id}/delete - Delete a message
+#[post("/conversations/messages/{id}/delete")]
+pub async fn delete_message_handler(
+    client: ClientCtx,
+    message_id: web::Path<i32>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let msg_id = *message_id;
+
+    // Get the message to find the conversation ID for redirect
+    let message = conversations::get_message(msg_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Message not found"))?;
+
+    let conv_id = message.conversation_id;
+
+    // Delete the message
+    conversations::delete_message(msg_id, user_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to delete message: {}", e);
+            error::ErrorForbidden(e.to_string())
+        })?;
+
+    log::info!("User {} deleted message {}", user_id, msg_id);
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/conversations/{}", conv_id)))
