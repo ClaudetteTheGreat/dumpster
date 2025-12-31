@@ -500,18 +500,10 @@ pub async fn post_login(
         .insert("token", uuid.to_owned())
         .map_err(|_| error::ErrorInternalServerError("middleware error"))?;
 
-    Ok(LoginTemplate {
-        client: ClientCtx::from_session(&cookies, client.get_permissions().clone(), None).await,
-        user_id: Some(user_id),
-        logged_in: true,
-        username: Some(&form.username),
-        token: Some(&uuid),
-        success_message: None,
-        captcha_required: false,
-        captcha_provider: None,
-        captcha_site_key: None,
-    }
-    .to_response())
+    // Redirect to home page on successful login
+    Ok(actix_web::HttpResponse::SeeOther()
+        .append_header(("Location", "/"))
+        .finish())
 }
 
 #[post("/login/2fa")]
@@ -629,19 +621,10 @@ pub async fn post_login_2fa(
         .insert("token", uuid.to_owned())
         .map_err(|_| error::ErrorInternalServerError("Session error"))?;
 
-    // Redirect to home or show success
-    Ok(LoginTemplate {
-        client: ClientCtx::from_session(&cookies, client.get_permissions().clone(), None).await,
-        user_id: Some(user_id),
-        logged_in: true,
-        username: None,
-        token: Some(&uuid),
-        success_message: None,
-        captcha_required: false,
-        captcha_provider: None,
-        captcha_site_key: None,
-    }
-    .to_response())
+    // Redirect to home page on successful 2FA login
+    Ok(actix_web::HttpResponse::SeeOther()
+        .append_header(("Location", "/"))
+        .finish())
 }
 
 /// Query parameters for login page
