@@ -5723,6 +5723,7 @@ async fn update_forum(
 
 /// Group info for column headers
 struct ForumPermGroupInfo {
+    id: i32,
     label: String,
 }
 
@@ -5806,6 +5807,7 @@ async fn view_forum_permissions(
     let groups_info: Vec<ForumPermGroupInfo> = all_groups
         .iter()
         .map(|g| ForumPermGroupInfo {
+            id: g.id,
             label: g.label.clone(),
         })
         .collect();

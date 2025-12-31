@@ -105,6 +105,20 @@
                             <th class="group-col">{{ group.label }}</th>
                             {% endfor %}
                         </tr>
+                        <tr class="set-all-row">
+                            <td class="perm-label-col"><em>Set all</em></td>
+                            {% for group in groups %}
+                            <td class="group-col">
+                                <select class="permission-select set-all-select" data-group-id="{{ group.id }}" data-category="{{ category.label }}">
+                                    <option value="">—</option>
+                                    <option value="default">Default</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                    <option value="never">Never</option>
+                                </select>
+                            </td>
+                            {% endfor %}
+                        </tr>
                     </thead>
                     <tbody>
                         {% for perm in category.permissions %}
@@ -112,7 +126,7 @@
                             <td class="perm-label-col"><code>{{ perm.label }}</code></td>
                             {% for gv in perm.values %}
                             <td class="group-col">
-                                <select name="perm_{{ perm.id }}_{{ gv.group_id }}" class="permission-select">
+                                <select name="perm_{{ perm.id }}_{{ gv.group_id }}" class="permission-select perm-select" data-group-id="{{ gv.group_id }}" data-category="{{ category.label }}">
                                     <option value="default"{% if gv.value == "default" %} selected{% endif %}>Default</option>
                                     <option value="yes"{% if gv.value == "yes" %} selected{% endif %}>Yes</option>
                                     <option value="no"{% if gv.value == "no" %} selected{% endif %}>No</option>
@@ -476,6 +490,42 @@ html.dark .mod-date {
     color: #aaa;
 }
 
+/* Set all row */
+.set-all-row {
+    background: #f0f4f8;
+}
+
+.set-all-row td {
+    border-bottom: 2px solid #ccc !important;
+}
+
+.set-all-row em {
+    color: #666;
+    font-size: 0.85em;
+}
+
+.set-all-select {
+    background: #e8f0f8 !important;
+    border-color: #a0c0e0 !important;
+}
+
+html.dark .set-all-row {
+    background: #2a3040;
+}
+
+html.dark .set-all-row td {
+    border-bottom-color: #555 !important;
+}
+
+html.dark .set-all-row em {
+    color: #aaa;
+}
+
+html.dark .set-all-select {
+    background: #354050 !important;
+    border-color: #506080 !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .permission-matrix {
@@ -493,4 +543,29 @@ html.dark .mod-date {
     }
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle "Set all" dropdowns
+    document.querySelectorAll('.set-all-select').forEach(function(select) {
+        select.addEventListener('change', function() {
+            const value = this.value;
+            if (!value) return; // Skip if placeholder selected
+
+            const groupId = this.dataset.groupId;
+            const category = this.dataset.category;
+
+            // Find all permission selects in this category for this group
+            document.querySelectorAll('.perm-select').forEach(function(permSelect) {
+                if (permSelect.dataset.groupId === groupId && permSelect.dataset.category === category) {
+                    permSelect.value = value;
+                }
+            });
+
+            // Reset the set-all dropdown to placeholder
+            this.value = '';
+        });
+    });
+});
+</script>
 {% endblock %}
