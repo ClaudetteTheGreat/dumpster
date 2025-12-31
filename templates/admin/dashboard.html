@@ -102,6 +102,12 @@
             <span class="link-text">Groups</span>
         </a>
         {% endif %}
+        {% if client.can("admin.settings") %}
+        <a href="/admin/permissions/hierarchy" class="quick-link">
+            <span class="link-icon">&#128269;</span>
+            <span class="link-text">Permission Viewer</span>
+        </a>
+        {% endif %}
     </div>
 
     <!-- Statistics Grid -->
