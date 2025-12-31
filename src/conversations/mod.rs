@@ -317,19 +317,36 @@ pub async fn get_conversation_messages(
                     .one(db)
                     .await?;
                 if let Some(rev) = revision {
-                    // Get author profile (includes name and avatar)
+                    // Get author profile (includes name, avatar, and user info)
                     let profile = if let Some(author_id) = msg.user_id {
                         Profile::get_by_id(db, author_id).await?
                     } else {
                         None
                     };
 
-                    let (author_name, avatar_filename, avatar_width, avatar_height) =
-                        if let Some(p) = profile {
-                            (p.name, p.avatar_filename, p.avatar_width, p.avatar_height)
-                        } else {
-                            ("Unknown".to_string(), None, None, None)
-                        };
+                    let (
+                        author_name,
+                        avatar_filename,
+                        avatar_width,
+                        avatar_height,
+                        user_created_at,
+                        post_count,
+                        reputation_score,
+                        custom_title,
+                    ) = if let Some(p) = profile {
+                        (
+                            p.name,
+                            p.avatar_filename,
+                            p.avatar_width,
+                            p.avatar_height,
+                            Some(p.created_at),
+                            p.post_count,
+                            p.reputation_score,
+                            p.custom_title,
+                        )
+                    } else {
+                        ("Unknown".to_string(), None, None, None, None, None, 0, None)
+                    };
 
                     displays.push(MessageDisplay {
                         id: msg.id,
@@ -340,6 +357,10 @@ pub async fn get_conversation_messages(
                         avatar_filename,
                         avatar_width,
                         avatar_height,
+                        user_created_at,
+                        post_count,
+                        reputation_score,
+                        custom_title,
                     });
                 }
             }
@@ -360,6 +381,10 @@ pub struct MessageDisplay {
     pub avatar_filename: Option<String>,
     pub avatar_width: Option<i32>,
     pub avatar_height: Option<i32>,
+    pub user_created_at: Option<chrono::NaiveDateTime>,
+    pub post_count: Option<i64>,
+    pub reputation_score: i32,
+    pub custom_title: Option<String>,
 }
 
 impl MessageDisplay {
@@ -373,6 +398,19 @@ impl MessageDisplay {
             crate::attachment::get_avatar_html(filename, (width, height), size)
         } else {
             String::new()
+        }
+    }
+
+    /// Get URL token for user profile link
+    pub fn get_url_token(&self) -> String {
+        if let Some(user_id) = self.user_id {
+            format!(
+                "<a href=\"/members/{}\">{}</a>",
+                user_id,
+                askama::MarkupDisplay::new_unsafe(&self.author_name, askama::Html)
+            )
+        } else {
+            self.author_name.clone()
         }
     }
 }
