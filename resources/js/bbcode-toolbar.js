@@ -178,13 +178,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 break;
             case 'hr':
                 // Insert horizontal rule
-                editor.insertBBCodeContent('[hr]');
+                editor.executeCommand('insertHR');
                 break;
             case 'left':
+                editor.executeCommand('alignLeft');
+                break;
             case 'center':
+                editor.executeCommand('alignCenter');
+                break;
             case 'right':
-                // Text alignment - insert as BBCode wrapper
-                editor.insertBBCodeContent(`[${tag}][/${tag}]`);
+                editor.executeCommand('alignRight');
                 break;
             default:
                 // Unknown tag - try to apply as a mark or insert as BBCode

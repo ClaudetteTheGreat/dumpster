@@ -410,9 +410,51 @@ export class WysiwygEditor {
         return this.insertNode('code_block', attrs);
       case 'insertList':
         return this.insertList(attrs.listType || 'bullet');
+      case 'insertHR':
+        return this.insertNode('horizontal_rule', {});
+      case 'alignLeft':
+        return this.wrapInAlignment('align_left');
+      case 'alignCenter':
+        return this.wrapInAlignment('center');
+      case 'alignRight':
+        return this.wrapInAlignment('align_right');
       default:
         return false;
     }
+  }
+
+  /**
+   * Wrap the current block in an alignment node
+   */
+  wrapInAlignment(alignmentType) {
+    const state = this.editorView.state;
+    const { $from, $to } = state.selection;
+    const schema = bbcodeSchema;
+
+    // Get the range of blocks to wrap
+    const range = $from.blockRange($to);
+    if (!range) return false;
+
+    // Check if already wrapped in this alignment - if so, unwrap
+    const parentNode = $from.node(-1);
+    if (parentNode && parentNode.type.name === alignmentType) {
+      // Lift content out of alignment wrapper
+      const tr = state.tr;
+      const start = $from.before(-1);
+      const end = $from.after(-1);
+      tr.lift(range, range.depth - 1);
+      this.editorView.dispatch(tr);
+      return true;
+    }
+
+    // Wrap in alignment node
+    const alignNode = schema.nodes[alignmentType];
+    if (!alignNode) return false;
+
+    const tr = state.tr.wrap(range, [{ type: alignNode }]);
+    this.editorView.dispatch(tr);
+    this.editorView.focus();
+    return true;
   }
 
   /**
@@ -475,6 +517,9 @@ export class WysiwygEditor {
         break;
       case 'code_block':
         node = schema.nodes.code_block.create(attrs);
+        break;
+      case 'horizontal_rule':
+        node = schema.nodes.horizontal_rule.create();
         break;
       default:
         return false;

@@ -158,12 +158,12 @@
             <h3>Thread Template</h3>
 
             <div class="form-group">
-                <label for="thread_template">New Thread Template Text</label>
+                <label for="thread_template">Thread Posting Guidelines</label>
                 <textarea id="thread_template" name="thread_template" rows="6"
-                    placeholder="Enter template text that will appear as a guide when users create new threads...">{% if let Some(template) = forum.thread_template.as_ref() %}{{ template }}{% endif %}</textarea>
+                    placeholder="Enter guidelines or rules to display when users create new threads...">{% if let Some(template) = forum.thread_template.as_ref() %}{{ template }}{% endif %}</textarea>
                 <small class="form-help">
-                    This text appears as a faded placeholder in the content box when users create new threads.
-                    It helps guide users on what to include in their posts. The text disappears when they start typing.
+                    This text is displayed as a highlighted message box above the new thread form.
+                    Use it to provide posting guidelines, rules, or formatting instructions for this forum.
                 </small>
             </div>
         </div>
