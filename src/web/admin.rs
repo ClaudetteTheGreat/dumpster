@@ -4478,9 +4478,7 @@ async fn get_group_permissions(
         r#"
             SELECT ug.user_id as id, un.name as username
             FROM user_groups ug
-            LEFT JOIN LATERAL (
-                SELECT name FROM user_names WHERE user_id = ug.user_id ORDER BY created_at DESC LIMIT 1
-            ) un ON true
+            LEFT JOIN user_names un ON un.user_id = ug.user_id
             WHERE ug.group_id = $1
             ORDER BY un.name
             LIMIT 20
@@ -4541,10 +4539,10 @@ async fn search_users_autocomplete(
     let users: Vec<UserSuggestion> = UserSuggestion::find_by_statement(Statement::from_sql_and_values(
         DbBackend::Postgres,
         r#"
-            SELECT DISTINCT ON (user_id) user_id, name
+            SELECT user_id, name
             FROM user_names
             WHERE LOWER(name) LIKE LOWER($1 || '%')
-            ORDER BY user_id, created_at DESC
+            ORDER BY name
             LIMIT 10
         "#,
         [q.into()],
