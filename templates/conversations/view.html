@@ -79,9 +79,24 @@
                         #{{ loop.index }}
                     </div>
                 </div>
-                <div class="message-content ugc">
+                <div class="message-content ugc" data-message-id="{{ msg.id }}">
                     {{ msg.content|ugc|safe }}
                 </div>
+                {% if msg.user_id == client.get_id() %}
+                <div class="message-edit-form" data-message-id="{{ msg.id }}" style="display: none;">
+                    <form action="/conversations/messages/{{ msg.id }}/edit" method="post">
+                        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                        <div class="bbcode-editor-container">
+                            {% include "components/bbcode_toolbar.html" %}
+                            <textarea name="content" rows="8" cols="80">{{ msg.content }}</textarea>
+                        </div>
+                        <div class="edit-form-buttons">
+                            <button type="submit">Save</button>
+                            <button type="button" class="edit-cancel-btn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
                 <div class="message-footer">
                     <div class="message-footer--left">
                         <button type="button" class="quote-btn"
@@ -94,6 +109,9 @@
                             data-username="{{ msg.author_name }}"
                             data-content="{{ msg.content }}"
                             title="Add to quotes">+Quote</button>
+                        {% if msg.user_id == client.get_id() %}
+                        <button type="button" class="edit-message-btn" data-message-id="{{ msg.id }}">Edit</button>
+                        {% endif %}
                     </div>
                     <div class="message-footer--right">
                         <div class="reactions-container" data-ugc-id="{{ msg.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
@@ -154,5 +172,50 @@
     .participants-list {
         color: var(--text-secondary, #666);
     }
+
+    .edit-message-btn {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        padding: 0;
+        font: inherit;
+    }
+
+    .edit-message-btn:hover {
+        text-decoration: underline;
+    }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Edit message button handler
+    document.querySelectorAll('.edit-message-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const messageId = this.dataset.messageId;
+            const content = document.querySelector('.message-content[data-message-id="' + messageId + '"]');
+            const editForm = document.querySelector('.message-edit-form[data-message-id="' + messageId + '"]');
+
+            if (content && editForm) {
+                content.style.display = 'none';
+                editForm.style.display = 'block';
+            }
+        });
+    });
+
+    // Cancel edit button handler
+    document.querySelectorAll('.edit-cancel-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const editForm = this.closest('.message-edit-form');
+            const messageId = editForm.dataset.messageId;
+            const content = document.querySelector('.message-content[data-message-id="' + messageId + '"]');
+
+            if (content && editForm) {
+                editForm.style.display = 'none';
+                content.style.display = 'block';
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

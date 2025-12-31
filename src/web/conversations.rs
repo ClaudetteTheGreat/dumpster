@@ -20,6 +20,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(create_conversation)
         .service(view_conversation) // Must be after /new and /archived
         .service(send_message_handler)
+        .service(edit_message_handler)
         .service(leave_conversation_handler)
         .service(archive_conversation_handler)
         .service(unarchive_conversation_handler);
@@ -317,6 +318,49 @@ pub async fn send_message_handler(
         )
         .await;
     }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}
+
+/// Form data for editing a message
+#[derive(Deserialize)]
+pub struct EditMessageForm {
+    content: String,
+}
+
+/// POST /conversations/messages/{id}/edit - Edit a message
+#[post("/conversations/messages/{id}/edit")]
+pub async fn edit_message_handler(
+    client: ClientCtx,
+    message_id: web::Path<i32>,
+    form: web::Form<EditMessageForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let msg_id = *message_id;
+
+    if form.content.trim().is_empty() {
+        return Err(error::ErrorBadRequest("Message cannot be empty"));
+    }
+
+    // Get the message to find the conversation ID for redirect
+    let message = conversations::get_message(msg_id)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Message not found"))?;
+
+    let conv_id = message.conversation_id;
+
+    // Update the message
+    conversations::update_message(msg_id, user_id, &form.content)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to edit message: {}", e);
+            error::ErrorForbidden(e.to_string())
+        })?;
+
+    log::info!("User {} edited message {}", user_id, msg_id);
 
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/conversations/{}", conv_id)))

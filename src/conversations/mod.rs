@@ -526,6 +526,57 @@ pub async fn get_archived_conversations(
     Ok(previews)
 }
 
+/// Update a message's content (only by the message author)
+pub async fn update_message(
+    message_id: i32,
+    user_id: i32,
+    new_content: &str,
+) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Get the message to verify ownership
+    let message = private_messages::Entity::find_by_id(message_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("Message not found".to_string()))?;
+
+    // Verify the user is the message author
+    if message.user_id != Some(user_id) {
+        return Err(DbErr::Custom("You can only edit your own messages".to_string()));
+    }
+
+    // Get the UGC and update it
+    let ugc_model = ugc::Entity::find_by_id(message.ugc_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("UGC not found".to_string()))?;
+
+    // Create a new revision
+    let new_revision = ugc_revisions::ActiveModel {
+        ugc_id: Set(message.ugc_id),
+        ip_id: Set(None),
+        content: Set(new_content.to_string()),
+        created_at: Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    let revision = new_revision.insert(db).await?;
+
+    // Update UGC to point to new revision
+    let mut ugc_active: ugc::ActiveModel = ugc_model.into();
+    ugc_active.ugc_revision_id = Set(Some(revision.id));
+    ugc_active.update(db).await?;
+
+    Ok(())
+}
+
+/// Get a message by ID (for editing)
+pub async fn get_message(message_id: i32) -> Result<Option<private_messages::Model>, DbErr> {
+    let db = get_db_pool();
+    private_messages::Entity::find_by_id(message_id)
+        .one(db)
+        .await
+}
+
 /// Leave a conversation (remove user as participant)
 /// If no participants remain, the conversation is deleted
 pub async fn leave_conversation(user_id: i32, conversation_id: i32) -> Result<(), DbErr> {
