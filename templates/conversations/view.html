@@ -82,6 +82,20 @@
                 <div class="message-content ugc">
                     {{ msg.content|ugc|safe }}
                 </div>
+                <div class="message-footer">
+                    <div class="message-footer--left">
+                        <button type="button" class="quote-btn"
+                            data-post-id="{{ msg.id }}"
+                            data-username="{{ msg.author_name }}"
+                            data-content="{{ msg.content }}"
+                            title="Quote this message">Quote</button>
+                        <button type="button" class="add-quote-btn"
+                            data-post-id="{{ msg.id }}"
+                            data-username="{{ msg.author_name }}"
+                            data-content="{{ msg.content }}"
+                            title="Add to quotes">+Quote</button>
+                    </div>
+                </div>
             </div>
         </div>
         {% endfor %}
