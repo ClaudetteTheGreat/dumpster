@@ -42,7 +42,7 @@
         <!-- Permissions -->
         <div class="form-section">
             <h2>Permissions</h2>
-            <p class="section-desc">Set permissions for this group. Options: <strong>Yes</strong> (grant), <strong>No</strong> (deny), <strong>Never</strong> (permanent deny), <strong>Default</strong> (inherit).</p>
+            <p class="section-desc">Set permissions for this group. Options: <strong>Yes</strong> (grant), <strong>No</strong> (deny), <strong>Never</strong> (permanent deny that overrides Yes from other groups).</p>
 
             {% for category in categories %}
             <div class="permission-category">
@@ -55,9 +55,8 @@
                         </div>
                         <div class="permission-value">
                             <select name="permissions[{{ perm.id }}]" class="permission-select">
-                                <option value="default"{% if perm.value == "default" %} selected{% endif %}>Default</option>
+                                <option value="no"{% if perm.value == "no" || perm.value == "default" %} selected{% endif %}>No</option>
                                 <option value="yes"{% if perm.value == "yes" %} selected{% endif %}>Yes</option>
-                                <option value="no"{% if perm.value == "no" %} selected{% endif %}>No</option>
                                 <option value="never"{% if perm.value == "never" %} selected{% endif %}>Never</option>
                             </select>
                         </div>
