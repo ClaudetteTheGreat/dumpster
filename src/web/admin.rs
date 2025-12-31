@@ -150,6 +150,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_permission_hierarchy)
         .service(get_user_permissions)
         .service(get_group_permissions)
+        .service(search_users_autocomplete)
         // Reaction types management
         .service(view_reaction_types)
         .service(view_edit_reaction_type)
@@ -4511,6 +4512,51 @@ async fn get_group_permissions(
         users: group_users,
         permissions,
     })))
+}
+
+/// GET /admin/permissions/hierarchy/users/search - Search users for autocomplete
+#[get("/admin/permissions/hierarchy/users/search")]
+async fn search_users_autocomplete(
+    client: ClientCtx,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let q = query.get("q").map(|s| s.trim()).unwrap_or("");
+
+    if q.len() < 2 {
+        return Ok(web::Json(serde_json::json!({"users": []})));
+    }
+
+    let db = get_db_pool();
+
+    use sea_orm::{DbBackend, FromQueryResult, Statement};
+
+    #[derive(Debug, FromQueryResult, Serialize)]
+    struct UserSuggestion {
+        user_id: i32,
+        name: String,
+    }
+
+    let users: Vec<UserSuggestion> = UserSuggestion::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"
+            SELECT DISTINCT ON (user_id) user_id, name
+            FROM user_names
+            WHERE LOWER(name) LIKE LOWER($1 || '%')
+            ORDER BY user_id, created_at DESC
+            LIMIT 10
+        "#,
+        [q.into()],
+    ))
+    .all(db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to search users: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    Ok(web::Json(serde_json::json!({"users": users})))
 }
 
 /// Compute effective permissions for a set of groups and optional user

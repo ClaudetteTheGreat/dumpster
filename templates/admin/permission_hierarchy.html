@@ -16,7 +16,10 @@
         </div>
 
         <div class="search-form" id="user-search">
-            <input type="text" id="user-search-input" placeholder="Enter username..." autocomplete="off" />
+            <div class="autocomplete-wrapper">
+                <input type="text" id="user-search-input" placeholder="Start typing username..." autocomplete="off" />
+                <div id="user-suggestions" class="suggestions-dropdown"></div>
+            </div>
             <button type="button" id="user-search-btn" class="btn btn-primary">Search</button>
         </div>
 
@@ -103,6 +106,57 @@
 
 .group-select {
     max-width: 400px;
+}
+
+/* Autocomplete */
+.autocomplete-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.autocomplete-wrapper input {
+    width: 100%;
+}
+
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ccc;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.suggestions-dropdown.active {
+    display: block;
+}
+
+.suggestion-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover,
+.suggestion-item.selected {
+    background: #f0f4f8;
+}
+
+.suggestion-item .user-id {
+    color: #999;
+    font-size: 0.85em;
+    margin-left: 8px;
 }
 
 .results-container {
@@ -386,6 +440,24 @@ html.dark .search-form select {
     color: #fff;
 }
 
+html.dark .suggestions-dropdown {
+    background: #2a2a2a;
+    border-color: #555;
+}
+
+html.dark .suggestion-item {
+    border-color: #444;
+}
+
+html.dark .suggestion-item:hover,
+html.dark .suggestion-item.selected {
+    background: #3a3a3a;
+}
+
+html.dark .suggestion-item .user-id {
+    color: #888;
+}
+
 html.dark .no-selection,
 html.dark .loading {
     color: #aaa;
@@ -460,6 +532,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const userSearch = document.getElementById('user-search');
     const groupSearch = document.getElementById('group-search');
     const resultsContainer = document.getElementById('results-container');
+    const userInput = document.getElementById('user-search-input');
+    const suggestionsDropdown = document.getElementById('user-suggestions');
+
+    let debounceTimer = null;
+    let selectedIndex = -1;
 
     // Tab switching
     tabs.forEach(function(tab) {
@@ -477,33 +554,131 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // User search
+    // User autocomplete
+    userInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        selectedIndex = -1;
+
+        if (debounceTimer) clearTimeout(debounceTimer);
+
+        if (query.length < 2) {
+            suggestionsDropdown.classList.remove('active');
+            suggestionsDropdown.innerHTML = '';
+            return;
+        }
+
+        debounceTimer = setTimeout(function() {
+            fetch('/admin/permissions/hierarchy/users/search?q=' + encodeURIComponent(query))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.users && data.users.length > 0) {
+                        suggestionsDropdown.innerHTML = data.users.map(function(user, idx) {
+                            return '<div class="suggestion-item" data-username="' + escapeHtml(user.name) + '" data-index="' + idx + '">' +
+                                escapeHtml(user.name) +
+                                '<span class="user-id">#' + user.user_id + '</span>' +
+                                '</div>';
+                        }).join('');
+                        suggestionsDropdown.classList.add('active');
+
+                        // Add click handlers
+                        suggestionsDropdown.querySelectorAll('.suggestion-item').forEach(function(item) {
+                            item.addEventListener('click', function() {
+                                selectUser(this.dataset.username);
+                            });
+                        });
+                    } else {
+                        suggestionsDropdown.classList.remove('active');
+                        suggestionsDropdown.innerHTML = '';
+                    }
+                })
+                .catch(function() {
+                    suggestionsDropdown.classList.remove('active');
+                });
+        }, 200);
+    });
+
+    // Keyboard navigation for suggestions
+    userInput.addEventListener('keydown', function(e) {
+        const items = suggestionsDropdown.querySelectorAll('.suggestion-item');
+        if (!items.length) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                loadUserPermissions(this.value.trim());
+            }
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+            updateSelection(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            updateSelection(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && items[selectedIndex]) {
+                selectUser(items[selectedIndex].dataset.username);
+            } else {
+                loadUserPermissions(this.value.trim());
+            }
+        } else if (e.key === 'Escape') {
+            suggestionsDropdown.classList.remove('active');
+            selectedIndex = -1;
+        }
+    });
+
+    function updateSelection(items) {
+        items.forEach(function(item, idx) {
+            item.classList.toggle('selected', idx === selectedIndex);
+        });
+    }
+
+    function selectUser(username) {
+        userInput.value = username;
+        suggestionsDropdown.classList.remove('active');
+        suggestionsDropdown.innerHTML = '';
+        selectedIndex = -1;
+        loadUserPermissions(username);
+    }
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!userInput.contains(e.target) && !suggestionsDropdown.contains(e.target)) {
+            suggestionsDropdown.classList.remove('active');
+            selectedIndex = -1;
+        }
+    });
+
+    // User search button
     document.getElementById('user-search-btn').addEventListener('click', function() {
-        const username = document.getElementById('user-search-input').value.trim();
+        const username = userInput.value.trim();
+        if (username) {
+            loadUserPermissions(username);
+        }
+    });
+
+    function loadUserPermissions(username) {
         if (!username) return;
 
+        suggestionsDropdown.classList.remove('active');
         resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
 
         fetch('/admin/permissions/hierarchy/user?username=' + encodeURIComponent(username))
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    resultsContainer.innerHTML = '<p class="no-selection">' + data.error + '</p>';
+                    resultsContainer.innerHTML = '<p class="no-selection">' + escapeHtml(data.error) + '</p>';
                 } else {
                     renderUserResult(data);
                 }
             })
             .catch(err => {
+                console.error('Fetch error:', err);
                 resultsContainer.innerHTML = '<p class="no-selection">Error loading data</p>';
             });
-    });
-
-    // Enter key for user search
-    document.getElementById('user-search-input').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            document.getElementById('user-search-btn').click();
-        }
-    });
+    }
 
     // Group search
     document.getElementById('group-search-btn').addEventListener('click', function() {
