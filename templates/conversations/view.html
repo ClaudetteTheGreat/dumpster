@@ -95,6 +95,17 @@
                             data-content="{{ msg.content }}"
                             title="Add to quotes">+Quote</button>
                     </div>
+                    <div class="message-footer--right">
+                        <div class="reactions-container" data-ugc-id="{{ msg.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
+                            <div class="reactions-display"></div>
+                            {% if client.is_user() && client.get_id() != msg.user_id %}
+                            <div class="reactions-picker">
+                                <button type="button" class="reaction-picker-toggle" title="Add reaction">+</button>
+                                <div class="reaction-picker-dropdown" style="display: none;"></div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

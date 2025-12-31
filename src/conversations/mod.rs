@@ -350,6 +350,7 @@ pub async fn get_conversation_messages(
 
                     displays.push(MessageDisplay {
                         id: msg.id,
+                        ugc_id: msg.ugc_id,
                         user_id: msg.user_id,
                         author_name,
                         content: rev.content,
@@ -374,6 +375,7 @@ pub async fn get_conversation_messages(
 #[derive(Debug, Clone)]
 pub struct MessageDisplay {
     pub id: i32,
+    pub ugc_id: i32,
     pub user_id: Option<i32>,
     pub author_name: String,
     pub content: String,
