@@ -1,157 +1,178 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<h2>Private Messages</h2>
+<div class="thread">
+    <div class="thread-header">
+        <div class="thread-title-section">
+            <h1>
+                <span class="thread-badge thread-badge--private">Private</span>
+                Messages
+            </h1>
+            <div class="thread-meta">
+                {% if unread_count > 0 %}
+                    <span class="unread-count">{{ unread_count }} unread</span>
+                {% else %}
+                    <span>No unread conversations</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="thread-actions">
+            <a href="/conversations/archived" class="watch-button">Archived</a>
+            <a href="/conversations/new" class="action-button">New Conversation</a>
+        </div>
+    </div>
 
-<div class="pm-header">
-    <div class="pm-count">
-        {% if unread_count > 0 %}
-            <p>You have <strong>{{ unread_count }}</strong> unread conversation(s)</p>
-        {% else %}
-            <p>No unread conversations</p>
-        {% endif %}
-    </div>
-    <div class="pm-actions">
-        <a href="/conversations/archived" class="button button-secondary">Archived</a>
-        <a href="/conversations/new" class="button">New Conversation</a>
-    </div>
+    {% if conversations.is_empty() %}
+        <div class="message">
+            <div class="message-cell message-cell--main" style="text-align: center; padding: 40px;">
+                <em>No conversations yet.</em>
+                <p><a href="/conversations/new">Start one!</a></p>
+            </div>
+        </div>
+    {% else %}
+        {% for conv in conversations %}
+        <a href="/conversations/{{ conv.id }}" class="conversation-row {% if conv.is_unread %}conversation-row--unread{% endif %}">
+            <div class="conversation-row-main">
+                <div class="conversation-title">
+                    {% if let Some(title) = conv.title %}
+                        {{ title }}
+                    {% else %}
+                        Conversation with {% for participant in conv.participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
+                    {% endif %}
+                    {% if conv.is_unread %}
+                        <span class="thread-badge thread-badge--new">NEW</span>
+                    {% endif %}
+                </div>
+                <div class="conversation-participants">
+                    With: {% for participant in conv.participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
+                </div>
+            </div>
+            <div class="conversation-row-meta">
+                {% if let Some(preview) = conv.last_message_content %}
+                    <div class="conversation-preview">{{ preview }}</div>
+                {% endif %}
+                {% if let Some(last_at) = conv.last_message_at %}
+                    <time class="conversation-time">{{ last_at }}</time>
+                {% endif %}
+            </div>
+        </a>
+        {% endfor %}
+    {% endif %}
 </div>
 
-{% if conversations.is_empty() %}
-    <p>No conversations yet. <a href="/conversations/new">Start one!</a></p>
-{% else %}
-    <div class="conversation-list">
-        {% for conv in conversations %}
-            <div class="conversation-item {% if conv.is_unread %}unread{% endif %}">
-                <a href="/conversations/{{ conv.id }}">
-                    <div class="conversation-content">
-                        <h4>
-                            {% if let Some(title) = conv.title %}
-                                {{ title }}
-                            {% else %}
-                                Conversation with {% for participant in conv.participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
-                            {% endif %}
-                            {% if conv.is_unread %}
-                                <span class="unread-badge">NEW</span>
-                            {% endif %}
-                        </h4>
-                        <p class="participants">With:
-                            {% for participant in conv.participants %}
-                                {{ participant }}{% if !loop.last %}, {% endif %}
-                            {% endfor %}
-                        </p>
-                        {% if let Some(preview) = conv.last_message_content %}
-                            <p class="preview">{{ preview }}</p>
-                        {% endif %}
-                        {% if let Some(last_at) = conv.last_message_at %}
-                            <small class="timestamp">{{ last_at }}</small>
-                        {% endif %}
-                    </div>
-                </a>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
 <style>
-    .pm-header {
+    .thread-badge--private {
+        background: #6f42c1;
+        color: white;
+    }
+
+    .thread-badge--new {
+        background: #28a745;
+        color: white;
+        font-size: 0.7em;
+        padding: 2px 8px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+
+    .unread-count {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .conversation-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
         padding: 15px;
-        background: #f5f5f5;
-        border-radius: 4px;
-    }
-
-    .conversation-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .conversation-item {
-        padding: 15px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        background: white;
+        background: var(--bg-primary, #fff);
+        border: 1px solid var(--border-color, #dee2e6);
+        border-radius: 0;
+        margin-bottom: -1px;
+        text-decoration: none;
+        color: inherit;
         transition: background 0.2s;
     }
 
-    .conversation-item:hover {
-        background: #f9f9f9;
+    .conversation-row:first-of-type {
+        border-radius: 8px 8px 0 0;
     }
 
-    .conversation-item.unread {
-        background: #f0f8ff;
-        border-color: #4a90e2;
-        border-left-width: 4px;
+    .conversation-row:last-of-type {
+        border-radius: 0 0 8px 8px;
+        margin-bottom: 0;
     }
 
-    .conversation-item a {
-        text-decoration: none;
-        color: inherit;
+    .conversation-row:only-of-type {
+        border-radius: 8px;
     }
 
-    .conversation-content h4 {
-        margin: 0 0 5px 0;
-        font-size: 1.1em;
+    .conversation-row:hover {
+        background: var(--bg-hover, #f8f9fa);
     }
 
-    .participants {
-        color: #666;
+    .conversation-row--unread {
+        background: var(--bg-unread, #f0f8ff);
+        border-left: 4px solid #4a90e2;
+    }
+
+    html.dark .conversation-row--unread {
+        background: var(--bg-unread-dark, #1a3a5c);
+    }
+
+    .conversation-row-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .conversation-title {
+        font-weight: 600;
+        font-size: 1.05em;
+        margin-bottom: 4px;
+        color: var(--text-color, #333);
+    }
+
+    .conversation-participants {
         font-size: 0.9em;
-        margin: 5px 0;
+        color: var(--text-muted, #666);
     }
 
-    .preview {
-        color: #333;
-        margin: 10px 0 5px 0;
+    .conversation-row-meta {
+        text-align: right;
+        flex-shrink: 0;
+        margin-left: 20px;
+    }
+
+    .conversation-preview {
+        font-size: 0.9em;
+        color: var(--text-secondary, #555);
+        max-width: 300px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        margin-bottom: 4px;
     }
 
-    .timestamp {
-        color: #999;
+    .conversation-time {
         font-size: 0.85em;
+        color: var(--text-muted, #999);
     }
 
-    .unread-badge {
-        background: #4a90e2;
-        color: white;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.75em;
-        font-weight: bold;
-        margin-left: 10px;
-    }
+    @media (max-width: 768px) {
+        .conversation-row {
+            flex-direction: column;
+            align-items: flex-start;
+        }
 
-    .button {
-        display: inline-block;
-        padding: 10px 20px;
-        background: #4a90e2;
-        color: white;
-        text-decoration: none;
-        border-radius: 4px;
-        transition: background 0.2s;
-    }
+        .conversation-row-meta {
+            text-align: left;
+            margin-left: 0;
+            margin-top: 10px;
+        }
 
-    .button:hover {
-        background: #357abd;
-    }
-
-    .button-secondary {
-        background: #6c757d;
-    }
-
-    .button-secondary:hover {
-        background: #5a6268;
-    }
-
-    .pm-actions {
-        display: flex;
-        gap: 10px;
+        .conversation-preview {
+            max-width: none;
+        }
     }
 </style>
 {% endblock %}

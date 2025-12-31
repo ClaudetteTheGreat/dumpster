@@ -1,234 +1,106 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<div class="conversation-header">
-    <div class="header-top">
-        {% if is_archived %}
-            <a href="/conversations/archived" class="back-link">← Back to Archived</a>
-        {% else %}
-            <a href="/conversations" class="back-link">← Back to Inbox</a>
-        {% endif %}
-        <div class="header-actions">
+<div class="thread">
+    <div class="thread-header">
+        <div class="thread-title-section">
+            <h1>
+                <span class="thread-badge thread-badge--private">Private</span>
+                {% if let Some(t) = title %}
+                    {{ t }}
+                {% else %}
+                    Conversation with {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
+                {% endif %}
+            </h1>
+            <div class="thread-meta">
+                <span class="participants-list">Participants: {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}</span>
+            </div>
+        </div>
+        <div class="thread-actions">
             {% if is_archived %}
-                <form action="/conversations/{{ conversation_id }}/unarchive" method="post" class="action-form">
+                <a href="/conversations/archived" class="action-button action-button--secondary">← Back to Archived</a>
+                <form action="/conversations/{{ conversation_id }}/unarchive" method="post" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                    <button type="submit" class="btn-unarchive">Unarchive</button>
+                    <button type="submit" class="action-button">Unarchive</button>
                 </form>
             {% else %}
-                <form action="/conversations/{{ conversation_id }}/archive" method="post" class="action-form">
+                <a href="/conversations" class="action-button action-button--secondary">← Back to Inbox</a>
+                <form action="/conversations/{{ conversation_id }}/archive" method="post" style="display: inline;">
                     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                    <button type="submit" class="btn-archive">Archive</button>
+                    <button type="submit" class="watch-button">Archive</button>
                 </form>
             {% endif %}
-            <form action="/conversations/{{ conversation_id }}/leave" method="post" class="action-form" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
+            <form action="/conversations/{{ conversation_id }}/leave" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
                 <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                <button type="submit" class="btn-leave">Leave</button>
+                <button type="submit" class="watch-button watch-button--danger">Leave</button>
             </form>
         </div>
     </div>
-    <h2>
-        {% if let Some(t) = title %}
-            {{ t }}
-        {% else %}
-            Conversation with {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
-        {% endif %}
-    </h2>
-    <p class="participants-info">Participants:
-        {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
-    </p>
-</div>
 
-<div class="messages-container">
     {% if messages.is_empty() %}
-        <p>No messages yet.</p>
+        <div class="message">
+            <div class="message-cell message-cell--main" style="text-align: center; padding: 40px;">
+                <em>No messages yet. Start the conversation below!</em>
+            </div>
+        </div>
     {% else %}
         {% for msg in messages %}
-            <div class="message {% if msg.user_id == client.get_id() %}own-message{% endif %}">
+        <div class="message {% if msg.user_id == client.get_id() %}message--own{% endif %}">
+            <div class="message-cell message-cell--author">
+                <div class="username">{{ msg.author_name }}</div>
+            </div>
+            <div class="message-cell message-cell--main">
                 <div class="message-header">
-                    <strong>{{ msg.author_name }}</strong>
-                    <small class="timestamp">{{ msg.created_at }}</small>
+                    <div class="message-header--left">
+                        <time datetime="{{ msg.created_at }}">{{ msg.created_at }}</time>
+                    </div>
+                    <div class="message-header--right">
+                        #{{ loop.index }}
+                    </div>
                 </div>
                 <div class="message-content">
                     {{ msg.content }}
                 </div>
             </div>
+        </div>
         {% endfor %}
     {% endif %}
-</div>
 
-<div class="message-form">
     <form id="reply-form" action="/conversations/{{ conversation_id }}/send" method="post">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+        <h2>Send Message</h2>
         <div class="bbcode-editor-container">
             {% include "components/bbcode_toolbar.html" %}
             <textarea id="reply-textarea" name="message" rows="6" placeholder="Type your message..." required></textarea>
         </div>
-        <button type="submit">Send Message</button>
+        <button type="submit">Send</button>
     </form>
 </div>
 
 <style>
-    .conversation-header {
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e0e0e0;
-    }
-
-    .header-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 10px;
-    }
-
-    .back-link {
-        color: #4a90e2;
-        text-decoration: none;
-    }
-
-    .back-link:hover {
-        text-decoration: underline;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .action-form {
-        margin: 0;
-    }
-
-    .btn-archive, .btn-unarchive {
-        padding: 6px 12px;
-        background: #6c757d;
+    .thread-badge--private {
+        background: #6f42c1;
         color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.9em;
-        cursor: pointer;
-        transition: background 0.2s;
     }
 
-    .btn-archive:hover, .btn-unarchive:hover {
-        background: #5a6268;
-    }
-
-    .btn-leave {
-        padding: 6px 12px;
+    .watch-button--danger {
         background: #dc3545;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.9em;
-        cursor: pointer;
-        transition: background 0.2s;
     }
 
-    .btn-leave:hover {
+    .watch-button--danger:hover {
         background: #c82333;
     }
 
-    .conversation-header h2 {
-        margin: 0 0 5px 0;
+    .message--own {
+        background: var(--bg-own-message, #e3f2fd);
     }
 
-    .participants-info {
-        color: #666;
-        font-size: 0.9em;
-        margin: 0;
+    html.dark .message--own {
+        background: var(--bg-own-message-dark, #1a3a5c);
     }
 
-    .messages-container {
-        min-height: 400px;
-        max-height: 600px;
-        overflow-y: auto;
-        padding: 20px;
-        background: #f9f9f9;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .message {
-        margin-bottom: 15px;
-        padding: 12px;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-    }
-
-    .message.own-message {
-        background: #e3f2fd;
-        margin-left: 40px;
-    }
-
-    .message-header {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        font-size: 0.9em;
-    }
-
-    .message-header strong {
-        color: #333;
-    }
-
-    .timestamp {
-        color: #999;
-    }
-
-    .message-content {
-        color: #333;
-        line-height: 1.5;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-
-    .message-form {
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .message-form form {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .message-form .bbcode-editor-container {
-        margin-bottom: 0;
-    }
-
-    .message-form .bbcode-editor-container textarea {
-        width: 100%;
-        padding: 10px;
-        border: 1px solid var(--border-color, #ddd);
-        border-top: none;
-        border-radius: 0 0 4px 4px;
-        font-family: inherit;
-        font-size: 1em;
-        resize: vertical;
-        min-height: 120px;
-        background: var(--bg-input, #fff);
-        color: var(--text-color, #333);
-    }
-
-    .message-form button {
-        align-self: flex-end;
-        padding: 10px 30px;
-        background: #4a90e2;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 1em;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-
-    .message-form button:hover {
-        background: #357abd;
+    .participants-list {
+        color: var(--text-secondary, #666);
     }
 </style>
 {% endblock %}
