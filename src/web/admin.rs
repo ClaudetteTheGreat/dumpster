@@ -261,11 +261,21 @@ struct DashboardTemplate {
 /// GET /admin - Admin dashboard
 #[get("/admin")]
 async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
-    // Check admin permission - require login first
+    // Require at least one admin/moderate permission to access the dashboard
     let _user_id = client.require_login()?;
 
-    // For now, allow any logged-in user to view dashboard
-    // In production, you would check for admin permission here
+    // Check if user has any admin or moderation permission
+    let has_admin_access = client.can("admin.settings")
+        || client.can("admin.user.ban")
+        || client.can("admin.user.manage")
+        || client.can("admin.word_filters.view")
+        || client.can("admin.permissions.manage")
+        || client.can("moderate.reports.view")
+        || client.can("moderate.approval.view");
+
+    if !has_admin_access {
+        return Err(error::ErrorForbidden("Access denied"));
+    }
 
     let db = get_db_pool();
     let now = Utc::now().naive_utc();

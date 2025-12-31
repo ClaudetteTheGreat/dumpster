@@ -110,6 +110,7 @@
         {% endif %}
     </div>
 
+    {% if client.can("admin.settings") %}
     <!-- Statistics Grid -->
     <div class="stats-grid">
         <div class="stat-card">
@@ -138,6 +139,7 @@
             <div class="stat-label">Forums</div>
         </div>
     </div>
+    {% endif %}
 
     <div class="dashboard-grid">
         {% if client.can("admin.user.manage") %}
@@ -159,6 +161,7 @@
         </div>
         {% endif %}
 
+        {% if client.can("moderate.reports.view") || client.can("admin.settings") %}
         <!-- Recent Moderation Actions -->
         <div class="dashboard-section">
             <h2>Recent Moderation</h2>
@@ -176,6 +179,7 @@
             </ul>
             {% endif %}
         </div>
+        {% endif %}
 
         {% if client.can("moderate.reports.view") %}
         <!-- Open Reports -->
