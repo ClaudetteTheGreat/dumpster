@@ -174,7 +174,7 @@
     margin: 50px 0;
 }
 
-.loading {
+.perm-loading {
     text-align: center;
     padding: 50px;
     color: #666;
@@ -459,7 +459,7 @@ html.dark .suggestion-item .user-id {
 }
 
 html.dark .no-selection,
-html.dark .loading {
+html.dark .perm-loading {
     color: #aaa;
 }
 
@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!username) return;
 
         suggestionsDropdown.classList.remove('active');
-        resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
+        resultsContainer.innerHTML = '<p class="perm-loading">Loading...</p>';
 
         fetch('/admin/permissions/hierarchy/user?username=' + encodeURIComponent(username))
             .then(function(response) {
@@ -702,7 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const groupId = document.getElementById('group-select').value;
         if (!groupId) return;
 
-        resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
+        resultsContainer.innerHTML = '<p class="perm-loading">Loading...</p>';
 
         fetch('/admin/permissions/hierarchy/group?group_id=' + encodeURIComponent(groupId))
             .then(response => response.json())
