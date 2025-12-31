@@ -587,7 +587,12 @@ pub async fn get_message(message_id: i32) -> Result<Option<private_messages::Mod
 }
 
 /// Delete a message (soft delete via ugc_deletions)
-pub async fn delete_message(message_id: i32, user_id: i32) -> Result<(), DbErr> {
+/// If `can_moderate` is true, the user can delete any message (moderator permission)
+pub async fn delete_message(
+    message_id: i32,
+    user_id: i32,
+    can_moderate: bool,
+) -> Result<(), DbErr> {
     use crate::orm::ugc_deletions;
 
     let db = get_db_pool();
@@ -598,10 +603,10 @@ pub async fn delete_message(message_id: i32, user_id: i32) -> Result<(), DbErr> 
         .await?
         .ok_or_else(|| DbErr::Custom("Message not found".to_string()))?;
 
-    // Verify the user is the message author
-    if message.user_id != Some(user_id) {
+    // Verify the user is the message author OR has moderation permission
+    if message.user_id != Some(user_id) && !can_moderate {
         return Err(DbErr::Custom(
-            "You can only delete your own messages".to_string(),
+            "You do not have permission to delete this message".to_string(),
         ));
     }
 

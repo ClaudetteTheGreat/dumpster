@@ -385,8 +385,11 @@ pub async fn delete_message_handler(
 
     let conv_id = message.conversation_id;
 
-    // Delete the message
-    conversations::delete_message(msg_id, user_id)
+    // Check if user has moderation permission to delete any message
+    let can_moderate = client.can("moderate.message.delete_any");
+
+    // Delete the message (owner can always delete, moderators can delete any)
+    conversations::delete_message(msg_id, user_id, can_moderate)
         .await
         .map_err(|e| {
             log::error!("Failed to delete message: {}", e);

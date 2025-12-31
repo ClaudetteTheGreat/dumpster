@@ -131,6 +131,8 @@
                             title="Add to quotes">+Quote</button>
                         {% if msg.user_id == client.get_id() %}
                         <button type="button" class="edit-message-btn" data-message-id="{{ msg.id }}">Edit</button>
+                        {% endif %}
+                        {% if msg.user_id == client.get_id() || client.can("moderate.message.delete_any") %}
                         <form action="/conversations/messages/{{ msg.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this message?');">
                             <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
                             <button type="submit" class="delete-message-btn">Delete</button>
