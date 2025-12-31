@@ -17,7 +17,7 @@ use askama::Template;
 use askama_actix::TemplateToResponse;
 use chrono::{Duration, Utc};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection};
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::sync::Arc;
 
 /// Deserialize a form field that can be either a single value or a sequence into a Vec
@@ -146,6 +146,10 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(view_edit_group)
         .service(update_group)
         .service(delete_group)
+        // Permission hierarchy viewer
+        .service(view_permission_hierarchy)
+        .service(get_user_permissions)
+        .service(get_group_permissions)
         // Reaction types management
         .service(view_reaction_types)
         .service(view_edit_reaction_type)
@@ -4185,6 +4189,468 @@ async fn delete_group(
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", "/admin/groups"))
         .finish())
+}
+
+// ============================================================================
+// Permission Hierarchy Viewer
+// ============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/permission_hierarchy.html")]
+struct PermissionHierarchyTemplate {
+    client: ClientCtx,
+    groups: Vec<groups::Model>,
+}
+
+/// GET /admin/permissions/hierarchy - Permission hierarchy viewer page
+#[get("/admin/permissions/hierarchy")]
+async fn view_permission_hierarchy(client: ClientCtx) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let db = get_db_pool();
+
+    let all_groups = groups::Entity::find()
+        .order_by_asc(groups::Column::Label)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    Ok(PermissionHierarchyTemplate {
+        client,
+        groups: all_groups,
+    }
+    .to_response())
+}
+
+/// JSON response for user permission hierarchy
+#[derive(Serialize)]
+struct UserPermissionHierarchy {
+    username: String,
+    user_id: i32,
+    groups: Vec<UserGroupInfo>,
+    forums: Vec<ForumModStatus>,
+    permissions: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    permission_sources: std::collections::HashMap<String, String>,
+}
+
+#[derive(Serialize)]
+struct UserGroupInfo {
+    id: i32,
+    label: String,
+    is_primary: bool,
+}
+
+#[derive(Serialize)]
+struct ForumModStatus {
+    id: i32,
+    label: String,
+    depth: i32,
+    is_moderator: bool,
+    inherits_mod: bool,
+}
+
+/// GET /admin/permissions/hierarchy/user - Get user permission hierarchy (AJAX)
+#[get("/admin/permissions/hierarchy/user")]
+async fn get_user_permissions(
+    client: ClientCtx,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let username = query
+        .get("username")
+        .map(|s| s.trim())
+        .unwrap_or("");
+
+    if username.is_empty() {
+        return Ok(web::Json(serde_json::json!({"error": "Username required"})));
+    }
+
+    let db = get_db_pool();
+
+    // Find user by username
+    let user_name = user_names::Entity::find()
+        .filter(user_names::Column::Name.eq(username))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to look up user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let user_name = match user_name {
+        Some(u) => u,
+        None => return Ok(web::Json(serde_json::json!({"error": "User not found"}))),
+    };
+
+    let user_id = user_name.user_id;
+
+    // Get user's groups
+    let user_group_rows = user_groups::Entity::find()
+        .filter(user_groups::Column::UserId.eq(user_id))
+        .find_also_related(groups::Entity)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch user groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let mut user_groups_info: Vec<UserGroupInfo> = user_group_rows
+        .into_iter()
+        .filter_map(|(_, group)| {
+            group.map(|g| UserGroupInfo {
+                id: g.id,
+                label: g.label,
+                is_primary: false,
+            })
+        })
+        .collect();
+
+    // Sort by label
+    user_groups_info.sort_by(|a, b| a.label.cmp(&b.label));
+
+    // Mark first group as primary (if any)
+    if !user_groups_info.is_empty() {
+        user_groups_info[0].is_primary = true;
+    }
+
+    // Get all forums with hierarchy
+    let forums = forums::Entity::find()
+        .order_by_asc(forums::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forums: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get user's direct moderator assignments
+    let mod_assignments: std::collections::HashSet<i32> = forum_moderators::Entity::find()
+        .filter(forum_moderators::Column::UserId.eq(user_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch moderator status: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .into_iter()
+        .map(|m| m.forum_id)
+        .collect();
+
+    // Build parent map for inheritance
+    let parent_map: std::collections::HashMap<i32, Option<i32>> = forums
+        .iter()
+        .map(|f| (f.id, f.parent_id))
+        .collect();
+
+    // Check if a forum inherits mod status from parent
+    fn inherits_mod(
+        forum_id: i32,
+        direct_mods: &std::collections::HashSet<i32>,
+        parent_map: &std::collections::HashMap<i32, Option<i32>>,
+    ) -> bool {
+        let mut current = parent_map.get(&forum_id).copied().flatten();
+        while let Some(parent_id) = current {
+            if direct_mods.contains(&parent_id) {
+                return true;
+            }
+            current = parent_map.get(&parent_id).copied().flatten();
+        }
+        false
+    }
+
+    // Build forum tree with depths
+    fn get_depth(
+        forum_id: i32,
+        parent_map: &std::collections::HashMap<i32, Option<i32>>,
+    ) -> i32 {
+        let mut depth = 0;
+        let mut current = parent_map.get(&forum_id).copied().flatten();
+        while current.is_some() {
+            depth += 1;
+            current = parent_map.get(&current.unwrap()).copied().flatten();
+        }
+        depth
+    }
+
+    let forum_status: Vec<ForumModStatus> = forums
+        .iter()
+        .map(|f| {
+            let is_mod = mod_assignments.contains(&f.id);
+            let inherits = !is_mod && inherits_mod(f.id, &mod_assignments, &parent_map);
+            ForumModStatus {
+                id: f.id,
+                label: f.label.clone(),
+                depth: get_depth(f.id, &parent_map),
+                is_moderator: is_mod,
+                inherits_mod: inherits,
+            }
+        })
+        .collect();
+
+    // Get effective permissions
+    let group_ids: Vec<i32> = user_groups_info.iter().map(|g| g.id).collect();
+    let (permissions, sources) = compute_effective_permissions(db, &group_ids, Some(user_id)).await?;
+
+    Ok(web::Json(serde_json::json!(UserPermissionHierarchy {
+        username: user_name.name,
+        user_id,
+        groups: user_groups_info,
+        forums: forum_status,
+        permissions,
+        permission_sources: sources,
+    })))
+}
+
+/// JSON response for group permission info
+#[derive(Serialize)]
+struct GroupPermissionInfo {
+    id: i32,
+    label: String,
+    user_count: i64,
+    users: Vec<GroupUserInfo>,
+    permissions: std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+}
+
+#[derive(Serialize)]
+struct GroupUserInfo {
+    id: i32,
+    username: String,
+}
+
+/// GET /admin/permissions/hierarchy/group - Get group permission info (AJAX)
+#[get("/admin/permissions/hierarchy/group")]
+async fn get_group_permissions(
+    client: ClientCtx,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let group_id_str = query.get("group_id").map(|s| s.as_str()).unwrap_or("");
+    let group_id: i32 = group_id_str.parse().unwrap_or(0);
+
+    if group_id == 0 {
+        return Ok(web::Json(serde_json::json!({"error": "Invalid group ID"})));
+    }
+
+    let db = get_db_pool();
+
+    // Get group info
+    let group = groups::Entity::find_by_id(group_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch group: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let group = match group {
+        Some(g) => g,
+        None => return Ok(web::Json(serde_json::json!({"error": "Group not found"}))),
+    };
+
+    // Count users in group
+    let user_count: i64 = user_groups::Entity::find()
+        .filter(user_groups::Column::GroupId.eq(group_id))
+        .count(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to count users: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })? as i64;
+
+    // Get first 20 users in group
+    use sea_orm::{DbBackend, FromQueryResult, Statement};
+
+    #[derive(Debug, FromQueryResult)]
+    struct UserRow {
+        id: i32,
+        username: Option<String>,
+    }
+
+    let users: Vec<UserRow> = UserRow::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"
+            SELECT ug.user_id as id, un.name as username
+            FROM user_groups ug
+            LEFT JOIN LATERAL (
+                SELECT name FROM user_names WHERE user_id = ug.user_id ORDER BY created_at DESC LIMIT 1
+            ) un ON true
+            WHERE ug.group_id = $1
+            ORDER BY un.name
+            LIMIT 20
+        "#,
+        [group_id.into()],
+    ))
+    .all(db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to fetch group users: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    let group_users: Vec<GroupUserInfo> = users
+        .into_iter()
+        .map(|u| GroupUserInfo {
+            id: u.id,
+            username: u.username.unwrap_or_else(|| format!("User #{}", u.id)),
+        })
+        .collect();
+
+    // Get group permissions
+    let (permissions, _) = compute_effective_permissions(db, &[group_id], None).await?;
+
+    Ok(web::Json(serde_json::json!(GroupPermissionInfo {
+        id: group.id,
+        label: group.label,
+        user_count,
+        users: group_users,
+        permissions,
+    })))
+}
+
+/// Compute effective permissions for a set of groups and optional user
+async fn compute_effective_permissions(
+    db: &sea_orm::DatabaseConnection,
+    group_ids: &[i32],
+    user_id: Option<i32>,
+) -> Result<
+    (
+        std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+        std::collections::HashMap<String, String>,
+    ),
+    Error,
+> {
+    use crate::permission::Flag;
+
+    // Get all permissions with categories
+    let all_perms = permissions::Entity::find()
+        .find_also_related(permission_categories::Entity)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permissions: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get permission values for the groups
+    let collections = permission_collections::Entity::find()
+        .filter(
+            sea_orm::Condition::any()
+                .add(permission_collections::Column::GroupId.is_in(group_ids.to_vec()))
+                .add_option(user_id.map(|uid| permission_collections::Column::UserId.eq(uid))),
+        )
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission collections: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let collection_ids: Vec<i32> = collections.iter().map(|c| c.id).collect();
+
+    // Map collection_id to group label for source tracking
+    let all_groups = groups::Entity::find()
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch groups: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let group_labels: std::collections::HashMap<i32, String> = all_groups
+        .iter()
+        .map(|g| (g.id, g.label.clone()))
+        .collect();
+
+    let collection_sources: std::collections::HashMap<i32, String> = collections
+        .iter()
+        .map(|c| {
+            let source = if let Some(gid) = c.group_id {
+                group_labels.get(&gid).cloned().unwrap_or_else(|| "Unknown".to_string())
+            } else if c.user_id.is_some() {
+                "User-specific".to_string()
+            } else {
+                "Unknown".to_string()
+            };
+            (c.id, source)
+        })
+        .collect();
+
+    let perm_values = permission_values::Entity::find()
+        .filter(permission_values::Column::CollectionId.is_in(collection_ids))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch permission values: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Build effective permission map
+    // Permission resolution: Never > Yes > No
+    let mut effective: std::collections::HashMap<i32, (Flag, i32)> = std::collections::HashMap::new(); // perm_id -> (flag, collection_id)
+
+    for pv in perm_values {
+        let existing = effective.get(&pv.permission_id);
+        let should_update = match existing {
+            None => true,
+            Some((existing_flag, _)) => {
+                // Never overrides everything
+                if pv.value == Flag::NEVER {
+                    true
+                } else if *existing_flag == Flag::NEVER {
+                    false
+                } else if pv.value == Flag::YES {
+                    // Yes overrides No but not Never
+                    *existing_flag != Flag::YES
+                } else {
+                    false
+                }
+            }
+        };
+
+        if should_update {
+            effective.insert(pv.permission_id, (pv.value, pv.collection_id));
+        }
+    }
+
+    // Organize by category
+    let mut result: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
+        std::collections::HashMap::new();
+    let mut sources: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    for (perm, category) in all_perms {
+        let category_label = category.map(|c| c.label).unwrap_or_else(|| "Other".to_string());
+        let perm_label = perm.label.clone();
+
+        let (value_str, source) = if let Some((flag, coll_id)) = effective.get(&perm.id) {
+            let v = match flag {
+                Flag::YES => "yes",
+                Flag::NO => "no",
+                Flag::NEVER => "never",
+                _ => "no",
+            };
+            let src = collection_sources.get(coll_id).cloned().unwrap_or_default();
+            (v.to_string(), src)
+        } else {
+            ("no".to_string(), String::new())
+        };
+
+        result
+            .entry(category_label)
+            .or_insert_with(std::collections::HashMap::new)
+            .insert(perm_label.clone(), value_str);
+
+        if !source.is_empty() {
+            sources.insert(perm_label, source);
+        }
+    }
+
+    Ok((result, sources))
 }
 
 /// Helper to load permission categories

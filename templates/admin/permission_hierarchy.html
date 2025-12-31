@@ -1,0 +1,651 @@
+{% extends "container/public.html" %}
+
+{% block title %}Permission Hierarchy - Admin{% endblock %}
+
+{% block content %}
+<div class="admin-panel admin-permission-hierarchy">
+    <div class="panel-header">
+        <h1>Permission Hierarchy Viewer</h1>
+        <p class="panel-subtitle">Inspect effective permissions for users and groups</p>
+    </div>
+
+    <div class="search-section">
+        <div class="search-tabs">
+            <button type="button" class="search-tab active" data-tab="user">User</button>
+            <button type="button" class="search-tab" data-tab="group">Group</button>
+        </div>
+
+        <div class="search-form" id="user-search">
+            <input type="text" id="user-search-input" placeholder="Enter username..." autocomplete="off" />
+            <button type="button" id="user-search-btn" class="btn btn-primary">Search</button>
+        </div>
+
+        <div class="search-form" id="group-search" style="display: none;">
+            <select id="group-select" class="group-select">
+                <option value="">Select a group...</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}">{{ group.label }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="group-search-btn" class="btn btn-primary">View</button>
+        </div>
+    </div>
+
+    <div id="results-container" class="results-container">
+        <p class="no-selection">Select a user or group to view their permission hierarchy.</p>
+    </div>
+</div>
+
+<style>
+.admin-permission-hierarchy {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.panel-header {
+    margin-bottom: 20px;
+}
+
+.panel-header h1 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.panel-subtitle {
+    margin: 0;
+    color: #666;
+}
+
+.search-section {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.search-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.search-tab {
+    padding: 8px 20px;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.search-tab.active {
+    background: #0066cc;
+    color: #fff;
+    border-color: #0066cc;
+}
+
+.search-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-form input,
+.search-form select {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.group-select {
+    max-width: 400px;
+}
+
+.results-container {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 300px;
+}
+
+.no-selection {
+    color: #666;
+    text-align: center;
+    font-style: italic;
+    margin: 50px 0;
+}
+
+.loading {
+    text-align: center;
+    padding: 50px;
+    color: #666;
+}
+
+/* Result sections */
+.result-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #eee;
+    margin-bottom: 20px;
+}
+
+.result-header h2 {
+    margin: 0;
+    color: #333;
+}
+
+.result-header .badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.badge-user {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.badge-group {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.result-section {
+    margin-bottom: 25px;
+}
+
+.result-section h3 {
+    font-size: 1.1em;
+    color: #333;
+    margin: 0 0 15px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+/* Groups list */
+.groups-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.group-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f0f4f8;
+    border-radius: 20px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.group-badge.primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+/* Forum tree with moderator status */
+.forum-tree {
+    font-size: 0.95em;
+}
+
+.forum-tree-item {
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.forum-tree-item:last-child {
+    border-bottom: none;
+}
+
+.forum-indent {
+    display: inline-block;
+    width: 20px;
+}
+
+.forum-name {
+    flex: 1;
+}
+
+.mod-badge {
+    padding: 2px 8px;
+    background: #28a745;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.mod-badge.inherited {
+    background: #6c757d;
+}
+
+/* Permissions display */
+.permission-categories {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.perm-category {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 15px;
+}
+
+.perm-category h4 {
+    margin: 0 0 10px 0;
+    color: #0066cc;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.perm-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+}
+
+.perm-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #fff;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.perm-item code {
+    flex: 1;
+    font-size: 0.85em;
+}
+
+.perm-value {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.8em;
+    font-weight: 500;
+    min-width: 50px;
+    text-align: center;
+}
+
+.perm-value.yes {
+    background: #d4edda;
+    color: #155724;
+}
+
+.perm-value.no {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.perm-value.never {
+    background: #721c24;
+    color: #fff;
+}
+
+.perm-source {
+    font-size: 0.75em;
+    color: #666;
+    margin-left: 5px;
+}
+
+/* Users in group */
+.users-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.user-card {
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.user-card a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.user-card a:hover {
+    text-decoration: underline;
+}
+
+.users-more {
+    color: #666;
+    font-style: italic;
+    padding: 10px;
+}
+
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0052a3;
+}
+
+/* Dark mode */
+html.dark .panel-header h1 {
+    color: #fff;
+}
+
+html.dark .panel-subtitle {
+    color: #aaa;
+}
+
+html.dark .search-section,
+html.dark .results-container {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .search-tab {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .search-tab.active {
+    background: #0066cc;
+    border-color: #0066cc;
+}
+
+html.dark .search-form input,
+html.dark .search-form select {
+    background: #333;
+    border-color: #555;
+    color: #fff;
+}
+
+html.dark .no-selection,
+html.dark .loading {
+    color: #aaa;
+}
+
+html.dark .result-header {
+    border-color: #444;
+}
+
+html.dark .result-header h2,
+html.dark .result-section h3 {
+    color: #fff;
+}
+
+html.dark .result-section h3 {
+    border-color: #444;
+}
+
+html.dark .group-badge {
+    background: #3a3a3a;
+    color: #fff;
+}
+
+html.dark .forum-tree-item {
+    border-color: #3a3a3a;
+}
+
+html.dark .perm-category {
+    background: #333;
+}
+
+html.dark .perm-category h4 {
+    color: #5fa8e0;
+}
+
+html.dark .perm-item {
+    background: #2a2a2a;
+}
+
+html.dark .perm-item code {
+    color: #fff;
+}
+
+html.dark .user-card {
+    background: #333;
+}
+
+html.dark .user-card a {
+    color: #5fa8e0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .search-form {
+        flex-direction: column;
+    }
+
+    .search-form input,
+    .search-form select {
+        width: 100%;
+    }
+
+    .perm-list {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.search-tab');
+    const userSearch = document.getElementById('user-search');
+    const groupSearch = document.getElementById('group-search');
+    const resultsContainer = document.getElementById('results-container');
+
+    // Tab switching
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            tabs.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            if (this.dataset.tab === 'user') {
+                userSearch.style.display = 'flex';
+                groupSearch.style.display = 'none';
+            } else {
+                userSearch.style.display = 'none';
+                groupSearch.style.display = 'flex';
+            }
+        });
+    });
+
+    // User search
+    document.getElementById('user-search-btn').addEventListener('click', function() {
+        const username = document.getElementById('user-search-input').value.trim();
+        if (!username) return;
+
+        resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
+
+        fetch('/admin/permissions/hierarchy/user?username=' + encodeURIComponent(username))
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsContainer.innerHTML = '<p class="no-selection">' + data.error + '</p>';
+                } else {
+                    renderUserResult(data);
+                }
+            })
+            .catch(err => {
+                resultsContainer.innerHTML = '<p class="no-selection">Error loading data</p>';
+            });
+    });
+
+    // Enter key for user search
+    document.getElementById('user-search-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('user-search-btn').click();
+        }
+    });
+
+    // Group search
+    document.getElementById('group-search-btn').addEventListener('click', function() {
+        const groupId = document.getElementById('group-select').value;
+        if (!groupId) return;
+
+        resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
+
+        fetch('/admin/permissions/hierarchy/group?group_id=' + encodeURIComponent(groupId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsContainer.innerHTML = '<p class="no-selection">' + data.error + '</p>';
+                } else {
+                    renderGroupResult(data);
+                }
+            })
+            .catch(err => {
+                resultsContainer.innerHTML = '<p class="no-selection">Error loading data</p>';
+            });
+    });
+
+    function renderUserResult(data) {
+        let html = `
+            <div class="result-header">
+                <h2>${escapeHtml(data.username)}</h2>
+                <span class="badge badge-user">User</span>
+            </div>
+        `;
+
+        // Groups section
+        html += `<div class="result-section">
+            <h3>Group Memberships</h3>
+            <div class="groups-list">`;
+
+        if (data.groups && data.groups.length > 0) {
+            data.groups.forEach(function(group) {
+                const isPrimary = group.is_primary ? ' primary' : '';
+                html += `<span class="group-badge${isPrimary}">${escapeHtml(group.label)}${group.is_primary ? ' (Primary)' : ''}</span>`;
+            });
+        } else {
+            html += '<em>No groups</em>';
+        }
+
+        html += '</div></div>';
+
+        // Forum moderator status
+        html += `<div class="result-section">
+            <h3>Forum Moderator Status</h3>
+            <div class="forum-tree">`;
+
+        if (data.forums && data.forums.length > 0) {
+            data.forums.forEach(function(forum) {
+                const indent = '<span class="forum-indent"></span>'.repeat(forum.depth);
+                let modBadge = '';
+                if (forum.is_moderator) {
+                    modBadge = '<span class="mod-badge">Moderator</span>';
+                } else if (forum.inherits_mod) {
+                    modBadge = '<span class="mod-badge inherited">Inherited</span>';
+                }
+                html += `<div class="forum-tree-item">${indent}<span class="forum-name">${escapeHtml(forum.label)}</span>${modBadge}</div>`;
+            });
+        } else {
+            html += '<em>No forums</em>';
+        }
+
+        html += '</div></div>';
+
+        // Permissions
+        html += renderPermissions(data.permissions, data.permission_sources);
+
+        resultsContainer.innerHTML = html;
+    }
+
+    function renderGroupResult(data) {
+        let html = `
+            <div class="result-header">
+                <h2>${escapeHtml(data.label)}</h2>
+                <span class="badge badge-group">Group</span>
+            </div>
+        `;
+
+        // Users in group
+        html += `<div class="result-section">
+            <h3>Members (${data.user_count})</h3>`;
+
+        if (data.users && data.users.length > 0) {
+            html += '<div class="users-grid">';
+            data.users.forEach(function(user) {
+                html += `<div class="user-card"><a href="/members/${user.id}">${escapeHtml(user.username)}</a></div>`;
+            });
+            html += '</div>';
+
+            if (data.user_count > data.users.length) {
+                html += `<p class="users-more">... and ${data.user_count - data.users.length} more</p>`;
+            }
+        } else {
+            html += '<em>No members</em>';
+        }
+
+        html += '</div>';
+
+        // Permissions
+        html += renderPermissions(data.permissions, null);
+
+        resultsContainer.innerHTML = html;
+    }
+
+    function renderPermissions(permissions, sources) {
+        if (!permissions || Object.keys(permissions).length === 0) {
+            return '<div class="result-section"><h3>Effective Permissions</h3><em>No permissions data</em></div>';
+        }
+
+        let html = '<div class="result-section"><h3>Effective Permissions</h3><div class="permission-categories">';
+
+        for (const [category, perms] of Object.entries(permissions)) {
+            html += `<div class="perm-category"><h4>${escapeHtml(category)}</h4><div class="perm-list">`;
+
+            for (const [perm, value] of Object.entries(perms)) {
+                const valueClass = value === 'yes' ? 'yes' : (value === 'never' ? 'never' : 'no');
+                const valueLabel = value === 'yes' ? 'Yes' : (value === 'never' ? 'Never' : 'No');
+
+                let sourceHtml = '';
+                if (sources && sources[perm]) {
+                    sourceHtml = `<span class="perm-source">(from ${escapeHtml(sources[perm])})</span>`;
+                }
+
+                html += `<div class="perm-item"><code>${escapeHtml(perm)}</code><span class="perm-value ${valueClass}">${valueLabel}</span>${sourceHtml}</div>`;
+            }
+
+            html += '</div></div>';
+        }
+
+        html += '</div></div>';
+        return html;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+});
+</script>
+{% endblock %}
