@@ -58,8 +58,8 @@
                         #{{ loop.index }}
                     </div>
                 </div>
-                <div class="message-content">
-                    {{ msg.content }}
+                <div class="message-content ugc">
+                    {{ msg.content|ugc|safe }}
                 </div>
             </div>
         </div>

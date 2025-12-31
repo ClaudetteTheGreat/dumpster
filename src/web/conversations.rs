@@ -6,6 +6,12 @@ use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use serde::Deserialize;
 
+mod filters {
+    pub fn ugc(s: &str) -> ::askama::Result<String> {
+        Ok(crate::bbcode::parse(s))
+    }
+}
+
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     // Order matters: specific routes before parameterized routes
     conf.service(view_inbox)
