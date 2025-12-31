@@ -584,7 +584,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return response.json();
                 })
                 .then(function(data) {
-                    console.log('User search response:', data);
                     if (data.users && data.users.length > 0) {
                         suggestionsDropdown.innerHTML = data.users.map(function(user, idx) {
                             return '<div class="suggestion-item" data-username="' + escapeHtml(user.name) + '" data-index="' + idx + '">' +
@@ -605,8 +604,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         suggestionsDropdown.innerHTML = '';
                     }
                 })
-                .catch(function(err) {
-                    console.error('User search error:', err);
+                .catch(function() {
                     suggestionsDropdown.classList.remove('active');
                 });
         }, 200);
@@ -677,20 +675,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadUserPermissions(username) {
         if (!username) return;
 
-        console.log('Loading permissions for:', username);
         suggestionsDropdown.classList.remove('active');
         resultsContainer.innerHTML = '<p class="loading">Loading...</p>';
 
         fetch('/admin/permissions/hierarchy/user?username=' + encodeURIComponent(username))
             .then(function(response) {
-                console.log('Response status:', response.status);
                 if (!response.ok) {
                     throw new Error('HTTP ' + response.status);
                 }
                 return response.json();
             })
             .then(function(data) {
-                console.log('User permissions response:', data);
                 if (data.error) {
                     resultsContainer.innerHTML = '<p class="no-selection">' + escapeHtml(data.error) + '</p>';
                 } else {
@@ -698,8 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(function(err) {
-                console.error('Fetch error:', err);
-                resultsContainer.innerHTML = '<p class="no-selection">Error loading data: ' + escapeHtml(err.message) + '</p>';
+                resultsContainer.innerHTML = '<p class="no-selection">Error loading data</p>';
             });
     }
 
