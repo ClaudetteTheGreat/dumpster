@@ -5753,6 +5753,9 @@ struct ForumPermissionsTemplate {
     forum: forums::Model,
     groups: Vec<ForumPermGroupInfo>,
     categories: Vec<ForumPermCategoryDisplay>,
+    moderators: Vec<ModeratorDisplay>,
+    mod_success: Option<String>,
+    mod_error: Option<String>,
 }
 
 /// Form for updating forum permissions
@@ -5769,11 +5772,16 @@ struct ForumPermissionsForm {
 async fn view_forum_permissions(
     client: ClientCtx,
     forum_id: web::Path<i32>,
+    query: web::Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl Responder, Error> {
     client.require_permission("admin.permissions.manage")?;
 
     let db = get_db_pool();
     let forum_id = forum_id.into_inner();
+
+    // Get query params for moderator messages
+    let mod_success = query.get("mod_success").cloned();
+    let mod_error = query.get("mod_error").cloned();
 
     // Find the forum
     let forum = forums::Entity::find_by_id(forum_id)
@@ -5925,11 +5933,17 @@ async fn view_forum_permissions(
         }
     }
 
+    // Get forum moderators
+    let moderators = get_forum_moderators_with_details(forum_id).await?;
+
     Ok(ForumPermissionsTemplate {
         client,
         forum,
         groups: groups_info,
         categories: category_displays,
+        moderators,
+        mod_success,
+        mod_error,
     }
     .to_response())
 }
@@ -6159,58 +6173,25 @@ async fn save_forum_permissions(
 // Forum Moderators Management
 // =============================================================================
 
-#[derive(Template)]
-#[template(path = "admin/forum_moderators.html")]
-struct ForumModeratorsTemplate {
-    client: ClientCtx,
-    forum: forums::Model,
-    moderators: Vec<ModeratorDisplay>,
-    success: Option<String>,
-    error: Option<String>,
-}
-
 struct ModeratorDisplay {
     user_id: i32,
     username: String,
     created_at: chrono::NaiveDateTime,
 }
 
-/// GET /admin/forums/{id}/moderators - View forum moderators
+/// GET /admin/forums/{id}/moderators - Redirect to permissions page (moderators are now integrated there)
 #[get("/admin/forums/{id}/moderators")]
 async fn view_forum_moderators(
     client: ClientCtx,
     path: web::Path<i32>,
-    query: web::Query<std::collections::HashMap<String, String>>,
 ) -> Result<impl Responder, Error> {
     client.require_permission("admin.settings")?;
-
     let forum_id = path.into_inner();
-    let db = get_db_pool();
 
-    // Get the forum
-    let forum = forums::Entity::find_by_id(forum_id)
-        .one(db)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to fetch forum: {}", e);
-            error::ErrorInternalServerError("Database error")
-        })?
-        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
-
-    // Get forum moderators with usernames
-    let moderators = get_forum_moderators_with_details(forum_id).await?;
-
-    let success = query.get("success").cloned();
-    let error = query.get("error").cloned();
-
-    Ok(ForumModeratorsTemplate {
-        client,
-        forum,
-        moderators,
-        success,
-        error,
-    }
-    .to_response())
+    // Redirect to the permissions page which now includes moderators section
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
+        .finish())
 }
 
 async fn get_forum_moderators_with_details(forum_id: i32) -> Result<Vec<ModeratorDisplay>, Error> {
@@ -6301,7 +6282,7 @@ async fn add_forum_moderator(
             return Ok(HttpResponse::SeeOther()
                 .append_header((
                     "Location",
-                    format!("/admin/forums/{}/moderators?error=user_not_found", forum_id),
+                    format!("/admin/forums/{}/permissions?mod_error=user_not_found", forum_id),
                 ))
                 .finish());
         }
@@ -6322,7 +6303,7 @@ async fn add_forum_moderator(
         return Ok(HttpResponse::SeeOther()
             .append_header((
                 "Location",
-                format!("/admin/forums/{}/moderators?error=already_moderator", forum_id),
+                format!("/admin/forums/{}/permissions?mod_error=already_moderator", forum_id),
             ))
             .finish());
     }
@@ -6358,7 +6339,7 @@ async fn add_forum_moderator(
     Ok(HttpResponse::SeeOther()
         .append_header((
             "Location",
-            format!("/admin/forums/{}/moderators?success=added", forum_id),
+            format!("/admin/forums/{}/permissions?mod_success=added", forum_id),
         ))
         .finish())
 }
@@ -6398,7 +6379,7 @@ async fn remove_forum_moderator(
         return Ok(HttpResponse::SeeOther()
             .append_header((
                 "Location",
-                format!("/admin/forums/{}/moderators?error=not_found", forum_id),
+                format!("/admin/forums/{}/permissions?mod_error=not_found", forum_id),
             ))
             .finish());
     }
@@ -6418,7 +6399,7 @@ async fn remove_forum_moderator(
     Ok(HttpResponse::SeeOther()
         .append_header((
             "Location",
-            format!("/admin/forums/{}/moderators?success=removed", forum_id),
+            format!("/admin/forums/{}/permissions?mod_success=removed", forum_id),
         ))
         .finish())
 }
