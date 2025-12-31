@@ -510,12 +510,44 @@ export class WysiwygEditor {
         node = schema.nodes.image.create(attrs);
         break;
       case 'quote':
+        // Get selected text to wrap in quote
+        const { from: quoteFrom, to: quoteTo } = state.selection;
+        const quoteText = state.doc.textBetween(quoteFrom, quoteTo, '\n');
+        if (quoteText) {
+          // Create quote with selected text as paragraph
+          node = schema.nodes.quote.create(attrs, schema.nodes.paragraph.create(null, schema.text(quoteText)));
+          const tr = state.tr.replaceWith(quoteFrom, quoteTo, node);
+          this.editorView.dispatch(tr);
+          return true;
+        }
         node = schema.nodes.quote.create(attrs, schema.nodes.paragraph.create());
         break;
       case 'spoiler':
+        // Get selected text to wrap in spoiler
+        const { from: spoilerFrom, to: spoilerTo } = state.selection;
+        const spoilerText = state.doc.textBetween(spoilerFrom, spoilerTo, '\n');
+        if (spoilerText) {
+          // Create spoiler with selected text as paragraph
+          node = schema.nodes.spoiler.create(attrs, schema.nodes.paragraph.create(null, schema.text(spoilerText)));
+          const tr = state.tr.replaceWith(spoilerFrom, spoilerTo, node);
+          this.editorView.dispatch(tr);
+          return true;
+        }
         node = schema.nodes.spoiler.create(attrs, schema.nodes.paragraph.create());
         break;
       case 'code_block':
+        // Get selected text to wrap in code block
+        const { from: codeFrom, to: codeTo } = state.selection;
+        const selectedText = state.doc.textBetween(codeFrom, codeTo, '\n');
+        if (selectedText) {
+          // Create code block with selected text
+          node = schema.nodes.code_block.create(attrs, schema.text(selectedText));
+          // Replace selection with code block
+          const tr = state.tr.replaceWith(codeFrom, codeTo, node);
+          this.editorView.dispatch(tr);
+          return true;
+        }
+        // No selection - create empty code block
         node = schema.nodes.code_block.create(attrs);
         break;
       case 'horizontal_rule':
