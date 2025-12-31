@@ -30,7 +30,7 @@ pub const MAX_PERMS: u32 = GROUP_LIMIT * PERM_LIMIT;
 use crate::middleware::ClientCtx;
 use dashmap::DashMap;
 use once_cell::sync::OnceCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::RwLock;
 
 /// Global permission data store
@@ -119,9 +119,24 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
         .map(|f| (f.id, f.parent_id))
         .collect();
 
+    // Load forum moderators
+    use crate::orm::forum_moderators;
+    let forum_mod_rows = forum_moderators::Entity::find()
+        .all(get_db_pool())
+        .await?;
+
+    let mut forum_moderators_map: HashMap<i32, HashSet<i32>> = HashMap::new();
+    for fm in forum_mod_rows {
+        forum_moderators_map
+            .entry(fm.forum_id)
+            .or_insert_with(HashSet::new)
+            .insert(fm.user_id);
+    }
+
     // Update the permission data
     perm_data.forum_permissions = forum_perms_map;
     perm_data.forum_parents = forum_parents;
+    perm_data.forum_moderators = forum_moderators_map;
 
     log::info!("Forum permissions reloaded successfully");
 
@@ -138,6 +153,8 @@ pub struct PermissionData {
     forum_permissions: HashMap<i32, DashMap<(i32, i32), collection_values::CollectionValues>>,
     /// Forum parent relationships for inheritance: forum_id -> parent_id
     forum_parents: HashMap<i32, Option<i32>>,
+    /// Forum moderators: forum_id -> set of user_ids who are moderators for that forum
+    forum_moderators: HashMap<i32, HashSet<i32>>,
 }
 
 impl PermissionData {
@@ -215,6 +232,7 @@ impl PermissionData {
     /// Check permission in forum context with parent inheritance.
     /// Walks up the forum hierarchy until an override is found.
     /// Uses global permission store for forum data to support live reloading.
+    /// Forum moderators automatically get moderate.* permissions in their assigned forums.
     pub fn can_in_forum(&self, client: &ClientCtx, forum_id: i32, permission: &str) -> bool {
         // Look up the permission's indices by name
         let pindices = match self.collection.dictionary.get(permission) {
@@ -235,6 +253,25 @@ impl PermissionData {
         // Access the global permission data for forum-specific checks
         // This allows live reloading of forum permissions without server restart
         let global_perm_data = get_permission_data();
+
+        // Check if this is a moderation permission and user is a forum moderator
+        // Forum moderators get all moderate.* permissions in their assigned forums
+        if permission.starts_with("moderate.") {
+            if let Some(uid) = user_id {
+                // Check if user is a moderator for this forum or any parent forum
+                let mut check_forum_id = Some(forum_id);
+                while let Some(fid) = check_forum_id {
+                    if let Some(moderators) = global_perm_data.forum_moderators.get(&fid) {
+                        if moderators.contains(&uid) {
+                            return true;
+                        }
+                    }
+                    // Move to parent forum
+                    check_forum_id =
+                        global_perm_data.forum_parents.get(&fid).copied().flatten();
+                }
+            }
+        }
 
         // Walk up the forum hierarchy
         while let Some(fid) = current_forum_id {
@@ -420,10 +457,25 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
         .map(|f| (f.id, f.parent_id))
         .collect();
 
+    // Load forum moderators
+    use crate::orm::forum_moderators;
+    let forum_mod_rows = forum_moderators::Entity::find()
+        .all(get_db_pool())
+        .await?;
+
+    let mut forum_moderators_map: HashMap<i32, HashSet<i32>> = HashMap::new();
+    for fm in forum_mod_rows {
+        forum_moderators_map
+            .entry(fm.forum_id)
+            .or_insert_with(HashSet::new)
+            .insert(fm.user_id);
+    }
+
     Ok(PermissionData {
         collection: col,
         collection_values: vals,
         forum_permissions: forum_perms_map,
         forum_parents,
+        forum_moderators: forum_moderators_map,
     })
 }
