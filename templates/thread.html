@@ -181,7 +181,7 @@
 
     {{ paginator.as_html()|safe }}
 
-    {% if client.can_post_in_thread(thread) %}
+    {% if client.can_post_in_thread(thread) && !thread.is_locked %}
     <form id="reply-form" action="/threads/{{ thread.id }}/post-reply" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
         <h2>Post Reply</h2>
