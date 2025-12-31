@@ -6,10 +6,10 @@ use crate::db::get_db_pool;
 use crate::group::GroupType;
 use crate::middleware::ClientCtx;
 use crate::orm::{
-    attachments, badges, chat_rooms, feature_flags, forum_permissions, forums, groups, ip_bans,
-    mod_log, moderator_notes, permission_categories, permission_collections, permission_values,
-    permissions, posts, reaction_types, reports, sessions, settings, tag_forums, tags, themes,
-    threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
+    attachments, badges, chat_rooms, feature_flags, forum_moderators, forum_permissions, forums,
+    groups, ip_bans, mod_log, moderator_notes, permission_categories, permission_collections,
+    permission_values, permissions, posts, reaction_types, reports, sessions, settings, tag_forums,
+    tags, themes, threads, user_bans, user_groups, user_names, user_warnings, users, word_filters,
 };
 use crate::permission::flag::Flag;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
@@ -168,6 +168,10 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         // Forum permissions management
         .service(view_forum_permissions)
         .service(save_forum_permissions)
+        // Forum moderators management
+        .service(view_forum_moderators)
+        .service(add_forum_moderator)
+        .service(remove_forum_moderator)
         // Tag management
         .service(view_tags)
         .service(view_create_tag_form)
@@ -6147,6 +6151,274 @@ async fn save_forum_permissions(
         .append_header((
             "Location",
             format!("/admin/forums/{}/permissions", forum_id),
+        ))
+        .finish())
+}
+
+// =============================================================================
+// Forum Moderators Management
+// =============================================================================
+
+#[derive(Template)]
+#[template(path = "admin/forum_moderators.html")]
+struct ForumModeratorsTemplate {
+    client: ClientCtx,
+    forum: forums::Model,
+    moderators: Vec<ModeratorDisplay>,
+    success: Option<String>,
+    error: Option<String>,
+}
+
+struct ModeratorDisplay {
+    user_id: i32,
+    username: String,
+    created_at: chrono::NaiveDateTime,
+}
+
+/// GET /admin/forums/{id}/moderators - View forum moderators
+#[get("/admin/forums/{id}/moderators")]
+async fn view_forum_moderators(
+    client: ClientCtx,
+    path: web::Path<i32>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+
+    let forum_id = path.into_inner();
+    let db = get_db_pool();
+
+    // Get the forum
+    let forum = forums::Entity::find_by_id(forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Get forum moderators with usernames
+    let moderators = get_forum_moderators_with_details(forum_id).await?;
+
+    let success = query.get("success").cloned();
+    let error = query.get("error").cloned();
+
+    Ok(ForumModeratorsTemplate {
+        client,
+        forum,
+        moderators,
+        success,
+        error,
+    }
+    .to_response())
+}
+
+async fn get_forum_moderators_with_details(forum_id: i32) -> Result<Vec<ModeratorDisplay>, Error> {
+    use sea_orm::{DbBackend, FromQueryResult, Statement};
+
+    let db = get_db_pool();
+
+    #[derive(Debug, FromQueryResult)]
+    struct ModeratorRow {
+        user_id: i32,
+        username: Option<String>,
+        created_at: chrono::NaiveDateTime,
+    }
+
+    let sql = r#"
+        SELECT fm.user_id, un.name as username, fm.created_at
+        FROM forum_moderators fm
+        LEFT JOIN user_names un ON un.user_id = fm.user_id
+        WHERE fm.forum_id = $1
+        ORDER BY fm.created_at DESC
+    "#;
+
+    let rows = ModeratorRow::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [forum_id.into()],
+    ))
+    .all(db)
+    .await
+    .map_err(|e| {
+        log::error!("Failed to fetch forum moderators: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
+
+    Ok(rows
+        .into_iter()
+        .map(|r| ModeratorDisplay {
+            user_id: r.user_id,
+            username: r.username.unwrap_or_else(|| "Unknown".to_string()),
+            created_at: r.created_at,
+        })
+        .collect())
+}
+
+#[derive(Deserialize)]
+struct AddModeratorForm {
+    csrf_token: String,
+    username: String,
+}
+
+/// POST /admin/forums/{id}/moderators/add - Add a forum moderator
+#[post("/admin/forums/{id}/moderators/add")]
+async fn add_forum_moderator(
+    client: ClientCtx,
+    session: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<AddModeratorForm>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    let forum_id = path.into_inner();
+    let db = get_db_pool();
+
+    // Verify forum exists
+    let _forum = forums::Entity::find_by_id(forum_id)
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .ok_or_else(|| error::ErrorNotFound("Forum not found"))?;
+
+    // Look up user by username
+    let user = user_names::Entity::find()
+        .filter(user_names::Column::Name.eq(form.username.trim()))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to look up user: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    let user = match user {
+        Some(u) => u,
+        None => {
+            return Ok(HttpResponse::SeeOther()
+                .append_header((
+                    "Location",
+                    format!("/admin/forums/{}/moderators?error=user_not_found", forum_id),
+                ))
+                .finish());
+        }
+    };
+
+    // Check if already a moderator
+    let existing = forum_moderators::Entity::find()
+        .filter(forum_moderators::Column::ForumId.eq(forum_id))
+        .filter(forum_moderators::Column::UserId.eq(user.user_id))
+        .one(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check existing moderator: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    if existing.is_some() {
+        return Ok(HttpResponse::SeeOther()
+            .append_header((
+                "Location",
+                format!("/admin/forums/{}/moderators?error=already_moderator", forum_id),
+            ))
+            .finish());
+    }
+
+    // Add moderator
+    let new_mod = forum_moderators::ActiveModel {
+        forum_id: sea_orm::ActiveValue::Set(forum_id),
+        user_id: sea_orm::ActiveValue::Set(user.user_id),
+        created_at: sea_orm::ActiveValue::Set(chrono::Utc::now().naive_utc()),
+        ..Default::default()
+    };
+
+    forum_moderators::Entity::insert(new_mod)
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to add moderator: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    log::info!(
+        "User {} added {} as moderator for forum {}",
+        client.get_id().unwrap_or(0),
+        user.user_id,
+        forum_id
+    );
+
+    // Reload permissions cache
+    if let Err(e) = crate::permission::reload_forum_permissions().await {
+        log::error!("Failed to reload permissions cache: {}", e);
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header((
+            "Location",
+            format!("/admin/forums/{}/moderators?success=added", forum_id),
+        ))
+        .finish())
+}
+
+#[derive(Deserialize)]
+struct RemoveModeratorForm {
+    csrf_token: String,
+    user_id: i32,
+}
+
+/// POST /admin/forums/{id}/moderators/remove - Remove a forum moderator
+#[post("/admin/forums/{id}/moderators/remove")]
+async fn remove_forum_moderator(
+    client: ClientCtx,
+    session: actix_session::Session,
+    path: web::Path<i32>,
+    form: web::Form<RemoveModeratorForm>,
+) -> Result<impl Responder, Error> {
+    client.require_permission("admin.settings")?;
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    let forum_id = path.into_inner();
+    let db = get_db_pool();
+
+    // Delete the moderator assignment
+    let result = forum_moderators::Entity::delete_many()
+        .filter(forum_moderators::Column::ForumId.eq(forum_id))
+        .filter(forum_moderators::Column::UserId.eq(form.user_id))
+        .exec(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to remove moderator: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    if result.rows_affected == 0 {
+        return Ok(HttpResponse::SeeOther()
+            .append_header((
+                "Location",
+                format!("/admin/forums/{}/moderators?error=not_found", forum_id),
+            ))
+            .finish());
+    }
+
+    log::info!(
+        "User {} removed user {} as moderator from forum {}",
+        client.get_id().unwrap_or(0),
+        form.user_id,
+        forum_id
+    );
+
+    // Reload permissions cache
+    if let Err(e) = crate::permission::reload_forum_permissions().await {
+        log::error!("Failed to reload permissions cache: {}", e);
+    }
+
+    Ok(HttpResponse::SeeOther()
+        .append_header((
+            "Location",
+            format!("/admin/forums/{}/moderators?success=removed", forum_id),
         ))
         .finish())
 }

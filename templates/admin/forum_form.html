@@ -173,6 +173,26 @@
             <a href="/admin/forums" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+
+    <div class="related-actions">
+        <h3>Related Settings</h3>
+        <div class="action-links">
+            <a href="/admin/forums/{{ forum.id }}/permissions" class="action-link">
+                <span class="action-icon">🔒</span>
+                <span class="action-text">
+                    <strong>Permissions</strong>
+                    <small>Configure who can view, post, and moderate</small>
+                </span>
+            </a>
+            <a href="/admin/forums/{{ forum.id }}/moderators" class="action-link">
+                <span class="action-icon">👮</span>
+                <span class="action-text">
+                    <strong>Moderators</strong>
+                    <small>Assign users as moderators for this forum</small>
+                </span>
+            </a>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -464,6 +484,88 @@ html.dark .alert-danger {
         flex-direction: column;
         gap: 0;
     }
+}
+
+.related-actions {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.related-actions h3 {
+    margin: 0 0 15px 0;
+    font-size: 1em;
+    color: #333;
+}
+
+.action-links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.action-link {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+}
+
+.action-link:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+}
+
+.action-icon {
+    font-size: 1.5em;
+}
+
+.action-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.action-text strong {
+    color: #333;
+}
+
+.action-text small {
+    color: #666;
+    font-size: 0.85em;
+}
+
+html.dark .related-actions {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+html.dark .related-actions h3 {
+    color: #fff;
+}
+
+html.dark .action-link {
+    background: #333;
+    border-color: #444;
+}
+
+html.dark .action-link:hover {
+    border-color: #007bff;
+}
+
+html.dark .action-text strong {
+    color: #fff;
+}
+
+html.dark .action-text small {
+    color: #aaa;
 }
 </style>
 {% endblock %}
