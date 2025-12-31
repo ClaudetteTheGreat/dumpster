@@ -4,7 +4,9 @@
     margin: 0;
     padding: 0;
     width: 100%;
-
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    overflow: hidden;
 }
 
 .struct-item {
@@ -15,6 +17,16 @@
     margin: 0;
     padding: 0;
     width: 100%;
+    background: var(--bg-primary, #fff);
+    border-bottom: 1px solid var(--border-color, #ddd);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background: var(--bg-hover, #f5f5f5);
+    }
 }
 
 .struct-item-cell {

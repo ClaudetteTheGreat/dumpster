@@ -1,25 +1,115 @@
 @use 'variables';
 
 :root {
-    --background-color: rgb(242, 243, 245);
-    --background-mod-hover: rgba(79, 84, 92, 0.4);
-    --background-mod-active: rgba(79, 84, 92, 0.48);
-    --background-mod-selected: rgba(79, 84, 92, 0.6);
+    // ==========================================================================
+    // COLOR PALETTE - All colors used in light mode defined here
+    // ==========================================================================
 
-    --border-color: rgb(116, 128, 0.24);
-    --input-background: rgb(235 237 239);
-    --text-color: rgb(46, 51, 56);
-    --text-muted: rgb(94, 103, 114);
+    // Background hierarchy (lightest to darkest)
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #f0f2f5;
+    --bg-hover: #e9ecef;
+    --bg-active: #dee2e6;
 
-    --modal-background: rgb(54 57 63);
-    --modal-footer-background: rgb(47, 49, 54);
+    // Specialized backgrounds
+    --bg-header: #ffffff;
+    --bg-code: #f6f8fa;
+    --bg-modal: #ffffff;
+    --bg-input: #ffffff;
+    --bg-video: #000;
 
-    --button-text-color: rgb(255, 255, 255);
-    --button-danger-background: rgb(216, 60, 62);
-    --button-danger-background-active: rgb(209, 58, 60);
-    --button-danger-background-hover: rgb(161, 45, 47);
+    // Text hierarchy (darkest to lightest)
+    --text-primary: #212529;
+    --text-secondary: #495057;
+    --text-muted: #6c757d;
+    --text-hint: #868e96;
+    --text-faint: #adb5bd;
+    --text-light: #ced4da;
+    --text-white: #fff;
 
-    --scrollbar-thumb: rgb(204, 204, 204);
+    // Border hierarchy (lightest to darkest)
+    --border-primary: #dee2e6;
+    --border-secondary: #ced4da;
+    --border-tertiary: #adb5bd;
+    --border-light: #e9ecef;
+
+    // Link/accent colors (blue spectrum)
+    --link-color: #0d6efd;
+    --link-hover: #0a58ca;
+    --accent-selected-bg: #e7f1ff;
+    --accent-selected-border: #86b7fe;
+    --accent-active-bg: #cfe2ff;
+    --accent-focus: #0d6efd;
+    --accent-focus-dark: #0a58ca;
+    --accent-mention: #1976d2;
+    --accent-mention-bg: rgba(25, 118, 210, 0.08);
+    --accent-mention-hover-bg: rgba(25, 118, 210, 0.15);
+
+    // Quote button selected state
+    --quote-selected-bg: #3498db;
+    --quote-selected-border: #2980b9;
+
+    // Status: Success (green spectrum)
+    --success-text: #0f5132;
+    --success-bg: #d1e7dd;
+    --success-border: #badbcc;
+    --success-btn: #198754;
+    --success-btn-hover: #157347;
+    --success-icon: #198754;
+    --success-border-dark: #13653f;
+
+    // Status: Danger (red spectrum)
+    --danger-text: #842029;
+    --danger-text-light: #b02a37;
+    --danger-bg: #f8d7da;
+    --danger-border: #f5c2c7;
+    --danger-btn: #dc3545;
+    --danger-btn-dark: #b02a37;
+    --danger-accent: #dc3545;
+    --danger-remove: #dc3545;
+    --danger-remove-hover: #bb2d3b;
+    --danger-border-dark: #a52834;
+    --danger-input-bg: #fff5f5;
+
+    // Status: Warning (yellow spectrum)
+    --warning-text: #664d03;
+    --warning-bg: #fff3cd;
+    --warning-border: #ffecb5;
+
+    // Notification
+    --notification-badge-bg: #dc3545;
+
+    // Shadows and overlays
+    --shadow-dropdown: rgba(0, 0, 0, 0.15);
+    --shadow-heavy: rgba(0, 0, 0, 0.25);
+    --shadow-light: rgba(0, 0, 0, 0.1);
+    --shadow-focus: rgba(13, 110, 253, 0.25);
+    --overlay-light: rgba(0, 0, 0, 0.03);
+    --overlay-medium: rgba(0, 0, 0, 0.05);
+
+    // ==========================================================================
+    // LEGACY VARIABLES (keeping for backward compatibility)
+    // ==========================================================================
+
+    --background-color: #f2f3f5;
+    --background-mod-hover: rgba(79, 84, 92, 0.1);
+    --background-mod-active: rgba(79, 84, 92, 0.15);
+    --background-mod-selected: rgba(79, 84, 92, 0.2);
+
+    --border-color: #dee2e6;
+    --input-background: #ffffff;
+    --text-color: #212529;
+
+    --modal-background: #ffffff;
+    --modal-footer-background: #f8f9fa;
+
+    --button-text-color: #ffffff;
+    --button-danger-background: #dc3545;
+    --button-danger-background-active: #b02a37;
+    --button-danger-background-hover: #bb2d3b;
+
+    --scrollbar-thumb: #ced4da;
 
     // Navigation
     --nav-background: #333;

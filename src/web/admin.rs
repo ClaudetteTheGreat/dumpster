@@ -6925,6 +6925,7 @@ struct ThemeFormTemplate {
     client: ClientCtx,
     theme: Option<themes::Model>,
     error: Option<String>,
+    available_parents: Vec<themes::Model>,
 }
 
 /// GET /admin/themes - List all themes
@@ -6959,6 +6960,7 @@ async fn view_create_theme_form(client: ClientCtx) -> Result<impl Responder, Err
         client,
         theme: None,
         error: None,
+        available_parents: crate::theme::get_available_parents(None),
     }
     .to_response())
 }
@@ -7014,6 +7016,7 @@ async fn create_theme(
             client,
             theme: None,
             error: Some("A theme with this slug already exists".to_string()),
+            available_parents: crate::theme::get_available_parents(None),
         }
         .to_response());
     }
@@ -7032,6 +7035,12 @@ async fn create_theme(
         .cloned();
     let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
 
+    // Parse parent_id (empty string means no parent)
+    let parent_id = form
+        .get("parent_id")
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i32>().ok());
+
     // Create the theme
     let new_theme = themes::ActiveModel {
         slug: Set(slug.to_string()),
@@ -7043,6 +7052,7 @@ async fn create_theme(
         display_order: Set(display_order),
         css_variables: Set(css_variables),
         css_custom: Set(css_custom),
+        parent_id: Set(parent_id),
         created_at: Set(chrono::Utc::now().into()),
         updated_at: Set(chrono::Utc::now().into()),
         created_by: Set(Some(moderator_id)),
@@ -7084,10 +7094,14 @@ async fn view_edit_theme(
         })?
         .ok_or_else(|| error::ErrorNotFound("Theme not found"))?;
 
+    // Get available parents, excluding self and descendants to prevent cycles
+    let available_parents = crate::theme::get_available_parents(Some(theme_id));
+
     Ok(ThemeFormTemplate {
         client,
         theme: Some(theme),
         error: None,
+        available_parents,
     }
     .to_response())
 }
@@ -7141,6 +7155,12 @@ async fn update_theme(
         .cloned();
     let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
 
+    // Parse parent_id (empty string means no parent)
+    let parent_id = form
+        .get("parent_id")
+        .filter(|s| !s.is_empty())
+        .and_then(|s| s.parse::<i32>().ok());
+
     // Update the theme
     let mut theme: themes::ActiveModel = existing.into();
     theme.name = Set(name.to_string());
@@ -7150,6 +7170,7 @@ async fn update_theme(
     theme.display_order = Set(display_order);
     theme.css_variables = Set(css_variables);
     theme.css_custom = Set(css_custom);
+    theme.parent_id = Set(parent_id);
     theme.updated_at = Set(chrono::Utc::now().into());
 
     theme.update(db).await.map_err(|e| {

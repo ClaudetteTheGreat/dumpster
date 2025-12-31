@@ -21,6 +21,7 @@
                     <th>Order</th>
                     <th>Name</th>
                     <th>Slug</th>
+                    <th>Parent</th>
                     <th>Type</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -32,6 +33,13 @@
                     <td>{{ theme.display_order }}</td>
                     <td>{{ theme.name }}</td>
                     <td><code>{{ theme.slug }}</code></td>
+                    <td>
+                        {% if theme.parent_id.is_some() %}
+                            {% for p in themes_list %}{% if p.is_parent_of(theme) %}{{ p.name }}{% endif %}{% endfor %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if theme.is_dark %}
                         <span class="badge badge-dark">Dark</span>
@@ -172,6 +180,9 @@
 }
 .inline-form {
     display: inline;
+}
+.text-muted {
+    color: var(--text-muted, #999);
 }
 code {
     background: var(--inline-code-bg, #f6f8fa);

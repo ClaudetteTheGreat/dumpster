@@ -247,13 +247,22 @@ impl ClientCtx {
         self.0.theme_auto
     }
 
-    /// Get theme CSS to inject into page
+    /// Get theme CSS to inject into page (includes inherited parent CSS)
     pub fn get_theme_css(&self) -> String {
         self.0
             .theme
             .as_ref()
-            .map(|t| t.get_full_css())
+            .map(|t| crate::theme::get_theme_full_css(t))
             .unwrap_or_default()
+    }
+
+    /// Check if theme has any CSS to inject (includes inherited parent CSS)
+    pub fn theme_has_css(&self) -> bool {
+        self.0
+            .theme
+            .as_ref()
+            .map(|t| crate::theme::theme_has_css(t))
+            .unwrap_or(false)
     }
 
     pub fn is_user(&self) -> bool {
