@@ -769,11 +769,19 @@ document.addEventListener("DOMContentLoaded", function () {
         const applyBtn = picker.querySelector('.chat-color-apply');
         const inputEl = document.getElementById('new-message-input');
 
-        // Toggle dropdown
+        // Toggle dropdown and position it
         btn.addEventListener('click', function(event) {
             event.preventDefault();
             event.stopPropagation();
-            picker.classList.toggle('open');
+
+            const isOpen = picker.classList.toggle('open');
+
+            if (isOpen) {
+                // Position the dropdown above the button using fixed positioning
+                const btnRect = btn.getBoundingClientRect();
+                dropdown.style.left = btnRect.left + 'px';
+                dropdown.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
+            }
         });
 
         // Close dropdown when clicking outside
