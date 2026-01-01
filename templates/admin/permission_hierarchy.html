@@ -249,6 +249,54 @@
     font-size: 1.1em;
 }
 
+/* Moderator list */
+.moderator-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.moderator-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #0066cc;
+}
+
+.mod-username {
+    font-weight: 500;
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.mod-username:hover {
+    text-decoration: underline;
+}
+
+.mod-source {
+    font-size: 0.85em;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.mod-direct {
+    background: #d4edda;
+    color: #155724;
+}
+
+.mod-inherited {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.mod-global {
+    background: #cce5ff;
+    color: #004085;
+}
+
 .parent-info {
     font-size: 0.9em;
     color: #666;
@@ -566,6 +614,30 @@ html.dark .forum-group-card h4 {
 html.dark .parent-info {
     background: #4a4020;
     color: #ddd;
+}
+
+html.dark .moderator-item {
+    background: #333;
+    border-left-color: #5fa8e0;
+}
+
+html.dark .mod-username {
+    color: #5fa8e0;
+}
+
+html.dark .mod-direct {
+    background: #1e4620;
+    color: #8bc98b;
+}
+
+html.dark .mod-inherited {
+    background: #4a4020;
+    color: #e0c870;
+}
+
+html.dark .mod-global {
+    background: #1e3a5f;
+    color: #8bc0e8;
 }
 
 /* Responsive */
@@ -901,6 +973,33 @@ document.addEventListener('DOMContentLoaded', function() {
         if (data.parent_label) {
             html += `<div class="parent-info">Inherits permissions from: <strong>${escapeHtml(data.parent_label)}</strong></div>`;
         }
+
+        // Moderators section
+        html += `<div class="result-section">
+            <h3>Forum Moderators</h3>`;
+
+        if (data.moderators && data.moderators.length > 0) {
+            html += '<div class="moderator-list">';
+            data.moderators.forEach(function(mod) {
+                let sourceHtml = '';
+                if (mod.source === 'direct') {
+                    sourceHtml = '<span class="mod-source mod-direct">Direct</span>';
+                } else if (mod.source === 'inherited' && mod.source_forum) {
+                    sourceHtml = `<span class="mod-source mod-inherited">Inherited from ${escapeHtml(mod.source_forum)}</span>`;
+                } else if (mod.source === 'global') {
+                    sourceHtml = '<span class="mod-source mod-global">Global Moderator</span>';
+                }
+                html += `<div class="moderator-item">
+                    <a href="/member/${mod.user_id}" class="mod-username">${escapeHtml(mod.username)}</a>
+                    ${sourceHtml}
+                </div>`;
+            });
+            html += '</div>';
+        } else {
+            html += '<em>No moderators assigned to this forum</em>';
+        }
+
+        html += '</div>';
 
         // Groups and their permissions
         html += `<div class="result-section">

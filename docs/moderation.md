@@ -160,6 +160,7 @@ Visual tool for inspecting effective permissions at `/admin/permissions/hierarch
   - Type 2+ characters to see suggestions
   - Keyboard navigation (arrow keys, Enter to select)
 - **Group View** - Select a group to see its permissions
+- **Forum View** - Select a forum to see its permissions and moderators
 - **User Information Displayed:**
   - Group memberships with primary group indicated
   - Forum moderator status for each forum (direct and inherited)
@@ -167,6 +168,12 @@ Visual tool for inspecting effective permissions at `/admin/permissions/hierarch
 - **Group Information Displayed:**
   - Member count and list (first 20 members)
   - All permissions granted to the group
+- **Forum Information Displayed:**
+  - Forum moderators with source indication:
+    - Direct moderators (assigned to this specific forum)
+    - Inherited moderators (from parent forums)
+  - Parent forum inheritance info
+  - Permissions for each group in that forum
 
 ### Permission Resolution
 Shows the final effective permission after resolving:

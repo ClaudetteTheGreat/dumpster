@@ -4624,7 +4624,16 @@ struct ForumPermissionInfo {
     id: i32,
     label: String,
     parent_label: Option<String>,
+    moderators: Vec<ForumModeratorInfo>,
     groups: Vec<ForumGroupPermInfo>,
+}
+
+#[derive(Serialize)]
+struct ForumModeratorInfo {
+    user_id: i32,
+    username: String,
+    source: String, // "direct", "inherited", or "global"
+    source_forum: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -4676,6 +4685,98 @@ async fn get_forum_permissions(
     } else {
         None
     };
+
+    // Build parent chain for inherited moderators
+    let mut parent_chain: Vec<(i32, String)> = Vec::new();
+    let mut current_parent_id = forum.parent_id;
+    while let Some(pid) = current_parent_id {
+        if let Some(parent) = forums::Entity::find_by_id(pid).one(db).await.ok().flatten() {
+            parent_chain.push((parent.id, parent.label.clone()));
+            current_parent_id = parent.parent_id;
+        } else {
+            break;
+        }
+    }
+
+    // Get direct moderators for this forum
+    let direct_mods = forum_moderators::Entity::find()
+        .filter(forum_moderators::Column::ForumId.eq(forum_id))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch forum moderators: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
+    // Get inherited moderators from parent forums
+    let parent_forum_ids: Vec<i32> = parent_chain.iter().map(|(id, _)| *id).collect();
+    let inherited_mods = if !parent_forum_ids.is_empty() {
+        forum_moderators::Entity::find()
+            .filter(forum_moderators::Column::ForumId.is_in(parent_forum_ids.clone()))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch inherited moderators: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+    } else {
+        Vec::new()
+    };
+
+    // Collect all moderator user IDs
+    let mut all_mod_user_ids: Vec<i32> = direct_mods.iter().map(|m| m.user_id).collect();
+    all_mod_user_ids.extend(inherited_mods.iter().map(|m| m.user_id));
+
+    // Deduplicate
+    all_mod_user_ids.sort();
+    all_mod_user_ids.dedup();
+
+    // Fetch usernames for all moderators
+    let mod_usernames: std::collections::HashMap<i32, String> = if !all_mod_user_ids.is_empty() {
+        user_names::Entity::find()
+            .filter(user_names::Column::UserId.is_in(all_mod_user_ids.clone()))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch moderator usernames: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+            .into_iter()
+            .map(|un| (un.user_id, un.name))
+            .collect()
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    // Build moderator list
+    let mut moderators: Vec<ForumModeratorInfo> = Vec::new();
+    let mut seen_user_ids: std::collections::HashSet<i32> = std::collections::HashSet::new();
+
+    // Add direct moderators first
+    for m in &direct_mods {
+        if seen_user_ids.insert(m.user_id) {
+            moderators.push(ForumModeratorInfo {
+                user_id: m.user_id,
+                username: mod_usernames.get(&m.user_id).cloned().unwrap_or_else(|| format!("User #{}", m.user_id)),
+                source: "direct".to_string(),
+                source_forum: None,
+            });
+        }
+    }
+
+    // Add inherited moderators (in order from closest parent to furthest)
+    for (parent_id, parent_name) in &parent_chain {
+        for m in inherited_mods.iter().filter(|m| m.forum_id == *parent_id) {
+            if seen_user_ids.insert(m.user_id) {
+                moderators.push(ForumModeratorInfo {
+                    user_id: m.user_id,
+                    username: mod_usernames.get(&m.user_id).cloned().unwrap_or_else(|| format!("User #{}", m.user_id)),
+                    source: "inherited".to_string(),
+                    source_forum: Some(parent_name.clone()),
+                });
+            }
+        }
+    }
 
     // Get all groups
     let all_groups = groups::Entity::find()
@@ -4810,6 +4911,7 @@ async fn get_forum_permissions(
         id: forum.id,
         label: forum.label,
         parent_label,
+        moderators,
         groups: group_perms,
     })))
 }
