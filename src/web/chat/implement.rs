@@ -405,10 +405,11 @@ pub mod default {
                 .left_join(ugc_revisions::Entity)
                 .column_as(ugc_revisions::Column::Content, "message")
                 .column_as(ugc_revisions::Column::CreatedAt, "message_edit_date")
-                .into_model::<super::Message>()
+                .into_model::<super::MessagePgSql>()
                 .one(&self.db)
                 .await
                 .unwrap_or_default()
+                .map(super::Message::from)
         }
 
         async fn get_room_list(&self) -> Vec<Room> {

@@ -294,21 +294,40 @@ impl Handler<message::Edit> for ChatServer {
                 // Get the message.
                 let res = layer.get_message(msg.message_id).await;
 
-                // If we got the message, check if we can delete it.
+                // If we got the message, check if we can edit it.
                 if let Some(message) = &res {
+                    log::debug!(
+                        "Edit check: message.user_id={}, session.id={}, message_id={}",
+                        message.user_id,
+                        session.id,
+                        msg.message_id
+                    );
                     if message.user_id == session.id {
-                        // Delete message.
-                        return layer
+                        // Edit message.
+                        let result = layer
                             .edit_message(message.message_id, author, msg.message)
                             .await;
+                        if result.is_none() {
+                            log::warn!(
+                                "edit_message returned None for message_id={}",
+                                message.message_id
+                            );
+                        }
+                        return result;
                     } else {
                         log::warn!(
-                            "User {} tried to edit message {:?}",
-                            msg.session.id,
-                            msg.message_id
+                            "User {} (session) tried to edit message {} owned by user {}",
+                            session.id,
+                            msg.message_id,
+                            message.user_id
                         );
                         return None;
                     }
+                } else {
+                    log::warn!(
+                        "get_message returned None for message_id={}",
+                        msg.message_id
+                    );
                 }
 
                 res
