@@ -491,6 +491,11 @@ document.addEventListener("DOMContentLoaded", function () {
             return roomJoin(room_id);
         }
 
+        // Fall back to default room if configured
+        if (APP.default_room && APP.default_room > 0) {
+            return roomJoin(APP.default_room);
+        }
+
         return false;
     }
 

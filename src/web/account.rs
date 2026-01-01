@@ -1,5 +1,6 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
+use crate::orm::chat_rooms;
 use crate::orm::themes;
 use crate::orm::user_social_links::{self, SocialPlatform};
 use crate::user::Profile as UserProfile;
@@ -27,6 +28,7 @@ pub struct AccountTemplate {
     pub social_links: Vec<user_social_links::Model>,
     pub available_platforms: Vec<SocialPlatform>,
     pub available_themes: Vec<themes::Model>,
+    pub chat_rooms: Vec<chat_rooms::Model>,
 }
 
 #[post("/account/avatar")]
@@ -218,6 +220,12 @@ async fn update_preferences(
         .map(|v| v == "true")
         .unwrap_or(false);
 
+    // Get default chat room preference
+    let default_chat_room: Option<i32> = form
+        .get("default_chat_room")
+        .and_then(|v| v.parse::<i32>().ok())
+        .and_then(|v| if v > 0 { Some(v) } else { None });
+
     // Update the user's preferences
     let mut user: users::ActiveModel = users::Entity::find_by_id(user_id)
         .one(get_db_pool())
@@ -230,6 +238,7 @@ async fn update_preferences(
     user.theme = Set(theme_value);
     user.theme_auto = Set(theme_auto);
     user.show_online = Set(show_online);
+    user.default_chat_room = Set(default_chat_room);
     user.update(get_db_pool())
         .await
         .map_err(error::ErrorInternalServerError)?;
@@ -541,12 +550,20 @@ async fn view_account(client: ClientCtx) -> Result<impl Responder, Error> {
     // Get available themes
     let available_themes = crate::theme::get_active_themes();
 
+    // Get chat rooms for default room selection
+    let chat_rooms = chat_rooms::Entity::find()
+        .order_by_asc(chat_rooms::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
     Ok(AccountTemplate {
         client,
         profile,
         social_links,
         available_platforms,
         available_themes,
+        chat_rooms,
     }
     .to_response())
 }

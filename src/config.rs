@@ -392,6 +392,11 @@ impl Config {
     pub fn chat_rate_limit_seconds(&self) -> u64 {
         self.get_int_or("chat_rate_limit_seconds", 0) as u64
     }
+
+    /// Get default chat room ID to auto-join (0 = none)
+    pub fn chat_default_room(&self) -> i32 {
+        self.get_int_or("chat_default_room", 0) as i32
+    }
 }
 
 /// Create a new Arc-wrapped Config

@@ -213,6 +213,19 @@
             <p class="help-text">When enabled, other users can see when you're online. Disable to browse privately.</p>
         </div>
 
+        {% if !chat_rooms.is_empty() %}
+        <div class="preference-item">
+            <label for="default_chat_room">Default Chat Room:</label>
+            <select name="default_chat_room" id="default_chat_room">
+                <option value="0" {% if profile.default_chat_room.is_none() %}selected{% endif %}>Use site default</option>
+                {% for room in chat_rooms %}
+                <option value="{{ room.id }}" {% if profile.default_chat_room.is_some() && profile.default_chat_room.unwrap() == room.id %}selected{% endif %}>{{ room.title }}</option>
+                {% endfor %}
+            </select>
+            <p class="help-text">Choose which chat room to automatically join when opening chat. "Use site default" follows the site-wide setting.</p>
+        </div>
+        {% endif %}
+
         <button type="submit">Save Preferences</button>
     </form>
 </div>

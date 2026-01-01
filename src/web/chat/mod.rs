@@ -13,7 +13,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::config::Config;
+use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
+use crate::orm::users;
 
 /// How often heartbeat pings are sent
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(1);
@@ -109,13 +111,27 @@ struct ChatTemplate {
 /// Live chat in full application
 #[get("/chat")]
 pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> Result<impl Responder, Error> {
+    use sea_orm::EntityTrait;
+
     // Require authentication for chat access
     let user_id = client.require_login()?;
 
     let layer = req
         .app_data::<Data<Arc<dyn ChatLayer>>>()
         .expect("No chat layer.");
+    let config = req.app_data::<Data<Arc<Config>>>().expect("No config.");
     let session = layer.get_session_from_user_id(user_id as u32).await;
+
+    // Get user's default chat room preference
+    let user_default_room = users::Entity::find_by_id(user_id)
+        .one(get_db_pool())
+        .await
+        .ok()
+        .flatten()
+        .and_then(|u| u.default_chat_room);
+
+    // Determine effective default room: user preference first, then site default
+    let default_room = user_default_room.unwrap_or_else(|| config.chat_default_room());
 
     Ok(ChatTemplate {
         client,
@@ -123,9 +139,11 @@ pub async fn view_chat(client: ClientCtx, req: HttpRequest) -> Result<impl Respo
             "{{
                 chat_ws_url: \"{}\",
                 user: {},
+                default_room: {},
             }}",
             std::env::var("CHAT_WS_URL").expect("CHAT_WS_URL needs to be set in .env"),
             serde_json::to_string(&session).expect("XfSession stringify failed"),
+            default_room,
         ),
         rooms: layer.get_room_list().await,
     })
