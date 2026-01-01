@@ -13,6 +13,7 @@
         <div class="search-tabs">
             <button type="button" class="search-tab active" data-tab="user">User</button>
             <button type="button" class="search-tab" data-tab="group">Group</button>
+            <button type="button" class="search-tab" data-tab="forum">Forum</button>
         </div>
 
         <div class="search-form" id="user-search">
@@ -31,6 +32,16 @@
                 {% endfor %}
             </select>
             <button type="button" id="group-search-btn" class="btn btn-primary">View</button>
+        </div>
+
+        <div class="search-form" id="forum-search" style="display: none;">
+            <select id="forum-select" class="forum-select">
+                <option value="">Select a forum...</option>
+                {% for forum in forums %}
+                <option value="{{ forum.id }}">{{ forum.indent }}{% if forum.depth > 0 %} {% endif %}{{ forum.label }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" id="forum-search-btn" class="btn btn-primary">View</button>
         </div>
     </div>
 
@@ -104,7 +115,8 @@
     font-size: 1em;
 }
 
-.group-select {
+.group-select,
+.forum-select {
     max-width: 400px;
 }
 
@@ -210,6 +222,40 @@
 .badge-group {
     background: #f3e5f5;
     color: #7b1fa2;
+}
+
+.badge-forum {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+
+/* Forum permission matrix */
+.forum-groups-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.forum-group-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    border-left: 4px solid #0066cc;
+}
+
+.forum-group-card h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+.parent-info {
+    font-size: 0.9em;
+    color: #666;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    border-radius: 4px;
 }
 
 .result-section {
@@ -509,6 +555,19 @@ html.dark .user-card a {
     color: #5fa8e0;
 }
 
+html.dark .forum-group-card {
+    background: #333;
+}
+
+html.dark .forum-group-card h4 {
+    color: #fff;
+}
+
+html.dark .parent-info {
+    background: #4a4020;
+    color: #ddd;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .search-form {
@@ -531,6 +590,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabs = document.querySelectorAll('.search-tab');
     const userSearch = document.getElementById('user-search');
     const groupSearch = document.getElementById('group-search');
+    const forumSearch = document.getElementById('forum-search');
     const resultsContainer = document.getElementById('results-container');
     const userInput = document.getElementById('user-search-input');
     const suggestionsDropdown = document.getElementById('user-suggestions');
@@ -552,12 +612,16 @@ document.addEventListener('DOMContentLoaded', function() {
             tabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
 
+            userSearch.style.display = 'none';
+            groupSearch.style.display = 'none';
+            forumSearch.style.display = 'none';
+
             if (this.dataset.tab === 'user') {
                 userSearch.style.display = 'flex';
-                groupSearch.style.display = 'none';
-            } else {
-                userSearch.style.display = 'none';
+            } else if (this.dataset.tab === 'group') {
                 groupSearch.style.display = 'flex';
+            } else if (this.dataset.tab === 'forum') {
+                forumSearch.style.display = 'flex';
             }
         });
     });
@@ -718,6 +782,27 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
 
+    // Forum search
+    document.getElementById('forum-search-btn').addEventListener('click', function() {
+        const forumId = document.getElementById('forum-select').value;
+        if (!forumId) return;
+
+        resultsContainer.innerHTML = '<p class="perm-loading">Loading...</p>';
+
+        fetch('/admin/permissions/hierarchy/forum?forum_id=' + encodeURIComponent(forumId))
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultsContainer.innerHTML = '<p class="no-selection">' + escapeHtml(data.error) + '</p>';
+                } else {
+                    renderForumResult(data);
+                }
+            })
+            .catch(err => {
+                resultsContainer.innerHTML = '<p class="no-selection">Error loading data</p>';
+            });
+    });
+
     function renderUserResult(data) {
         let html = `
             <div class="result-header">
@@ -802,6 +887,63 @@ document.addEventListener('DOMContentLoaded', function() {
         html += renderPermissions(data.permissions, null);
 
         resultsContainer.innerHTML = html;
+    }
+
+    function renderForumResult(data) {
+        let html = `
+            <div class="result-header">
+                <h2>${escapeHtml(data.label)}</h2>
+                <span class="badge badge-forum">Forum</span>
+            </div>
+        `;
+
+        // Parent info
+        if (data.parent_label) {
+            html += `<div class="parent-info">Inherits permissions from: <strong>${escapeHtml(data.parent_label)}</strong></div>`;
+        }
+
+        // Groups and their permissions
+        html += `<div class="result-section">
+            <h3>Permissions by Group</h3>
+            <div class="forum-groups-container">`;
+
+        if (data.groups && data.groups.length > 0) {
+            data.groups.forEach(function(group) {
+                html += `<div class="forum-group-card">
+                    <h4>${escapeHtml(group.label)}</h4>`;
+                html += renderPermissionsCompact(group.permissions);
+                html += '</div>';
+            });
+        } else {
+            html += '<em>No groups</em>';
+        }
+
+        html += '</div></div>';
+
+        resultsContainer.innerHTML = html;
+    }
+
+    function renderPermissionsCompact(permissions) {
+        if (!permissions || Object.keys(permissions).length === 0) {
+            return '<em>No permissions</em>';
+        }
+
+        let html = '<div class="permission-categories">';
+
+        for (const [category, perms] of Object.entries(permissions)) {
+            html += `<div class="perm-category"><h4>${escapeHtml(category)}</h4><div class="perm-list">`;
+
+            for (const [perm, value] of Object.entries(perms)) {
+                const valueClass = value === 'yes' ? 'yes' : (value === 'never' ? 'never' : 'no');
+                const valueLabel = value === 'yes' ? 'Yes' : (value === 'never' ? 'Never' : 'No');
+                html += `<div class="perm-item"><code>${escapeHtml(perm)}</code><span class="perm-value ${valueClass}">${valueLabel}</span></div>`;
+            }
+
+            html += '</div></div>';
+        }
+
+        html += '</div>';
+        return html;
     }
 
     function renderPermissions(permissions, sources) {
