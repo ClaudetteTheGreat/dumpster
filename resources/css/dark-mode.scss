@@ -93,6 +93,12 @@ html.dark {
     --alert-error-text: var(--danger-text);
     --alert-error-border: var(--danger-border);
 
+    // Badge colors
+    --badge-warning-bg: #b8860b;
+    --badge-warning-text: #fff;
+    --badge-secondary-bg: #555;
+    --badge-info-bg: #138496;
+
     // Notification
     --notification-badge-bg: #ff5555;
 
