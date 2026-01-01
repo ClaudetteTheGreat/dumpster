@@ -265,3 +265,37 @@ Private conversations between users:
   - Automatic limit detection (50,000 for users, 100,000 for moderators)
   - Form submission prevention when over limit
   - Client-side validation before submission
+
+## Chat
+
+Real-time chat system with WebSocket support:
+
+- **Multi-Room Support** - Switch between different chat rooms
+- **Real-Time Messaging** - WebSocket-based instant message delivery
+- **Message History** - Scrollable history with automatic scroll anchoring
+- **BBCode Toolbar** - Formatting toolbar above chat input
+  - Bold, italic, underline, strikethrough
+  - Link and image insertion with prompts
+  - Spoiler and code block support
+  - Divider between text formatting and media buttons
+- **Keyboard Shortcuts**
+  - Enter to send message
+  - Shift+Enter to insert newline (multi-line messages)
+  - Arrow Up to edit last message (when input empty)
+  - Escape to cancel edit
+- **Message Editing** - Edit your own messages inline
+  - Same Shift+Enter support for newlines
+  - Escape to cancel edit
+- **Message Actions** - Hover actions for edit/delete on own messages
+- **User Activity Panel** - Shows active users in current room (hidden on mobile)
+- **Responsive Layout** - Works within page container or full-screen mode
+  - Constrained height within page layout
+  - Activity panel hidden on narrow screens
+  - Toolbar and input hidden on very short screens
+- **Message Highlighting** - Visual indicators for mentions and user messages
+  - Red highlight for @mentions of current user
+  - Purple highlight for messages from selected user
+  - Green highlight for own messages
+  - Orange highlight on hover
+- **Ignored Users** - Messages from blocked users hidden with placeholder
+- **System Messages** - Distinct styling for system/bot messages

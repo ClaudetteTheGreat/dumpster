@@ -166,6 +166,10 @@ document.addEventListener("DOMContentLoaded", function () {
                     return false;
 
                 case "Enter":
+                    if (event.shiftKey) {
+                        // Allow Shift+Enter to insert newline
+                        return true;
+                    }
                     event.preventDefault();
 
                     messageSend("/edit " + JSON.stringify({
@@ -654,6 +658,10 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById('new-message-input').addEventListener('keydown', function (event) {
         switch (event.key) {
             case "Enter":
+                if (event.shiftKey) {
+                    // Allow Shift+Enter to insert newline
+                    return true;
+                }
                 event.preventDefault();
 
                 messageSend(this.textContent);
