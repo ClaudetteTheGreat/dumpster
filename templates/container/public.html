@@ -114,7 +114,7 @@
                                     Notifications
                                     <span class="p-nav-badge{% if client.get_unread_notifications() == 0 %} hidden{% endif %}" id="notification-badge" aria-label="{{ client.get_unread_notifications() }} unread notifications">{{ client.get_unread_notifications() }}</span>
                                 </a></li>
-                            {% if client.can("admin.settings") || client.can("admin.user.manage") || client.can("admin.user.ban") || client.can("moderate.reports.view") || client.can("moderate.approval.view") || client.can("admin.word_filters.view") %}
+                            {% if client.can("admin.settings") || client.can("admin.user.manage") || client.can("admin.user.ban") || client.can("admin.permissions.manage") || client.can("admin.word_filters.view") || client.can("moderate.reports.view") || client.can("moderate.approval.view") %}
                             <li role="none"><a href="/admin" class="p-nav-link" role="menuitem">Admin</a></li>
                             {% endif %}
                             <li role="none"><a href="/account" class="p-nav-link p-nav-link--user" role="menuitem" aria-label="Account settings for {{ user.name }}">
