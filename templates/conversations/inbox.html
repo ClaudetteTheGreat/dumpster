@@ -4,10 +4,7 @@
 <div class="thread">
     <div class="thread-header">
         <div class="thread-title-section">
-            <h1>
-                <span class="thread-badge thread-badge--private">Private</span>
-                Messages
-            </h1>
+            <h1>Private Messages</h1>
             <div class="thread-meta">
                 {% if unread_count > 0 %}
                     <span class="unread-count">{{ unread_count }} unread</span>
@@ -61,12 +58,6 @@
 </div>
 
 <style>
-    .thread-badge--private {
-        background: var(--bg-secondary, #f8f9fa);
-        color: var(--text-color, #333);
-        border: 1px solid var(--border-color, #dee2e6);
-    }
-
     .thread-badge--new {
         background: #28a745;
         color: white;
