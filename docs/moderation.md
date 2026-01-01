@@ -6,14 +6,18 @@ This document covers the moderation features available to forum staff.
 
 The admin dashboard (`/admin`) provides a centralized control panel for moderators and administrators. The dashboard is **permission-gated** - users only see features they have access to.
 
+### Access Control
+The admin dashboard requires at least one admin or moderation permission to access. Users without any admin permissions receive a 403 Forbidden error.
+
 ### Navigation Link
 The "Admin" link appears in the top navigation for users with any of these permissions:
 - `admin.settings`
 - `admin.user.manage`
 - `admin.user.ban`
+- `admin.permissions.manage`
+- `admin.word_filters.view`
 - `moderate.reports.view`
 - `moderate.approval.view`
-- `admin.word_filters.view`
 
 ### Quick Links (Permission-Gated)
 | Link | Required Permission |
@@ -27,6 +31,7 @@ The "Admin" link appears in the top navigation for users with any of these permi
 | Users | `admin.user.manage` |
 | Approval Queue | `moderate.approval.view` |
 | Groups | `admin.permissions.manage` |
+| Permission Viewer | `admin.settings` |
 | Forums | `admin.settings` |
 | Reaction Types | `admin.settings` |
 | Badges | `admin.settings` |
@@ -35,8 +40,9 @@ The "Admin" link appears in the top navigation for users with any of these permi
 ### Dashboard Sections (Permission-Gated)
 | Section | Required Permission |
 |---------|---------------------|
+| Statistics Grid | `admin.settings` |
 | Recent Users | `admin.user.manage` |
-| Recent Moderation | (always visible) |
+| Recent Moderation | `moderate.reports.view` or `admin.settings` |
 | Open Reports | `moderate.reports.view` |
 | System Info | `admin.settings` |
 
@@ -144,6 +150,34 @@ Create and manage user groups at `/admin/groups`:
 - **No** - Deny the permission
 - **Never** - Permanent deny (cannot be overridden by other groups)
 - **Default** - Inherit from other groups
+
+## Permission Hierarchy Viewer
+
+Visual tool for inspecting effective permissions at `/admin/permissions/hierarchy`:
+
+### Features
+- **User Search** - Look up any user by username with autocomplete
+  - Type 2+ characters to see suggestions
+  - Keyboard navigation (arrow keys, Enter to select)
+- **Group View** - Select a group to see its permissions
+- **User Information Displayed:**
+  - Group memberships with primary group indicated
+  - Forum moderator status for each forum (direct and inherited)
+  - Effective permissions with source group attribution
+- **Group Information Displayed:**
+  - Member count and list (first 20 members)
+  - All permissions granted to the group
+
+### Permission Resolution
+Shows the final effective permission after resolving:
+1. User's group memberships
+2. Permission precedence (Never > Yes > No)
+3. Source attribution (which group granted each permission)
+
+### Access
+- **Route** - `/admin/permissions/hierarchy`
+- **Required Permission** - `admin.settings`
+- **Dashboard Link** - "Permission Viewer" in admin quick links
 
 ## Forum-Specific Permissions
 
