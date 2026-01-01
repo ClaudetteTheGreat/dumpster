@@ -16,11 +16,62 @@ document.addEventListener("DOMContentLoaded", function () {
     let userActivityData = {};
 
     function inputAddEventListeners(el) {
-        // TODO: Add keyDown event listeners?
-        // Right now, the functionality for main input and edit input is totally different.
-        el.addEventListener('paste', function (event) {
-            var text = event.clipboardData.getData('text/plain');
+        // Keyboard shortcuts for formatting (Ctrl+B, Ctrl+I, Ctrl+U)
+        el.addEventListener('keydown', function (event) {
+            if (event.ctrlKey || event.metaKey) {
+                switch (event.key.toLowerCase()) {
+                    case 'b':
+                        event.preventDefault();
+                        document.execCommand('bold', false, null);
+                        return false;
+                    case 'i':
+                        event.preventDefault();
+                        document.execCommand('italic', false, null);
+                        return false;
+                    case 'u':
+                        event.preventDefault();
+                        document.execCommand('underline', false, null);
+                        return false;
+                }
+            }
+        });
 
+        // Paste handler - preserve simple formatting, strip complex HTML
+        el.addEventListener('paste', function (event) {
+            event.preventDefault();
+
+            // Try to get HTML content first for rich paste
+            let html = event.clipboardData.getData('text/html');
+            if (html) {
+                // Parse and clean the HTML, keeping only simple formatting
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+
+                // Remove all elements except simple formatting
+                const allowedTags = ['B', 'STRONG', 'I', 'EM', 'U', 'S', 'STRIKE', 'DEL', 'BR'];
+                function cleanNode(node) {
+                    const children = Array.from(node.childNodes);
+                    for (const child of children) {
+                        if (child.nodeType === Node.ELEMENT_NODE) {
+                            if (!allowedTags.includes(child.tagName)) {
+                                // Replace with its text content
+                                const text = document.createTextNode(child.textContent);
+                                node.replaceChild(text, child);
+                            } else {
+                                cleanNode(child);
+                            }
+                        }
+                    }
+                }
+                cleanNode(temp);
+
+                // Insert the cleaned HTML
+                document.execCommand('insertHTML', false, temp.innerHTML);
+                return false;
+            }
+
+            // Fallback to plain text
+            var text = event.clipboardData.getData('text/plain');
             const sel = window.getSelection();
             if (!sel.rangeCount) {
                 return false;
@@ -30,9 +81,8 @@ document.addEventListener("DOMContentLoaded", function () {
             let range = sel.getRangeAt(0);
             let newNode = document.createTextNode(text);
             range.insertNode(newNode);
-            range.setStart(this, range.endOffset);
+            range.setStart(el, range.endOffset);
 
-            event.preventDefault();
             return false;
         });
     }
@@ -156,7 +206,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         contentEl.replaceWith(formEl);
 
-        inputEl.innerHTML = messageEl.rawMessage;
+        // Convert BBCode to HTML for WYSIWYG editing
+        inputEl.innerHTML = bbcodeToHtml(messageEl.rawMessage);
         inputAddEventListeners(inputEl);
         inputEl.addEventListener('keydown', function (event) {
             switch (event.key) {
@@ -174,7 +225,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     messageSend("/edit " + JSON.stringify({
                         id: parseInt(messageEl.dataset.id, 10),
-                        message: this.innerHTML,
+                        message: getInputBBCode(this),
                     }));
                     messageEditReverse();
 
@@ -664,7 +715,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
                 event.preventDefault();
 
-                messageSend(this.textContent);
+                messageSend(getInputBBCode(this));
                 this.innerHTML = "";
 
                 return false;
@@ -691,6 +742,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Blur spoiler click handler
     initBlurSpoilers();
 
+    // Color picker
+    initColorPicker();
+
     function initBlurSpoilers() {
         // Use event delegation on the messages container
         const messagesEl = document.getElementById('chat-messages');
@@ -702,6 +756,54 @@ document.addEventListener("DOMContentLoaded", function () {
                 spoiler.classList.toggle('revealed');
             }
         });
+    }
+
+    function initColorPicker() {
+        const picker = document.querySelector('.chat-color-picker');
+        if (!picker) return;
+
+        const btn = picker.querySelector('.chat-color-btn');
+        const dropdown = picker.querySelector('.chat-color-dropdown');
+        const swatches = picker.querySelectorAll('.chat-color-swatch');
+        const colorInput = picker.querySelector('.chat-color-input');
+        const applyBtn = picker.querySelector('.chat-color-apply');
+        const inputEl = document.getElementById('new-message-input');
+
+        // Toggle dropdown
+        btn.addEventListener('click', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            picker.classList.toggle('open');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!picker.contains(event.target)) {
+                picker.classList.remove('open');
+            }
+        });
+
+        // Apply color from preset swatches
+        swatches.forEach(function(swatch) {
+            swatch.addEventListener('click', function(event) {
+                event.preventDefault();
+                const color = this.dataset.color;
+                applyColor(color);
+                picker.classList.remove('open');
+            });
+        });
+
+        // Apply custom color
+        applyBtn.addEventListener('click', function(event) {
+            event.preventDefault();
+            applyColor(colorInput.value);
+            picker.classList.remove('open');
+        });
+
+        function applyColor(color) {
+            inputEl.focus();
+            document.execCommand('foreColor', false, color);
+        }
     }
 
     function initChatToolbar() {
@@ -718,8 +820,24 @@ document.addEventListener("DOMContentLoaded", function () {
             const tag = btn.dataset.bbcode;
             if (!tag) return;
 
-            insertChatBBCode(inputEl, tag);
+            // Ensure focus is on input before applying formatting
             inputEl.focus();
+
+            // Use execCommand for inline formatting marks
+            const inlineMarks = {
+                'b': 'bold',
+                'i': 'italic',
+                'u': 'underline',
+                's': 'strikeThrough'
+            };
+
+            if (inlineMarks[tag]) {
+                document.execCommand(inlineMarks[tag], false, null);
+                return;
+            }
+
+            // Handle special tags that need prompts
+            insertChatBBCode(inputEl, tag);
         });
     }
 
@@ -754,7 +872,7 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        // Standard wrapping tags
+        // Standard wrapping tags (spoiler, code)
         const openTag = `[${tag}]`;
         const closeTag = `[/${tag}]`;
         insertTextAtCursor(el, openTag + selectedText + closeTag);
@@ -782,11 +900,135 @@ document.addEventListener("DOMContentLoaded", function () {
         el.appendChild(document.createTextNode(text));
     }
 
+    /**
+     * Convert HTML from contenteditable to BBCode
+     * Handles inline formatting tags: b, i, u, s, strong, em, font color, span color
+     */
+    function htmlToBBCode(html) {
+        // Create a temporary element to parse the HTML
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+
+        function processNode(node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                return node.textContent;
+            }
+
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return '';
+            }
+
+            // Get the content of child nodes first
+            let content = '';
+            for (const child of node.childNodes) {
+                content += processNode(child);
+            }
+
+            // Map HTML tags to BBCode
+            const tagName = node.tagName.toLowerCase();
+            switch (tagName) {
+                case 'b':
+                case 'strong':
+                    return `[b]${content}[/b]`;
+                case 'i':
+                case 'em':
+                    return `[i]${content}[/i]`;
+                case 'u':
+                    return `[u]${content}[/u]`;
+                case 's':
+                case 'strike':
+                case 'del':
+                    return `[s]${content}[/s]`;
+                case 'font':
+                    // Handle <font color="..."> from execCommand
+                    const fontColor = node.getAttribute('color');
+                    if (fontColor) {
+                        return `[color=${fontColor}]${content}[/color]`;
+                    }
+                    return content;
+                case 'span':
+                    // Handle <span style="color: ..."> from some browsers
+                    const style = node.getAttribute('style');
+                    if (style) {
+                        const colorMatch = style.match(/color:\s*([^;]+)/i);
+                        if (colorMatch) {
+                            let color = colorMatch[1].trim();
+                            // Convert rgb() to hex if needed
+                            if (color.startsWith('rgb')) {
+                                color = rgbToHex(color);
+                            }
+                            return `[color=${color}]${content}[/color]`;
+                        }
+                    }
+                    return content;
+                case 'br':
+                    return '\n';
+                case 'div':
+                case 'p':
+                    // Block elements add newlines
+                    return content + '\n';
+                default:
+                    return content;
+            }
+        }
+
+        let result = '';
+        for (const child of temp.childNodes) {
+            result += processNode(child);
+        }
+
+        // Clean up extra newlines
+        return result.replace(/\n+$/, '').replace(/\n{3,}/g, '\n\n');
+    }
+
+    /**
+     * Convert RGB color string to hex
+     */
+    function rgbToHex(rgb) {
+        const match = rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!match) return rgb;
+        const r = parseInt(match[1]).toString(16).padStart(2, '0');
+        const g = parseInt(match[2]).toString(16).padStart(2, '0');
+        const b = parseInt(match[3]).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}`;
+    }
+
+    /**
+     * Convert BBCode to HTML for editing
+     * Handles basic inline tags: b, i, u, s, color
+     */
+    function bbcodeToHtml(bbcode) {
+        if (!bbcode) return '';
+
+        let html = bbcode
+            // Escape HTML first
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            // Convert BBCode to HTML
+            .replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<b>$1</b>')
+            .replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<i>$1</i>')
+            .replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>')
+            .replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<s>$1</s>')
+            .replace(/\[color=([^\]]+)\]([\s\S]*?)\[\/color\]/gi, '<font color="$1">$2</font>')
+            // Convert newlines to <br> for display
+            .replace(/\n/g, '<br>');
+
+        return html;
+    }
+
+    /**
+     * Get BBCode content from a chat input element
+     */
+    function getInputBBCode(el) {
+        return htmlToBBCode(el.innerHTML);
+    }
+
     document.getElementById('new-message-submit').addEventListener('click', function (event) {
         event.preventDefault();
         let input = document.getElementById('new-message-input');
 
-        messageSend(input.innerHTML);
+        messageSend(getInputBBCode(input));
         input.innerHTML = "";
 
         input.focus({ preventScroll: true });

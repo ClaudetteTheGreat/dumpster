@@ -30,6 +30,31 @@
             <button type="button" data-bbcode="s" title="Strikethrough" class="chat-toolbar-btn">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z"/></svg>
             </button>
+            <div class="chat-color-picker">
+                <button type="button" title="Text color" class="chat-toolbar-btn chat-color-btn">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                </button>
+                <div class="chat-color-dropdown">
+                    <div class="chat-color-presets">
+                        <button type="button" class="chat-color-swatch" data-color="#ff0000" style="background:#ff0000" title="Red"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#ff8000" style="background:#ff8000" title="Orange"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#ffff00" style="background:#ffff00" title="Yellow"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#00ff00" style="background:#00ff00" title="Green"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#00ffff" style="background:#00ffff" title="Cyan"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#0080ff" style="background:#0080ff" title="Blue"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#8000ff" style="background:#8000ff" title="Purple"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#ff00ff" style="background:#ff00ff" title="Magenta"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#808080" style="background:#808080" title="Gray"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#000000" style="background:#000000" title="Black"></button>
+                        <button type="button" class="chat-color-swatch" data-color="#8b4513" style="background:#8b4513" title="Brown"></button>
+                    </div>
+                    <div class="chat-color-custom">
+                        <input type="color" class="chat-color-input" value="#ff0000" title="Custom color">
+                        <button type="button" class="chat-color-apply">Apply</button>
+                    </div>
+                </div>
+            </div>
             <span class="chat-toolbar-divider"></span>
             <button type="button" data-bbcode="url" title="Insert link" class="chat-toolbar-btn">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
