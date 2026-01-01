@@ -172,6 +172,7 @@ Visual tool for inspecting effective permissions at `/admin/permissions/hierarch
   - Forum moderators with source indication:
     - Direct moderators (assigned to this specific forum)
     - Inherited moderators (from parent forums)
+    - Global moderators (users in the Moderators group)
   - Parent forum inheritance info
   - Permissions for each group in that forum
 
