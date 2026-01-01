@@ -677,6 +677,87 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     inputAddEventListeners(document.getElementById('new-message-input'));
 
+    // Chat toolbar functionality
+    initChatToolbar();
+
+    function initChatToolbar() {
+        const toolbar = document.querySelector('.chat-toolbar');
+        if (!toolbar) return;
+
+        const inputEl = document.getElementById('new-message-input');
+
+        toolbar.addEventListener('click', function(event) {
+            const btn = event.target.closest('.chat-toolbar-btn');
+            if (!btn) return;
+
+            event.preventDefault();
+            const tag = btn.dataset.bbcode;
+            if (!tag) return;
+
+            insertChatBBCode(inputEl, tag);
+            inputEl.focus();
+        });
+    }
+
+    function insertChatBBCode(el, tag) {
+        const sel = window.getSelection();
+        let selectedText = '';
+
+        // Get selected text if selection is within the input
+        if (sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            if (el.contains(range.commonAncestorContainer)) {
+                selectedText = range.toString();
+            }
+        }
+
+        // Handle special tags that need prompts
+        if (tag === 'url') {
+            const url = prompt('Enter URL:', selectedText.startsWith('http') ? selectedText : 'https://');
+            if (!url) return;
+            if (selectedText && !selectedText.startsWith('http')) {
+                insertTextAtCursor(el, `[url=${url}]${selectedText}[/url]`);
+            } else {
+                insertTextAtCursor(el, `[url]${url}[/url]`);
+            }
+            return;
+        }
+
+        if (tag === 'img') {
+            const url = prompt('Enter image URL:', selectedText.startsWith('http') ? selectedText : 'https://');
+            if (!url) return;
+            insertTextAtCursor(el, `[img]${url}[/img]`);
+            return;
+        }
+
+        // Standard wrapping tags
+        const openTag = `[${tag}]`;
+        const closeTag = `[/${tag}]`;
+        insertTextAtCursor(el, openTag + selectedText + closeTag);
+    }
+
+    function insertTextAtCursor(el, text) {
+        el.focus();
+        const sel = window.getSelection();
+
+        if (sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            if (el.contains(range.commonAncestorContainer)) {
+                range.deleteContents();
+                const textNode = document.createTextNode(text);
+                range.insertNode(textNode);
+                range.setStartAfter(textNode);
+                range.setEndAfter(textNode);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                return;
+            }
+        }
+
+        // Fallback: append to end
+        el.appendChild(document.createTextNode(text));
+    }
+
     document.getElementById('new-message-submit').addEventListener('click', function (event) {
         event.preventDefault();
         let input = document.getElementById('new-message-input');
