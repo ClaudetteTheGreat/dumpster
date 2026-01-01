@@ -496,3 +496,25 @@ html.chat #chat {
         display: none;
     }
 }
+
+// Inline blur spoilers for chat
+.blur-spoiler {
+    filter: blur(5px);
+    cursor: pointer;
+    transition: filter 0.2s ease;
+    user-select: none;
+    padding: 0 2px;
+    border-radius: 3px;
+    background: var(--bg-hover, rgba(128, 128, 128, 0.2));
+
+    &:hover {
+        filter: blur(3px);
+    }
+
+    &.revealed {
+        filter: none;
+        user-select: text;
+        cursor: text;
+        background: transparent;
+    }
+}

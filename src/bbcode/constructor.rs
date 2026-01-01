@@ -7,6 +7,8 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct Constructor {
     pub smilies: Smilies,
+    /// When true, spoilers render as inline blur spans instead of collapsible details
+    pub inline_spoilers: bool,
 }
 
 impl Constructor {
@@ -115,7 +117,13 @@ impl Constructor {
                     Tag::Code => Tag::open_code_tag(el),
 
                     Tag::Quote => Tag::open_quote_tag(el),
-                    Tag::Spoiler => Tag::open_spoiler_tag(el),
+                    Tag::Spoiler => {
+                        if self.inline_spoilers {
+                            Tag::open_inline_spoiler_tag(el)
+                        } else {
+                            Tag::open_spoiler_tag(el)
+                        }
+                    }
 
                     Tag::Center => String::from("<div style=\"text-align: center;\">"),
                     Tag::Left => String::from("<div style=\"text-align: left;\">"),
@@ -184,7 +192,13 @@ impl Constructor {
                     Tag::Code => Tag::close_code_tag(),
 
                     Tag::Quote => Tag::close_quote_tag(el),
-                    Tag::Spoiler => Tag::close_spoiler_tag(),
+                    Tag::Spoiler => {
+                        if self.inline_spoilers {
+                            Tag::close_inline_spoiler_tag()
+                        } else {
+                            Tag::close_spoiler_tag()
+                        }
+                    }
 
                     Tag::Center => String::from("</div>"),
                     Tag::Left => String::from("</div>"),

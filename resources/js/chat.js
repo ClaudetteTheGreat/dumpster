@@ -688,6 +688,22 @@ document.addEventListener("DOMContentLoaded", function () {
     // Chat toolbar functionality
     initChatToolbar();
 
+    // Blur spoiler click handler
+    initBlurSpoilers();
+
+    function initBlurSpoilers() {
+        // Use event delegation on the messages container
+        const messagesEl = document.getElementById('chat-messages');
+        if (!messagesEl) return;
+
+        messagesEl.addEventListener('click', function(event) {
+            const spoiler = event.target.closest('.blur-spoiler');
+            if (spoiler) {
+                spoiler.classList.toggle('revealed');
+            }
+        });
+    }
+
     function initChatToolbar() {
         const toolbar = document.querySelector('.chat-toolbar');
         if (!toolbar) return;

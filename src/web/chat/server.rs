@@ -33,7 +33,7 @@ impl ChatServer {
         // Populate rooms
         let rooms = layer.get_room_list().await;
 
-        // Constructor
+        // Constructor - use inline spoilers (blur-based) for chat
         let constructor = Constructor {
             smilies: Smilies::new_from_tuples(
                 layer
@@ -43,6 +43,7 @@ impl ChatServer {
                     .map(|smilie| (smilie.replace.to_string(), smilie.to_html()))
                     .collect(),
             ),
+            inline_spoilers: true,
         };
 
         Self {

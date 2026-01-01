@@ -22,6 +22,26 @@ impl super::Tag {
     pub fn close_spoiler_tag() -> String {
         String::from("</details>")
     }
+
+    /// Opens an inline spoiler tag (blur-based). Returns <span class="blur-spoiler">
+    pub fn open_inline_spoiler_tag(el: RefMut<Element>) -> String {
+        let title = if let Some(arg) = el.get_argument() {
+            let title = arg.strip_prefix('=').unwrap_or(arg).trim();
+            if !title.is_empty() {
+                sanitize_html(title)
+            } else {
+                String::from("Spoiler")
+            }
+        } else {
+            String::from("Spoiler")
+        };
+
+        format!("<span class=\"blur-spoiler\" data-spoiler-title=\"{}\">", title)
+    }
+
+    pub fn close_inline_spoiler_tag() -> String {
+        String::from("</span>")
+    }
 }
 
 /// Sanitizes a string for HTML to prevent XSS
