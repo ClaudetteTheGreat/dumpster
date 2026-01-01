@@ -4778,6 +4778,54 @@ async fn get_forum_permissions(
         }
     }
 
+    // Get global moderators (users in the Moderators group, id=3)
+    let global_mod_user_ids: Vec<i32> = user_groups::Entity::find()
+        .filter(user_groups::Column::GroupId.eq(3)) // Moderators group
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch global moderators: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?
+        .into_iter()
+        .map(|ug| ug.user_id)
+        .collect();
+
+    // Fetch usernames for global moderators not already fetched
+    let new_global_mod_ids: Vec<i32> = global_mod_user_ids
+        .iter()
+        .filter(|id| !mod_usernames.contains_key(id))
+        .cloned()
+        .collect();
+
+    let mut global_mod_usernames = mod_usernames;
+    if !new_global_mod_ids.is_empty() {
+        let additional_names: std::collections::HashMap<i32, String> = user_names::Entity::find()
+            .filter(user_names::Column::UserId.is_in(new_global_mod_ids))
+            .all(db)
+            .await
+            .map_err(|e| {
+                log::error!("Failed to fetch global moderator usernames: {}", e);
+                error::ErrorInternalServerError("Database error")
+            })?
+            .into_iter()
+            .map(|un| (un.user_id, un.name))
+            .collect();
+        global_mod_usernames.extend(additional_names);
+    }
+
+    // Add global moderators
+    for user_id in global_mod_user_ids {
+        if seen_user_ids.insert(user_id) {
+            moderators.push(ForumModeratorInfo {
+                user_id,
+                username: global_mod_usernames.get(&user_id).cloned().unwrap_or_else(|| format!("User #{}", user_id)),
+                source: "global".to_string(),
+                source_forum: None,
+            });
+        }
+    }
+
     // Get all groups
     let all_groups = groups::Entity::find()
         .order_by_asc(groups::Column::Label)
