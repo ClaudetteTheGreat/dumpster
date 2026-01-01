@@ -82,6 +82,17 @@ html.dark {
     --warning-bg: #3a3a1a;
     --warning-border: #5a5a2d;
 
+    // Alert message boxes
+    --alert-success-bg: var(--success-bg);
+    --alert-success-text: var(--success-text);
+    --alert-success-border: var(--success-border);
+    --alert-warning-bg: var(--warning-bg);
+    --alert-warning-text: var(--warning-text);
+    --alert-warning-border: var(--warning-border);
+    --alert-error-bg: var(--danger-bg);
+    --alert-error-text: var(--danger-text);
+    --alert-error-border: var(--danger-border);
+
     // Notification
     --notification-badge-bg: #ff5555;
 

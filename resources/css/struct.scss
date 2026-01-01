@@ -47,3 +47,29 @@
     font-size: 0.85rem;
     width: 130px;
 }
+
+/* Alert messages */
+.alert {
+    padding: 10px 15px;
+    margin: 10px 0;
+    border-radius: 4px;
+    border: 1px solid;
+}
+
+.alert-success {
+    background-color: var(--alert-success-bg, #d4edda);
+    color: var(--alert-success-text, #155724);
+    border-color: var(--alert-success-border, #c3e6cb);
+}
+
+.alert-warning {
+    background-color: var(--alert-warning-bg, #fff3cd);
+    color: var(--alert-warning-text, #856404);
+    border-color: var(--alert-warning-border, #ffeeba);
+}
+
+.alert-error {
+    background-color: var(--alert-error-bg, #f8d7da);
+    color: var(--alert-error-text, #721c24);
+    border-color: var(--alert-error-border, #f5c6cb);
+}

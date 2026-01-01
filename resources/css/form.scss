@@ -911,3 +911,38 @@ blockquote.tagQuote {
         background: #f0f0f0;
     }
 }
+
+/* Standalone form input */
+.form-input {
+    width: 300px;
+    max-width: 100%;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border: 1px solid var(--border-color, #ddd);
+    border-radius: 4px;
+    font-size: 1rem;
+    background: var(--bg-input, #fff);
+    color: var(--text-color, #333);
+
+    &:focus {
+        outline: none;
+        border-color: var(--accent-focus, #007bff);
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+    }
+}
+
+/* Standalone form button */
+.form-button {
+    padding: 8px 16px;
+    margin: 10px 0;
+    border: none;
+    border-radius: 4px;
+    background: var(--accent-focus, #007bff);
+    color: #fff;
+    font-size: 1rem;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--accent-focus-dark, #0056b3);
+    }
+}

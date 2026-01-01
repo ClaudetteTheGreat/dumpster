@@ -4,7 +4,7 @@
 <h2>Login</h2>
 
 {% if let Some(msg) = success_message %}
-<div style="padding: 10px; margin: 10px 0; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 4px;">
+<div class="alert alert-success">
     {{ msg }}
 </div>
 {% endif %}
@@ -32,7 +32,7 @@
     {% if let Some(provider) = captcha_provider %}
     {% if let Some(site_key) = captcha_site_key %}
     <div class="form-group">
-        <p style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 10px;">
+        <p class="alert alert-warning">
             Due to multiple failed login attempts, please complete the CAPTCHA below.
         </p>
         {% if provider == "hcaptcha" %}
