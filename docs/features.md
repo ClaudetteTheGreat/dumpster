@@ -299,3 +299,15 @@ Real-time chat system with WebSocket support:
   - Orange highlight on hover
 - **Ignored Users** - Messages from blocked users hidden with placeholder
 - **System Messages** - Distinct styling for system/bot messages
+- **Auto-Resize Input** - Chat input expands vertically as you type
+  - Minimum single-line height, maximum ~8 lines
+  - Scrollbar appears when content exceeds maximum
+  - Resets to single line after sending
+- **YouTube Embeds** - Configurable YouTube video embeds in chat
+  - Admin toggle via `chat_embed_youtube` setting
+  - When disabled, YouTube links render as plain text links
+- **Image Domain Whitelist** - Control which domains can show image thumbnails
+  - Admin setting `chat_image_domain_whitelist` (comma-separated domains)
+  - Use `*` to allow all domains (default)
+  - Non-whitelisted images render as clickable text links
+  - Supports subdomains (e.g., `example.com` allows `cdn.example.com`)

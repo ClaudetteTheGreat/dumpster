@@ -239,3 +239,15 @@ Site-wide settings can be configured at `/admin/settings`:
 ### Storage Settings
 - **max_upload_size_mb** - Maximum file upload size in MB
 - **max_avatar_size_kb** - Maximum avatar file size in KB
+
+### Chat Settings
+- **chat_enabled** - Enable/disable real-time chat feature
+- **chat_history_limit** - Number of messages to load when joining a room (default: 40)
+- **chat_rate_limit_seconds** - Minimum seconds between messages per user (0 = disabled)
+- **chat_default_room** - Default room ID to auto-join (0 = none)
+- **chat_max_message_length** - Maximum chat message length in bytes (default: 1024)
+- **chat_embed_youtube** - Allow YouTube video embeds in chat messages (default: true)
+- **chat_image_domain_whitelist** - Comma-separated list of domains allowed to show image thumbnails
+  - Use `*` to allow all domains (default)
+  - Supports subdomains (e.g., `example.com` also allows `cdn.example.com`)
+  - Non-whitelisted images render as clickable text links instead of thumbnails
