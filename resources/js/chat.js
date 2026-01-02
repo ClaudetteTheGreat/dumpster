@@ -722,6 +722,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 messageSend(getInputBBCode(this));
                 this.innerHTML = "";
+                this.style.height = '44px'; // Reset to min height
 
                 return false;
 
@@ -741,6 +742,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     inputAddEventListeners(document.getElementById('new-message-input'));
 
+    // Auto-resize chat input
+    initAutoResize(document.getElementById('new-message-input'));
+
     // Chat toolbar functionality
     initChatToolbar();
 
@@ -749,6 +753,36 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Color picker
     initColorPicker();
+
+    function initAutoResize(el) {
+        if (!el) return;
+
+        const minHeight = 44; // Match CSS min-height
+        const maxHeight = 200; // Match CSS max-height
+
+        function resize() {
+            // Reset height to auto to get accurate scrollHeight
+            el.style.height = 'auto';
+
+            // Calculate new height
+            const newHeight = Math.min(Math.max(el.scrollHeight, minHeight), maxHeight);
+            el.style.height = newHeight + 'px';
+
+            // Toggle overflow based on whether we've hit max height
+            el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+        }
+
+        // Resize on input
+        el.addEventListener('input', resize);
+
+        // Also resize on paste (after content is inserted)
+        el.addEventListener('paste', function() {
+            setTimeout(resize, 0);
+        });
+
+        // Initial sizing
+        resize();
+    }
 
     function initBlurSpoilers() {
         // Use event delegation on the messages container
@@ -1043,6 +1077,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         messageSend(getInputBBCode(input));
         input.innerHTML = "";
+        input.style.height = '44px'; // Reset to min height
 
         input.focus({ preventScroll: true });
         return false;
