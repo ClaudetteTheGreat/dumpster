@@ -273,6 +273,7 @@ impl Constructor {
     }
 }
 
+#[cfg(test)]
 mod tests {
     #[test]
     fn reusable() {
@@ -309,6 +310,7 @@ mod tests {
 
         let con = Constructor {
             smilies: Smilies::new_from_hashmap(&smilies),
+            inline_spoilers: false,
         };
 
         let mut ast = Node::new(Element::new_root());
@@ -350,5 +352,91 @@ mod tests {
         let out = con.build(ast);
 
         assert_eq!(out, "Hello, world!");
+    }
+
+    #[test]
+    fn spoiler_block_mode() {
+        use super::{Constructor, Smilies};
+        use crate::bbcode::{tokenize, Parser};
+
+        let con = Constructor {
+            smilies: Smilies::new_from_tuples(vec![]),
+            inline_spoilers: false,
+        };
+
+        let input = "[spoiler]Hidden content[/spoiler]";
+        let tokens = tokenize(input).expect("Failed to tokenize").1;
+        let mut parser = Parser::new();
+        let ast = parser.parse(&tokens);
+        let output = con.build(ast);
+
+        assert!(
+            output.contains("<details>"),
+            "Block mode should use <details> tag"
+        );
+        assert!(
+            output.contains("<summary>"),
+            "Block mode should use <summary> tag"
+        );
+        assert!(
+            !output.contains("blur-spoiler"),
+            "Block mode should not have blur-spoiler class"
+        );
+    }
+
+    #[test]
+    fn spoiler_inline_mode() {
+        use super::{Constructor, Smilies};
+        use crate::bbcode::{tokenize, Parser};
+
+        let con = Constructor {
+            smilies: Smilies::new_from_tuples(vec![]),
+            inline_spoilers: true,
+        };
+
+        let input = "[spoiler]Hidden content[/spoiler]";
+        let tokens = tokenize(input).expect("Failed to tokenize").1;
+        let mut parser = Parser::new();
+        let ast = parser.parse(&tokens);
+        let output = con.build(ast);
+
+        assert!(
+            output.contains("blur-spoiler"),
+            "Inline mode should have blur-spoiler class"
+        );
+        assert!(
+            output.contains("</span>"),
+            "Inline mode should close with </span>"
+        );
+        assert!(
+            !output.contains("<details>"),
+            "Inline mode should not use <details> tag"
+        );
+    }
+
+    #[test]
+    fn spoiler_inline_with_title() {
+        use super::{Constructor, Smilies};
+        use crate::bbcode::{tokenize, Parser};
+
+        let con = Constructor {
+            smilies: Smilies::new_from_tuples(vec![]),
+            inline_spoilers: true,
+        };
+
+        let input = "[spoiler=Custom Title]Hidden content[/spoiler]";
+        let tokens = tokenize(input).expect("Failed to tokenize").1;
+        let mut parser = Parser::new();
+        let ast = parser.parse(&tokens);
+        let output = con.build(ast);
+
+        assert!(
+            output.contains("blur-spoiler"),
+            "Inline mode should have blur-spoiler class"
+        );
+        assert!(
+            output.contains("data-spoiler-title=\"Custom Title\""),
+            "Inline mode should include custom title in data attribute"
+        );
     }
 }
