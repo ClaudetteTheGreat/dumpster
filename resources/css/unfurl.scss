@@ -177,11 +177,14 @@ html.dark {
         cursor: pointer;
         background: #000;
         aspect-ratio: 16 / 9;
+        overflow: hidden;
 
         img {
+            display: block;
             width: 100%;
             height: 100%;
             object-fit: cover;
+            object-position: center;
         }
 
         .unfurl-youtube-play {
