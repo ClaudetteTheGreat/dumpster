@@ -116,29 +116,33 @@ html.chat #chat {
 
 .chat-message {
     position: relative;
-    padding-left: 64px;
+    padding-left: 16px;
     padding-right: 48px;
     margin-top: 1.0625rem;
 
-    // Left-hand content
-    //.left-content {}
-
-    .avatar {
+    // Left-hand content (static timestamp on hover for grouped messages)
+    .left-content {
         position: absolute;
-        left: 16px;
-        height: 40px;
-        width: 40px;
-        border-radius: 50%;
+        left: 0;
+        top: 0;
+        width: 56px;
     }
 
-    // Meta
+    // Meta line with avatar and author
     .meta {
-        display: block;
+        display: flex;
+        align-items: center;
         line-height: 1.375rem;
         min-height: 1.375rem;
-
-        margin-left: 2px;
+        gap: 0.5rem;
         padding-left: 0.25rem;
+    }
+
+    .avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        flex-shrink: 0;
     }
 
     .author {

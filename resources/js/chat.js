@@ -347,8 +347,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
-            // Add left-content details
-            if (author.avatar_url.length > 0) {
+            // Add avatar in meta
+            if (author.avatar_url && author.avatar_url.length > 0) {
                 template.querySelector('.avatar').setAttribute('src', author.avatar_url);
             }
             else {
