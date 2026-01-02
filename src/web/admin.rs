@@ -1207,6 +1207,7 @@ struct SettingsTemplate {
     categories: Vec<(String, Vec<settings::Model>)>,
     #[allow(dead_code)]
     success_message: Option<String>,
+    chat_rooms: Vec<chat_rooms::Model>,
 }
 
 #[derive(Template)]
@@ -1245,10 +1246,21 @@ async fn view_settings(
         error::ErrorInternalServerError("Database error")
     })?;
 
+    // Fetch chat rooms for the chat_default_room dropdown
+    let chat_rooms_list = chat_rooms::Entity::find()
+        .order_by_asc(chat_rooms::Column::DisplayOrder)
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to fetch chat rooms: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
+
     Ok(SettingsTemplate {
         client,
         categories,
         success_message: None,
+        chat_rooms: chat_rooms_list,
     }
     .to_response())
 }

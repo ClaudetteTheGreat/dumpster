@@ -38,6 +38,13 @@
                         <option value="true" {% if setting.value == "true" %}selected{% endif %}>Enabled</option>
                         <option value="false" {% if setting.value == "false" %}selected{% endif %}>Disabled</option>
                     </select>
+                    {% else if setting.key == "chat_default_room" %}
+                    <select name="value" id="setting-{{ setting.key }}" class="form-select">
+                        <option value="0" {% if setting.value == "0" %}selected{% endif %}>None (user must select)</option>
+                        {% for room in chat_rooms %}
+                        <option value="{{ room.id }}" {% if setting.value == room.id.to_string() %}selected{% endif %}>#{{ room.id }} - {{ room.title }}</option>
+                        {% endfor %}
+                    </select>
                     {% else if setting.value_type == "int" %}
                     <input type="number" name="value" id="setting-{{ setting.key }}"
                            value="{{ setting.value }}" class="form-input" />
