@@ -231,6 +231,13 @@
 </div>
 
 <style>
+    /* Account page container */
+    .p-body-content {
+        max-width: 100%;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+
     /* Avatar Section */
     .avatar-section {
         display: flex;
@@ -485,6 +492,8 @@
         padding: 20px;
         background: #f5f5f5;
         border-radius: 4px;
+        box-sizing: border-box;
+        max-width: 100%;
     }
 
     .preference-item {
@@ -503,6 +512,8 @@
         border: 1px solid #ddd;
         border-radius: 4px;
         min-width: 200px;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     .help-text {
@@ -536,6 +547,8 @@
         padding: 20px;
         background: #f5f5f5;
         border-radius: 4px;
+        box-sizing: border-box;
+        max-width: 100%;
     }
 
     .profile-item {
@@ -551,12 +564,13 @@
     .profile-item input,
     .profile-item textarea {
         width: 100%;
-        max-width: 500px;
+        max-width: min(500px, 100%);
         padding: 8px 12px;
         font-size: 14px;
         border: 1px solid #ddd;
         border-radius: 4px;
         font-family: inherit;
+        box-sizing: border-box;
     }
 
     .profile-item textarea {
@@ -672,6 +686,9 @@
         padding: 20px;
         background: #f5f5f5;
         border-radius: 4px;
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .section-description {
@@ -757,11 +774,14 @@
         padding: 20px;
         border: 1px solid #ddd;
         border-radius: 6px;
+        box-sizing: border-box;
+        max-width: 100%;
+        overflow: hidden;
     }
 
     .social-form-row {
         display: grid;
-        grid-template-columns: 1fr 1fr 1.5fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.5fr);
         gap: 15px;
         margin-bottom: 15px;
     }
