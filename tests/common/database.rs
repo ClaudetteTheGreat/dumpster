@@ -117,6 +117,26 @@ pub async fn cleanup_test_data(db: &DatabaseConnection) -> Result<(), DbErr> {
     ))
     .await?;
 
+    // Re-seed reaction_types which gets cascaded from attachments truncation
+    // (reaction_types has a FK to attachments for custom reaction images)
+    db.execute(Statement::from_string(
+        db.get_database_backend(),
+        "INSERT INTO reaction_types (name, emoji, display_order, is_positive, reputation_value) VALUES
+            ('like', '👍', 1, TRUE, 1),
+            ('thanks', '🙏', 2, TRUE, 1),
+            ('funny', '😂', 3, TRUE, 0),
+            ('informative', '💡', 4, TRUE, 1),
+            ('agree', '✅', 5, TRUE, 1),
+            ('disagree', '❌', 6, FALSE, -1)
+        ON CONFLICT (name) DO UPDATE SET
+            emoji = EXCLUDED.emoji,
+            display_order = EXCLUDED.display_order,
+            is_positive = EXCLUDED.is_positive,
+            reputation_value = EXCLUDED.reputation_value;"
+            .to_string(),
+    ))
+    .await?;
+
     Ok(())
 }
 

@@ -46,7 +46,7 @@ pub async fn create_test_user(
         email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
         posts_per_page: Set(25),
-        theme: Set("light".to_string()),
+        theme: Set(Some("light".to_string())),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -90,7 +90,7 @@ pub async fn create_test_user_with_email(
         email: Set(Some(email.to_string())),
         email_verified: Set(email_verified),
         posts_per_page: Set(25),
-        theme: Set("light".to_string()),
+        theme: Set(Some("light".to_string())),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
@@ -164,7 +164,7 @@ pub async fn create_locked_test_user(
         email: Set(Some(format!("{}@test.com", email_username))),
         email_verified: Set(true), // Auto-verify test users
         posts_per_page: Set(25),
-        theme: Set("light".to_string()),
+        theme: Set(Some("light".to_string())),
         ..Default::default()
     };
     let user = user.insert(db).await?;
@@ -487,4 +487,115 @@ pub async fn create_test_post(
         ..Default::default()
     };
     post.insert(db).await
+}
+
+/// Create a test chat room
+pub async fn create_test_chat_room(
+    db: &DatabaseConnection,
+    title: &str,
+) -> Result<ruforo::orm::chat_rooms::Model, DbErr> {
+    use ruforo::orm::chat_rooms;
+
+    let room = chat_rooms::ActiveModel {
+        title: Set(title.to_string()),
+        description: Set(None),
+        display_order: Set(0),
+        min_posts_required: Set(0),
+        min_account_age_hours: Set(0),
+        is_staff_only: Set(false),
+        ..Default::default()
+    };
+    room.insert(db).await
+}
+
+/// Create a test chat message
+pub async fn create_test_chat_message(
+    db: &DatabaseConnection,
+    room_id: i32,
+    user_id: i32,
+    message: &str,
+) -> Result<ruforo::orm::chat_messages::Model, DbErr> {
+    use ruforo::orm::{chat_messages, ugc, ugc_revisions};
+
+    // Create UGC entry
+    let ugc_entry = ugc::ActiveModel {
+        ugc_revision_id: Set(None),
+        reaction_count: Set(0),
+        ..Default::default()
+    };
+    let ugc_model = ugc_entry.insert(db).await?;
+
+    // Create UGC revision with content
+    let revision = ugc_revisions::ActiveModel {
+        ugc_id: Set(ugc_model.id),
+        user_id: Set(Some(user_id)),
+        ip_id: Set(None),
+        created_at: Set(Utc::now().naive_utc()),
+        content: Set(message.to_string()),
+        ..Default::default()
+    };
+    let revision_model = revision.insert(db).await?;
+
+    // Update UGC to point to the revision
+    let mut ugc_update: ugc::ActiveModel = ugc_model.into();
+    ugc_update.ugc_revision_id = Set(Some(revision_model.id));
+    let ugc_model = ugc_update.update(db).await?;
+
+    // Create the chat message
+    let chat_msg = chat_messages::ActiveModel {
+        chat_room_id: Set(room_id),
+        ugc_id: Set(ugc_model.id),
+        user_id: Set(Some(user_id)),
+        created_at: Set(Utc::now().naive_utc()),
+        ..Default::default()
+    };
+    chat_msg.insert(db).await
+}
+
+/// Update a site setting for testing
+pub async fn set_test_setting(
+    db: &DatabaseConnection,
+    key: &str,
+    value: &str,
+) -> Result<(), DbErr> {
+    use sea_orm::Statement;
+    db.execute(Statement::from_sql_and_values(
+        sea_orm::DbBackend::Postgres,
+        "UPDATE settings SET value = $1 WHERE key = $2",
+        vec![value.into(), key.into()],
+    ))
+    .await?;
+    Ok(())
+}
+
+/// Get a user's default_chat_room preference
+pub async fn get_user_default_chat_room(
+    db: &DatabaseConnection,
+    user_id: i32,
+) -> Result<Option<i32>, DbErr> {
+    use ruforo::orm::users;
+    use sea_orm::EntityTrait;
+
+    let user = users::Entity::find_by_id(user_id).one(db).await?;
+    Ok(user.and_then(|u| u.default_chat_room))
+}
+
+/// Set a user's default_chat_room preference
+pub async fn set_user_default_chat_room(
+    db: &DatabaseConnection,
+    user_id: i32,
+    room_id: Option<i32>,
+) -> Result<(), DbErr> {
+    use ruforo::orm::users;
+    use sea_orm::EntityTrait;
+
+    let user = users::Entity::find_by_id(user_id)
+        .one(db)
+        .await?
+        .ok_or(DbErr::RecordNotFound("User not found".to_string()))?;
+
+    let mut user: users::ActiveModel = user.into();
+    user.default_chat_room = Set(room_id);
+    user.update(db).await?;
+    Ok(())
 }
