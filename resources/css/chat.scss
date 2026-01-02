@@ -194,6 +194,16 @@ html.chat #chat {
             max-height: 250px;
             max-width: 250px;
         }
+
+        // Unfurl YouTube thumbnails need to fill their container
+        .unfurl-youtube-thumb img {
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            max-height: none;
+            object-fit: cover;
+            object-position: center;
+        }
     }
 
     // Edit message form
