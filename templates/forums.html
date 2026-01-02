@@ -58,7 +58,27 @@
                 <dd>{{ item.forum.post_count }}</dd>
             </dl>
         </div>
-        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+        <div class="struct-item-cell struct-item-cell--latest">
+            {% if let Some(last_thread_id) = item.forum.last_thread_id %}
+            <div class="latest-info">
+                {% if let Some(title) = item.forum.last_thread_title %}
+                <div class="latest-thread">
+                    <a href="/threads/{{ last_thread_id }}/" title="{{ title }}">{{ title|truncate(30) }}</a>
+                </div>
+                {% endif %}
+                <div class="latest-meta">
+                    {% if let Some(last_post_at) = item.forum.last_post_at %}
+                    <time datetime="{{ last_post_at }}">{{ last_post_at.format("%b %d, %Y") }}</time>
+                    {% endif %}
+                    {% if let Some(username) = item.forum.last_post_username %}
+                    {% if let Some(user_id) = item.forum.last_post_user_id %}
+                    <span class="latest-by">by <a href="/members/{{ user_id }}/">{{ username }}</a></span>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
     {# Sub-forums #}
     {% for child in item.children %}
@@ -104,7 +124,27 @@
                 <dd>{{ child.post_count }}</dd>
             </dl>
         </div>
-        <div class="struct-item-cell struct-item-cell--icon struct-item-cell--iconEnd"></div>
+        <div class="struct-item-cell struct-item-cell--latest">
+            {% if let Some(last_thread_id) = child.last_thread_id %}
+            <div class="latest-info">
+                {% if let Some(title) = child.last_thread_title %}
+                <div class="latest-thread">
+                    <a href="/threads/{{ last_thread_id }}/" title="{{ title }}">{{ title|truncate(25) }}</a>
+                </div>
+                {% endif %}
+                <div class="latest-meta">
+                    {% if let Some(last_post_at) = child.last_post_at %}
+                    <time datetime="{{ last_post_at }}">{{ last_post_at.format("%b %d, %Y") }}</time>
+                    {% endif %}
+                    {% if let Some(username) = child.last_post_username %}
+                    {% if let Some(user_id) = child.last_post_user_id %}
+                    <span class="latest-by">by <a href="/members/{{ user_id }}/">{{ username }}</a></span>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
     </div>
     {% endfor %}
     {% endfor %}
@@ -275,6 +315,58 @@
         color: #333;
     }
 
+    .struct-item-cell--latest {
+        min-width: 200px;
+        max-width: 250px;
+        padding: 10px 15px;
+    }
+
+    .latest-info {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .latest-thread {
+        font-size: 0.9em;
+        line-height: 1.3;
+    }
+
+    .latest-thread a {
+        color: #0066cc;
+        text-decoration: none;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .latest-thread a:hover {
+        text-decoration: underline;
+    }
+
+    .latest-meta {
+        font-size: 0.8em;
+        color: #666;
+    }
+
+    .latest-meta time {
+        color: #888;
+    }
+
+    .latest-by {
+        margin-left: 4px;
+    }
+
+    .latest-by a {
+        color: #0066cc;
+        text-decoration: none;
+    }
+
+    .latest-by a:hover {
+        text-decoration: underline;
+    }
+
     .no-forums {
         text-align: center;
         padding: 40px;
@@ -283,7 +375,8 @@
     }
 
     @media (max-width: 768px) {
-        .struct-item-cell--stats {
+        .struct-item-cell--stats,
+        .struct-item-cell--latest {
             display: none;
         }
 
@@ -318,6 +411,14 @@
         border-left-color: #6ea8fe;
     }
 
+    [data-theme="dark"] .latest-meta {
+        color: #999;
+    }
+
+    [data-theme="dark"] .latest-meta time {
+        color: #777;
+    }
+
     @media (prefers-color-scheme: dark) {
         html:not([data-theme="light"]) .struct-item--subforum {
             border-left-color: #444;
@@ -334,6 +435,14 @@
 
         html:not([data-theme="light"]) .struct-item--unread {
             border-left-color: #6ea8fe;
+        }
+
+        html:not([data-theme="light"]) .latest-meta {
+            color: #999;
+        }
+
+        html:not([data-theme="light"]) .latest-meta time {
+            color: #777;
         }
     }
 </style>

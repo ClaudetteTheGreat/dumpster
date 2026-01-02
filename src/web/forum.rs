@@ -313,6 +313,10 @@ pub struct ForumWithStats {
     pub icon_filename: Option<String>,
     pub icon_new_hash: Option<String>,
     pub icon_new_filename: Option<String>,
+    // Last post info
+    pub last_post_user_id: Option<i32>,
+    pub last_post_username: Option<String>,
+    pub last_thread_title: Option<String>,
 }
 
 /// Forum with its sub-forums for hierarchical display
@@ -937,18 +941,31 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
     let db = get_db_pool();
 
     // Query forums with thread and post counts and latest post timestamp
+    // Uses subqueries to compute last post info since the denormalized columns may not be populated
     let sql = r#"
+        WITH forum_last_posts AS (
+            SELECT DISTINCT ON (t.forum_id)
+                t.forum_id,
+                p.id as last_post_id,
+                p.created_at as last_post_at,
+                p.user_id as last_post_user_id,
+                t.id as last_thread_id,
+                t.title as last_thread_title
+            FROM threads t
+            JOIN posts p ON p.thread_id = t.id
+            ORDER BY t.forum_id, p.created_at DESC
+        )
         SELECT
             f.id,
             f.label,
             f.description,
-            f.last_post_id,
-            f.last_thread_id,
+            COALESCE(f.last_post_id, flp.last_post_id) as last_post_id,
+            COALESCE(f.last_thread_id, flp.last_thread_id) as last_thread_id,
             COALESCE(COUNT(DISTINCT t.id), 0) as thread_count,
             COALESCE(COUNT(DISTINCT p.id), 0) as post_count,
             f.parent_id,
             f.display_order,
-            MAX(p.created_at) as last_post_at,
+            COALESCE(MAX(p.created_at), flp.last_post_at) as last_post_at,
             f.icon,
             f.icon_new,
             f.icon_attachment_id,
@@ -956,13 +973,18 @@ pub async fn render_forum_list(client: ClientCtx) -> Result<impl Responder, Erro
             a1.hash as icon_hash,
             a1.filename as icon_filename,
             a2.hash as icon_new_hash,
-            a2.filename as icon_new_filename
+            a2.filename as icon_new_filename,
+            flp.last_post_user_id,
+            un.name as last_post_username,
+            flp.last_thread_title
         FROM forums f
         LEFT JOIN threads t ON t.forum_id = f.id
         LEFT JOIN posts p ON p.thread_id = t.id
         LEFT JOIN attachments a1 ON a1.id = f.icon_attachment_id
         LEFT JOIN attachments a2 ON a2.id = f.icon_new_attachment_id
-        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order, f.icon, f.icon_new, f.icon_attachment_id, f.icon_new_attachment_id, a1.hash, a1.filename, a2.hash, a2.filename
+        LEFT JOIN forum_last_posts flp ON flp.forum_id = f.id
+        LEFT JOIN user_names un ON un.user_id = flp.last_post_user_id
+        GROUP BY f.id, f.label, f.description, f.last_post_id, f.last_thread_id, f.parent_id, f.display_order, f.icon, f.icon_new, f.icon_attachment_id, f.icon_new_attachment_id, a1.hash, a1.filename, a2.hash, a2.filename, flp.last_post_id, flp.last_post_at, flp.last_post_user_id, flp.last_thread_id, flp.last_thread_title, un.name
         ORDER BY f.display_order, f.id
     "#;
 
