@@ -34,6 +34,7 @@ impl ChatServer {
         let rooms = layer.get_room_list().await;
 
         // Constructor - use inline spoilers (blur-based) for chat
+        // YouTube embeds can be toggled via chat_embed_youtube setting
         let constructor = Constructor {
             smilies: Smilies::new_from_tuples(
                 layer
@@ -44,6 +45,7 @@ impl ChatServer {
                     .collect(),
             ),
             inline_spoilers: true,
+            enable_youtube_embeds: config.chat_embed_youtube(),
         };
 
         Self {

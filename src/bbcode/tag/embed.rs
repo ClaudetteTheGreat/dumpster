@@ -467,4 +467,74 @@ impl super::Tag {
         el.set_broken();
         contents
     }
+
+    /// Render video tag as a plain link (when embeds are disabled)
+    pub fn fill_video_tag_as_link(mut el: RefMut<Element>, contents: String) -> String {
+        if let Ok(url) = Url::parse(&contents) {
+            match url.scheme() {
+                "http" | "https" => {
+                    el.clear_contents();
+                    return format!(
+                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
+                        url.as_str(),
+                        url.as_str()
+                    );
+                }
+                _ => {}
+            }
+        }
+        el.set_broken();
+        contents
+    }
+
+    /// Render YouTube tag as a plain link (when embeds are disabled)
+    pub fn fill_youtube_tag_as_link(mut el: RefMut<Element>, contents: String) -> String {
+        let trimmed = contents.trim();
+
+        // Try to parse as URL first
+        if let Ok(url) = Url::parse(trimmed) {
+            if let Some(id) = extract_youtube_id(&url) {
+                el.clear_contents();
+                let youtube_url = format!("https://www.youtube.com/watch?v={}", id);
+                return format!(
+                    "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
+                    youtube_url,
+                    youtube_url
+                );
+            }
+        }
+
+        // Treat as raw video ID
+        if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+            el.clear_contents();
+            let youtube_url = format!("https://www.youtube.com/watch?v={}", trimmed);
+            return format!(
+                "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
+                youtube_url,
+                youtube_url
+            );
+        }
+
+        el.set_broken();
+        contents
+    }
+
+    /// Render media tag as a plain link (when embeds are disabled)
+    pub fn fill_media_tag_as_link(mut el: RefMut<Element>, contents: String) -> String {
+        if let Ok(url) = Url::parse(&contents) {
+            match url.scheme() {
+                "http" | "https" => {
+                    el.clear_contents();
+                    return format!(
+                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
+                        url.as_str(),
+                        url.as_str()
+                    );
+                }
+                _ => {}
+            }
+        }
+        el.set_broken();
+        contents
+    }
 }

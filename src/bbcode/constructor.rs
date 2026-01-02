@@ -4,18 +4,27 @@ use std::cell::RefMut;
 use std::collections::HashMap;
 
 /// Converts a Parser's AST into rendered HTML.
-#[derive(Default)]
 pub struct Constructor {
     pub smilies: Smilies,
     /// When true, spoilers render as inline blur spans instead of collapsible details
     pub inline_spoilers: bool,
+    /// When true, YouTube URLs render as embedded iframes (default: true)
+    pub enable_youtube_embeds: bool,
+}
+
+impl Default for Constructor {
+    fn default() -> Self {
+        Self {
+            smilies: Smilies::default(),
+            inline_spoilers: false,
+            enable_youtube_embeds: true, // Enable embeds by default for forum posts
+        }
+    }
 }
 
 impl Constructor {
     pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
+        Self::default()
     }
 
     pub fn build(&self, node: Node<Element>) -> String {
@@ -162,10 +171,28 @@ impl Constructor {
             match Tag::get_by_name(tag) {
                 Tag::Image => Tag::fill_img_tag(el, contents),
                 Tag::Link => Tag::fill_url_tag(el, contents),
-                Tag::Video => Tag::fill_video_tag(el, contents),
+                Tag::Video => {
+                    if self.enable_youtube_embeds {
+                        Tag::fill_video_tag(el, contents)
+                    } else {
+                        Tag::fill_video_tag_as_link(el, contents)
+                    }
+                }
                 Tag::Audio => Tag::fill_audio_tag(el, contents),
-                Tag::YouTube => Tag::fill_youtube_tag(el, contents),
-                Tag::Media => Tag::fill_media_tag(el, contents),
+                Tag::YouTube => {
+                    if self.enable_youtube_embeds {
+                        Tag::fill_youtube_tag(el, contents)
+                    } else {
+                        Tag::fill_youtube_tag_as_link(el, contents)
+                    }
+                }
+                Tag::Media => {
+                    if self.enable_youtube_embeds {
+                        Tag::fill_media_tag(el, contents)
+                    } else {
+                        Tag::fill_media_tag_as_link(el, contents)
+                    }
+                }
                 _ => contents,
             }
         } else {
@@ -311,6 +338,7 @@ mod tests {
         let con = Constructor {
             smilies: Smilies::new_from_hashmap(&smilies),
             inline_spoilers: false,
+            enable_youtube_embeds: true,
         };
 
         let mut ast = Node::new(Element::new_root());
@@ -362,6 +390,7 @@ mod tests {
         let con = Constructor {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: false,
+            enable_youtube_embeds: true,
         };
 
         let input = "[spoiler]Hidden content[/spoiler]";
@@ -392,6 +421,7 @@ mod tests {
         let con = Constructor {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: true,
+            enable_youtube_embeds: true,
         };
 
         let input = "[spoiler]Hidden content[/spoiler]";
@@ -422,6 +452,7 @@ mod tests {
         let con = Constructor {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: true,
+            enable_youtube_embeds: true,
         };
 
         let input = "[spoiler=Custom Title]Hidden content[/spoiler]";

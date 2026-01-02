@@ -397,6 +397,11 @@ impl Config {
     pub fn chat_default_room(&self) -> i32 {
         self.get_int_or("chat_default_room", 0) as i32
     }
+
+    /// Whether YouTube embeds are allowed in chat messages
+    pub fn chat_embed_youtube(&self) -> bool {
+        self.get_bool_or("chat_embed_youtube", true)
+    }
 }
 
 /// Create a new Arc-wrapped Config
