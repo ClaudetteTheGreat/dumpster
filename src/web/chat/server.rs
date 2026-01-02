@@ -35,6 +35,7 @@ impl ChatServer {
 
         // Constructor - use inline spoilers (blur-based) for chat
         // YouTube embeds can be toggled via chat_embed_youtube setting
+        // Image domain whitelist controls which domains can show thumbnails
         let constructor = Constructor {
             smilies: Smilies::new_from_tuples(
                 layer
@@ -46,6 +47,7 @@ impl ChatServer {
             ),
             inline_spoilers: true,
             enable_youtube_embeds: config.chat_embed_youtube(),
+            image_domain_whitelist: config.chat_image_domain_whitelist(),
         };
 
         Self {

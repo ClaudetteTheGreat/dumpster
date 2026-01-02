@@ -402,6 +402,23 @@ impl Config {
     pub fn chat_embed_youtube(&self) -> bool {
         self.get_bool_or("chat_embed_youtube", true)
     }
+
+    /// Get the list of domains allowed to show image thumbnails in chat
+    /// Returns None if all domains are allowed ("*"), or Some(Vec) of allowed domains
+    pub fn chat_image_domain_whitelist(&self) -> Option<Vec<String>> {
+        let value = self.get_string_or("chat_image_domain_whitelist", "*");
+        if value.trim() == "*" || value.trim().is_empty() {
+            None // All domains allowed
+        } else {
+            Some(
+                value
+                    .split(',')
+                    .map(|s| s.trim().to_lowercase())
+                    .filter(|s| !s.is_empty())
+                    .collect(),
+            )
+        }
+    }
 }
 
 /// Create a new Arc-wrapped Config

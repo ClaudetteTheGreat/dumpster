@@ -36,6 +36,25 @@ impl super::Tag {
         contents
     }
 
+    /// Render image tag as a plain link (when domain is not whitelisted)
+    pub fn fill_img_tag_as_link(mut el: RefMut<Element>, contents: String) -> String {
+        if let Ok(url) = Url::parse(&contents) {
+            match url.scheme() {
+                "http" | "https" => {
+                    el.clear_contents();
+                    return format!(
+                        "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
+                        url.as_str(),
+                        url.as_str()
+                    );
+                }
+                _ => {}
+            }
+        }
+        el.set_broken();
+        contents
+    }
+
     pub fn open_url_tag(el: RefMut<Element>) -> String {
         if el.is_broken() {
             el.to_open_str()

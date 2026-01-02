@@ -10,6 +10,8 @@ pub struct Constructor {
     pub inline_spoilers: bool,
     /// When true, YouTube URLs render as embedded iframes (default: true)
     pub enable_youtube_embeds: bool,
+    /// If Some, only allow image thumbnails from these domains. None = allow all.
+    pub image_domain_whitelist: Option<Vec<String>>,
 }
 
 impl Default for Constructor {
@@ -18,6 +20,7 @@ impl Default for Constructor {
             smilies: Smilies::default(),
             inline_spoilers: false,
             enable_youtube_embeds: true, // Enable embeds by default for forum posts
+            image_domain_whitelist: None, // Allow all domains by default
         }
     }
 }
@@ -25,6 +28,29 @@ impl Default for Constructor {
 impl Constructor {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Check if an image URL's domain is allowed based on the whitelist
+    fn is_image_domain_allowed(&self, url: &str) -> bool {
+        match &self.image_domain_whitelist {
+            None => true, // No whitelist = allow all
+            Some(whitelist) if whitelist.is_empty() => true, // Empty whitelist = allow all
+            Some(whitelist) => {
+                // Parse the URL and check the domain
+                if let Ok(parsed) = url::Url::parse(url) {
+                    if let Some(host) = parsed.host_str() {
+                        let host_lower = host.to_lowercase();
+                        whitelist.iter().any(|domain| {
+                            host_lower == *domain || host_lower.ends_with(&format!(".{}", domain))
+                        })
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     pub fn build(&self, node: Node<Element>) -> String {
@@ -169,7 +195,13 @@ impl Constructor {
     fn element_contents(&self, el: RefMut<Element>, contents: String) -> String {
         if let Some(tag) = el.get_tag_name() {
             match Tag::get_by_name(tag) {
-                Tag::Image => Tag::fill_img_tag(el, contents),
+                Tag::Image => {
+                    if self.is_image_domain_allowed(&contents) {
+                        Tag::fill_img_tag(el, contents)
+                    } else {
+                        Tag::fill_img_tag_as_link(el, contents)
+                    }
+                }
                 Tag::Link => Tag::fill_url_tag(el, contents),
                 Tag::Video => {
                     if self.enable_youtube_embeds {
@@ -339,6 +371,7 @@ mod tests {
             smilies: Smilies::new_from_hashmap(&smilies),
             inline_spoilers: false,
             enable_youtube_embeds: true,
+            image_domain_whitelist: None,
         };
 
         let mut ast = Node::new(Element::new_root());
@@ -391,6 +424,7 @@ mod tests {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: false,
             enable_youtube_embeds: true,
+            image_domain_whitelist: None,
         };
 
         let input = "[spoiler]Hidden content[/spoiler]";
@@ -422,6 +456,7 @@ mod tests {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: true,
             enable_youtube_embeds: true,
+            image_domain_whitelist: None,
         };
 
         let input = "[spoiler]Hidden content[/spoiler]";
@@ -453,6 +488,7 @@ mod tests {
             smilies: Smilies::new_from_tuples(vec![]),
             inline_spoilers: true,
             enable_youtube_embeds: true,
+            image_domain_whitelist: None,
         };
 
         let input = "[spoiler=Custom Title]Hidden content[/spoiler]";
