@@ -585,24 +585,21 @@ html.chat #chat {
 // Video embeds in chat
 .chat-message .message {
     .video-embed {
-        position: relative;
+        display: block;
         width: 100%;
         max-width: 400px;
         margin: 0.5em 0;
+        border-radius: 4px;
+        overflow: hidden;
+        background: var(--bg-tertiary, #1a1a1a);
 
-        // YouTube and Vimeo use responsive 16:9 aspect ratio container
+        // YouTube and Vimeo use aspect-ratio for 16:9
         &.video-embed--youtube,
         &.video-embed--vimeo {
-            padding-bottom: 56.25%; // 16:9 aspect ratio
-            height: 0;
-            overflow: hidden;
-            background: var(--bg-tertiary, #1a1a1a);
-            border-radius: 4px;
+            aspect-ratio: 16 / 9;
 
             iframe {
-                position: absolute;
-                top: 0;
-                left: 0;
+                display: block;
                 width: 100%;
                 height: 100%;
                 border: 0;
@@ -611,11 +608,11 @@ html.chat #chat {
 
         // Direct video files
         &.video-embed--direct {
-            display: block;
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 4px;
-            background: var(--bg-tertiary, #1a1a1a);
+            video {
+                display: block;
+                width: 100%;
+                max-height: 300px;
+            }
         }
     }
 
