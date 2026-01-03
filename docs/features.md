@@ -129,6 +129,10 @@ Rich text formatting for posts:
   - Common aliases: js→javascript, py→python, ts→typescript, sh→bash
   - GitHub-inspired color theme with automatic dark mode support
 - **Images**: `[img]` with optional dimensions `[img=200x150]` or width-only `[img=200]`, Links `[url]` with automatic URL detection
+- **Thumbnails**: `[thumb]` displays image as clickable thumbnail that links to full-size image
+  - Configurable max size via admin settings (default 150px)
+  - Maintains aspect ratio
+  - Admin setting to enforce thumbnails for all inserted images
 - **Video Embeds**: `[video]` for YouTube, Vimeo, and direct video files (.mp4, .webm, .ogg)
   - YouTube privacy-enhanced embeds via youtube-nocookie.com
   - Responsive 16:9 aspect ratio for embedded players
