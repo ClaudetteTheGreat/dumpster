@@ -211,8 +211,10 @@
     align-items: center;
 }
 
-// Quote button and React button
+// Quote button, Edit/Delete buttons, and React button
 .quote-btn,
+.edit-message-btn,
+.delete-message-btn,
 .actionBar-action.reaction-picker-toggle {
     background: var(--btn-secondary-bg);
     border: 1px solid var(--btn-secondary-border);
