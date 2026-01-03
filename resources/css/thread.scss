@@ -607,21 +607,28 @@
     }
 }
 
-// When in actionBar, reset to match other action buttons (quote-btn style)
+// When in actionBar, match quote-btn styling exactly
 .actionBar-action.reaction-picker-toggle {
-    width: auto;
-    height: auto;
-    padding: 2px 8px;
-    border-radius: 3px;
-    font-size: 0.85em;
     background: var(--btn-secondary-bg);
     border: 1px solid var(--btn-secondary-border);
+    border-radius: 3px;
+    padding: 2px 8px;
+    font-size: 0.85em;
     color: var(--btn-secondary-text);
+    cursor: pointer;
+    margin-right: 8px;
+    transition: all 0.15s ease;
+    width: auto;
+    height: auto;
 
     &:hover {
         background-color: var(--btn-secondary-hover-bg);
         border-color: var(--btn-secondary-hover-border);
         color: var(--btn-secondary-hover-text);
+    }
+
+    &:active {
+        background-color: var(--btn-secondary-active-bg);
     }
 }
 
