@@ -1007,10 +1007,58 @@ blockquote.tagQuote {
     line-height: 1;
     cursor: pointer;
     transition: background-color 0.15s;
+    z-index: 2;
 
     &:hover {
         background: #c82333;
     }
+}
+
+.attachment-insert {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(0, 123, 255, 0.9);
+    color: #fff;
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+
+    &:hover {
+        background: rgba(0, 86, 179, 0.95);
+    }
+}
+
+.attachment-preview:hover .attachment-insert {
+    opacity: 1;
+}
+
+.attachment-preview.uploading {
+    opacity: 0.6;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 24px;
+        height: 24px;
+        margin: -12px 0 0 -12px;
+        border: 3px solid var(--border-color, #ddd);
+        border-top-color: var(--link-color, #007bff);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }
 
 .attachment-controls {

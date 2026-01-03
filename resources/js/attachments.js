@@ -1,18 +1,18 @@
-import { blake3 } from 'hash-wasm';
-
 document.addEventListener("DOMContentLoaded", function () {
     function attachmentEventListeners() {
         const inputEl = document.querySelector('.attachment-input');
         const previewsContainer = document.querySelector('.attachment-previews');
         const uploadBtn = document.querySelector('.attachment-upload');
+        const textarea = document.querySelector('#reply-textarea, textarea[name="content"]');
 
         if (!inputEl || !previewsContainer) return;
 
-        // Track selected files using DataTransfer
-        let fileList = new DataTransfer();
+        // Track uploaded files with their server responses
+        let uploadedFiles = [];
 
         // Create preview element for a file
-        function createPreview(file, index) {
+        function createPreview(fileData, index) {
+            const { file, uploadResponse, uploading } = fileData;
             const previewEl = document.createElement('div');
             previewEl.className = 'attachment-preview';
             previewEl.dataset.index = index;
@@ -39,6 +39,19 @@ document.addEventListener("DOMContentLoaded", function () {
                 };
                 reader.readAsDataURL(file);
                 previewEl.appendChild(thumbnailEl);
+
+                // Add insert button for images
+                if (uploadResponse && textarea) {
+                    const insertBtn = document.createElement('button');
+                    insertBtn.type = 'button';
+                    insertBtn.className = 'attachment-insert';
+                    insertBtn.title = 'Insert into post';
+                    insertBtn.textContent = 'Insert';
+                    insertBtn.addEventListener('click', function () {
+                        insertIntoEditor(uploadResponse, file.name);
+                    });
+                    previewEl.appendChild(insertBtn);
+                }
             } else {
                 const iconEl = document.createElement('div');
                 iconEl.className = 'attachment-file-icon';
@@ -53,7 +66,30 @@ document.addEventListener("DOMContentLoaded", function () {
             filenameEl.title = file.name;
             previewEl.appendChild(filenameEl);
 
+            // Show upload status
+            if (uploading) {
+                previewEl.classList.add('uploading');
+            }
+
             return previewEl;
+        }
+
+        // Insert image BBCode into editor
+        function insertIntoEditor(uploadResponse, originalFilename) {
+            if (!textarea) return;
+            const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
+            const bbcode = `[img]${url}[/img]`;
+
+            // Insert at cursor position
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            textarea.value = text.substring(0, start) + bbcode + text.substring(end);
+            textarea.selectionStart = textarea.selectionEnd = start + bbcode.length;
+            textarea.focus();
+
+            // Trigger input event for draft saving
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         // Get icon for file type
@@ -67,54 +103,70 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Remove file by index
         function removeFile(index) {
-            const newFileList = new DataTransfer();
-            for (let i = 0; i < fileList.files.length; i++) {
-                if (i !== index) {
-                    newFileList.items.add(fileList.files[i]);
-                }
-            }
-            fileList = newFileList;
-            inputEl.files = fileList.files;
+            uploadedFiles.splice(index, 1);
+            updateFileInput();
             refreshPreviews();
+        }
+
+        // Update the file input with current files
+        function updateFileInput() {
+            const newFileList = new DataTransfer();
+            for (const fileData of uploadedFiles) {
+                newFileList.items.add(fileData.file);
+            }
+            inputEl.files = newFileList.files;
         }
 
         // Refresh all previews
         function refreshPreviews() {
             previewsContainer.innerHTML = '';
-            for (let i = 0; i < fileList.files.length; i++) {
-                previewsContainer.appendChild(createPreview(fileList.files[i], i));
+            for (let i = 0; i < uploadedFiles.length; i++) {
+                previewsContainer.appendChild(createPreview(uploadedFiles[i], i));
             }
+        }
+
+        // Upload a file to the server
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/fs/upload-file', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (response.ok) {
+                    const results = await response.json();
+                    if (results.length > 0) {
+                        return results[0];
+                    }
+                }
+            } catch (err) {
+                console.error('Error uploading file:', err);
+            }
+            return null;
         }
 
         // Handle file selection
         inputEl.addEventListener('change', async function (event) {
             const newFiles = event.target.files;
 
-            // Add new files to our list
+            // Add new files to our list and start uploading
             for (let i = 0; i < newFiles.length; i++) {
-                fileList.items.add(newFiles[i]);
+                const file = newFiles[i];
+                const fileData = { file, uploadResponse: null, uploading: true };
+                uploadedFiles.push(fileData);
+                refreshPreviews();
 
-                // Hash check (optional dedup)
-                try {
-                    const arrayBuffer = await newFiles[i].arrayBuffer();
-                    const hash = await blake3(new Uint8Array(arrayBuffer));
-
-                    const response = await fetch('/fs/check-file', {
-                        method: "POST",
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ hash }),
-                    });
-                    console.log('File hash check:', response.status);
-                } catch (err) {
-                    console.log("Error checking file hash:", err);
-                }
+                // Upload in background
+                const response = await uploadFile(file);
+                fileData.uploadResponse = response;
+                fileData.uploading = false;
+                refreshPreviews();
             }
 
-            // Update input with combined file list
-            inputEl.files = fileList.files;
-            refreshPreviews();
+            updateFileInput();
         });
 
         // Click "Attach File" button triggers file input
