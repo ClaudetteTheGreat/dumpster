@@ -186,6 +186,7 @@
 html.dark {
     --background-color: rgb(54, 57, 63);
     --border-color: rgba(79, 84, 92, 0.48);
+    --border-primary: #30363d;
     --input-background: rgb(64, 68, 75);
     --text-color: rgb(220, 221, 222);
     --text-muted: rgb(163, 166, 170);
@@ -198,7 +199,7 @@ html.dark {
     --nav-hover-background: rgba(255, 255, 255, 0.1);
 
     // Buttons (quote, add-quote, etc.)
-    --btn-secondary-bg: transparent;
+    --btn-secondary-bg: #30363d;
     --btn-secondary-border: #555;
     --btn-secondary-text: #aaa;
     --btn-secondary-hover-bg: #3a3a3a;

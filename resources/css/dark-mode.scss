@@ -203,6 +203,21 @@ html.dark {
         }
     }
 
+    // Quote and React buttons use their own styling
+    .quote-btn,
+    .add-quote-btn,
+    .actionBar-action.reaction-picker-toggle {
+        background: var(--btn-secondary-bg);
+        border-color: var(--btn-secondary-border);
+        color: var(--btn-secondary-text);
+
+        &:hover {
+            background-color: var(--btn-secondary-hover-bg);
+            border-color: var(--btn-secondary-hover-border);
+            color: var(--btn-secondary-hover-text);
+        }
+    }
+
     // ==========================================================================
     // TABLES (generic, not BBCode tables which use --table-* vars)
     // ==========================================================================
