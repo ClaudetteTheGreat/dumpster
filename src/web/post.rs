@@ -684,7 +684,10 @@ pub async fn get_replies_and_author_for_template(
     show_pending: bool,
     current_user_id: Option<i32>,
 ) -> Result<Vec<(PostForTemplate, Option<UserProfile>)>, DbErr> {
+    use std::time::Instant;
+
     // Step 1: Load posts WITHOUT user joins
+    let posts_query_start = Instant::now();
     let mut query = posts::Entity::find()
         .left_join(ugc_revisions::Entity)
         .column_as(ugc_revisions::Column::Id, "ugc_revision_id")
@@ -727,6 +730,7 @@ pub async fn get_replies_and_author_for_template(
         .into_model()
         .all(db)
         .await?;
+    let posts_query_us = posts_query_start.elapsed().as_micros() as u64;
 
     // Step 2: Collect unique user IDs from posts
     let user_ids: Vec<i32> = posts
@@ -737,16 +741,26 @@ pub async fn get_replies_and_author_for_template(
         .collect();
 
     // Step 3: Batch load user profiles with single IN query
+    let users_query_start = Instant::now();
     let users = UserProfile::get_by_ids(db, &user_ids).await?;
+    let users_query_us = users_query_start.elapsed().as_micros() as u64;
 
     // Step 4: Join results in memory
-    let result = posts
+    let result: Vec<(PostForTemplate, Option<UserProfile>)> = posts
         .into_iter()
         .map(|post| {
             let user = post.user_id.and_then(|uid| users.get(&uid).cloned());
             (post, user)
         })
         .collect();
+
+    log::info!(
+        "Posts query breakdown: posts_query={}μs ({} posts), users_query={}μs ({} unique users)",
+        posts_query_us,
+        result.len(),
+        users_query_us,
+        user_ids.len()
+    );
 
     Ok(result)
 }

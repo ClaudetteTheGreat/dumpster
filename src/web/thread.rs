@@ -211,6 +211,141 @@ pub fn get_url_for_pos(thread_id: i32, pos: i32) -> String {
     )
 }
 
+/// Combined thread + forum + has_poll result from single query.
+/// Eliminates 2 queries (thread + forum) and adds poll existence check for free.
+#[derive(Debug, FromQueryResult)]
+pub struct ThreadWithForum {
+    // Thread fields
+    pub thread_id: i32,
+    pub forum_id: i32,
+    pub user_id: Option<i32>,
+    pub created_at: chrono::NaiveDateTime,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub view_count: i32,
+    pub post_count: i32,
+    pub first_post_id: Option<i32>,
+    pub last_post_id: Option<i32>,
+    pub last_post_at: Option<chrono::NaiveDateTime>,
+    pub is_locked: bool,
+    pub is_pinned: bool,
+    pub prefix: Option<String>,
+    pub deleted_at: Option<chrono::NaiveDateTime>,
+    // Forum fields
+    pub forum_label: String,
+    pub forum_description: Option<String>,
+    pub forum_parent_id: Option<i32>,
+    pub forum_display_order: i32,
+    pub forum_icon: String,
+    pub forum_icon_new: String,
+    pub forum_tags_enabled: bool,
+    pub forum_restrict_tags: bool,
+    pub forum_thread_template: Option<String>,
+    // Poll existence check
+    pub has_poll: bool,
+}
+
+impl ThreadWithForum {
+    /// Convert to threads::Model for backward compatibility with templates
+    pub fn to_thread_model(&self) -> threads::Model {
+        threads::Model {
+            id: self.thread_id,
+            forum_id: self.forum_id,
+            user_id: self.user_id,
+            created_at: self.created_at,
+            title: self.title.clone(),
+            subtitle: self.subtitle.clone(),
+            view_count: self.view_count,
+            post_count: self.post_count,
+            first_post_id: self.first_post_id,
+            last_post_id: self.last_post_id,
+            last_post_at: self.last_post_at,
+            is_locked: self.is_locked,
+            is_pinned: self.is_pinned,
+            is_announcement: false,
+            prefix: self.prefix.clone(),
+            deleted_at: self.deleted_at,
+            deleted_by: None,
+            deletion_type: None,
+            deletion_reason: None,
+            legal_hold_at: None,
+            legal_hold_by: None,
+            legal_hold_reason: None,
+            merged_into_id: None,
+        }
+    }
+
+    /// Convert to forums::Model for backward compatibility
+    pub fn to_forum_model(&self) -> crate::orm::forums::Model {
+        crate::orm::forums::Model {
+            id: self.forum_id,
+            label: self.forum_label.clone(),
+            description: self.forum_description.clone(),
+            last_post_id: None,
+            last_thread_id: None,
+            rules: None,
+            parent_id: self.forum_parent_id,
+            display_order: self.forum_display_order,
+            icon: self.forum_icon.clone(),
+            icon_new: self.forum_icon_new.clone(),
+            icon_attachment_id: None,
+            icon_new_attachment_id: None,
+            tags_enabled: self.forum_tags_enabled,
+            restrict_tags: self.forum_restrict_tags,
+            thread_template: self.forum_thread_template.clone(),
+        }
+    }
+}
+
+/// Fetches thread + forum + has_poll in a single query.
+/// Combines 2 separate queries into 1 and adds poll existence check for free.
+pub async fn get_thread_with_forum(
+    db: &sea_orm::DatabaseConnection,
+    thread_id: i32,
+) -> Result<Option<ThreadWithForum>, sea_orm::DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
+    let sql = r#"
+        SELECT
+            t.id as thread_id,
+            t.forum_id,
+            t.user_id,
+            t.created_at,
+            t.title,
+            t.subtitle,
+            t.view_count,
+            t.post_count,
+            t.first_post_id,
+            t.last_post_id,
+            t.last_post_at,
+            t.is_locked,
+            t.is_pinned,
+            t.prefix,
+            t.deleted_at,
+            f.label as forum_label,
+            f.description as forum_description,
+            f.parent_id as forum_parent_id,
+            f.display_order as forum_display_order,
+            f.icon as forum_icon,
+            f.icon_new as forum_icon_new,
+            f.tags_enabled as forum_tags_enabled,
+            f.restrict_tags as forum_restrict_tags,
+            f.thread_template as forum_thread_template,
+            EXISTS(SELECT 1 FROM polls WHERE thread_id = t.id) as has_poll
+        FROM threads t
+        JOIN forums f ON f.id = t.forum_id
+        WHERE t.id = $1
+    "#;
+
+    ThreadWithForum::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [thread_id.into()],
+    ))
+    .one(db)
+    .await
+}
+
 /// Fetches poll data for a thread, if one exists.
 /// Optimized to load poll + options in a single query.
 pub async fn get_poll_for_thread(
@@ -471,7 +606,6 @@ async fn get_thread_and_replies_for_page(
 ) -> Result<impl Responder, Error> {
     use super::post::get_replies_and_author_for_template;
     use crate::attachment::get_attachments_for_ugc_by_id;
-    use crate::orm::forums;
     use std::time::Instant;
 
     let handler_start = Instant::now();
@@ -479,18 +613,15 @@ async fn get_thread_and_replies_for_page(
 
     let db = get_db_pool();
 
-    // Time: thread + forum load
+    // Time: thread + forum + has_poll load (combined query)
     let query_start = Instant::now();
-    let thread = Thread::find_by_id(thread_id)
-        .one(db)
+    let thread_with_forum = get_thread_with_forum(db, thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Thread not found."))?;
-    let forum = forums::Entity::find_by_id(thread.forum_id)
-        .one(db)
-        .await
-        .map_err(error::ErrorInternalServerError)?
-        .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
+    let thread = thread_with_forum.to_thread_model();
+    let forum = thread_with_forum.to_forum_model();
+    let has_poll = thread_with_forum.has_poll;
     timing.thread_forum_us = query_start.elapsed().as_micros() as u64;
 
     // Get user's posts per page preference from already-loaded profile
@@ -569,11 +700,15 @@ async fn get_thread_and_replies_for_page(
         url: None, // Current page, no link
     });
 
-    // Time: poll query
+    // Time: poll query (skip if no poll exists - saves ~5ms)
     let query_start = Instant::now();
-    let poll = get_poll_for_thread(thread_id, client.get_id())
-        .await
-        .map_err(error::ErrorInternalServerError)?;
+    let poll = if has_poll {
+        get_poll_for_thread(thread_id, client.get_id())
+            .await
+            .map_err(error::ErrorInternalServerError)?
+    } else {
+        None
+    };
     timing.poll_us = query_start.elapsed().as_micros() as u64;
 
     // Time: tags query
@@ -593,7 +728,7 @@ async fn get_thread_and_replies_for_page(
 
     // Log handler timing breakdown
     timing.total_us = handler_start.elapsed().as_micros() as u64;
-    log::debug!(
+    log::info!(
         "Thread {} handler: total={}μs thread={}μs posts={}μs attach={}μs bread={}μs poll={}μs tags={}μs similar={}μs",
         thread_id,
         timing.total_us,
