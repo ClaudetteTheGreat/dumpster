@@ -167,6 +167,86 @@ async fn test_range_ban_is_stored_correctly() {
 
 #[actix_rt::test]
 #[serial]
+async fn test_range_ban_blocks_ips_in_range() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    // Create a range ban for 10.0.0.0/8 (covers 10.0.0.0 - 10.255.255.255)
+    let range_ip = "10.0.0.0/8";
+    create_ip_ban(&db, range_ip, "Range ban test", true, None, true)
+        .await
+        .expect("Failed to create range ban");
+
+    // IPs within the range should be blocked
+    let ip_in_range1 = "10.0.0.1";
+    let ban_info1 = check_ip_ban(ip_in_range1)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info1.is_some(),
+        "IP {} within range should be blocked",
+        ip_in_range1
+    );
+
+    let ip_in_range2 = "10.255.255.254";
+    let ban_info2 = check_ip_ban(ip_in_range2)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info2.is_some(),
+        "IP {} within range should be blocked",
+        ip_in_range2
+    );
+
+    let ip_in_range3 = "10.50.100.200";
+    let ban_info3 = check_ip_ban(ip_in_range3)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info3.is_some(),
+        "IP {} within range should be blocked",
+        ip_in_range3
+    );
+
+    // IPs outside the range should NOT be blocked
+    let ip_outside1 = "192.168.1.1";
+    let ban_info_out1 = check_ip_ban(ip_outside1)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info_out1.is_none(),
+        "IP {} outside range should NOT be blocked",
+        ip_outside1
+    );
+
+    let ip_outside2 = "172.16.0.1";
+    let ban_info_out2 = check_ip_ban(ip_outside2)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info_out2.is_none(),
+        "IP {} outside range should NOT be blocked",
+        ip_outside2
+    );
+
+    let ip_outside3 = "11.0.0.1";
+    let ban_info_out3 = check_ip_ban(ip_outside3)
+        .await
+        .expect("Failed to check IP ban");
+    assert!(
+        ban_info_out3.is_none(),
+        "IP {} outside range should NOT be blocked",
+        ip_outside3
+    );
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+}
+
+#[actix_rt::test]
+#[serial]
 async fn test_ip_ban_reason_returned() {
     let db = setup_test_database()
         .await
