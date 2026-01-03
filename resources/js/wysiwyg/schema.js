@@ -191,6 +191,7 @@ const nodes = {
   thumbnail: {
     inline: true,
     group: 'inline',
+    atom: true,
     draggable: true,
     attrs: {
       src: {}
