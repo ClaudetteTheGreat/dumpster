@@ -152,7 +152,7 @@
                 <div class="p-footer-inner">
                     {% block footer %}
                     <p>{{ client.footer_message() }}</p>
-                    <p>Generated in {{ client.request_time_as_string() }}</p>
+                    <p>{{ client.performance_info() }}</p>
                     {% endblock %}
                 </div>
             </footer>

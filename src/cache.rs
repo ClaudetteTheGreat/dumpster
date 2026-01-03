@@ -24,9 +24,15 @@ static UNREAD_COUNTS_CACHE: Lazy<Cache<i32, UnreadCounts>> = Lazy::new(|| {
 /// Get unread counts for a user, using cache if available.
 /// Falls back to database query if cache miss.
 pub async fn get_unread_counts(user_id: i32) -> UnreadCounts {
+    get_unread_counts_with_status(user_id).await.0
+}
+
+/// Get unread counts for a user with cache hit status.
+/// Returns (UnreadCounts, was_cache_hit).
+pub async fn get_unread_counts_with_status(user_id: i32) -> (UnreadCounts, bool) {
     // Check cache first
     if let Some(cached) = UNREAD_COUNTS_CACHE.get(&user_id) {
-        return cached;
+        return (cached, true);
     }
 
     // Cache miss - query database
@@ -45,7 +51,7 @@ pub async fn get_unread_counts(user_id: i32) -> UnreadCounts {
     // Store in cache
     UNREAD_COUNTS_CACHE.insert(user_id, counts.clone());
 
-    counts
+    (counts, false)
 }
 
 /// Invalidate unread counts cache for a user.

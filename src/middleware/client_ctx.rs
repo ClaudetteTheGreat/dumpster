@@ -40,6 +40,18 @@ pub struct ClientCtxInner {
     pub theme: Option<themes::Model>,
     /// Whether user is in auto theme mode
     pub theme_auto: bool,
+    /// Performance tracking: cache hits for unread counts
+    pub unread_cache_hit: bool,
+    /// Performance tracking: cache hit for group_ids
+    pub groups_cache_hit: bool,
+    /// Timing: microseconds spent in session/auth
+    pub timing_auth_us: u64,
+    /// Timing: microseconds spent loading groups
+    pub timing_groups_us: u64,
+    /// Timing: microseconds spent loading unread counts
+    pub timing_unread_us: u64,
+    /// Timing: total middleware time in microseconds
+    pub timing_middleware_us: u64,
 }
 
 impl Default for ClientCtxInner {
@@ -59,6 +71,12 @@ impl Default for ClientCtxInner {
             request_start: Instant::now(),
             theme: crate::theme::get_theme("light"),
             theme_auto: false,
+            unread_cache_hit: false,
+            groups_cache_hit: false,
+            timing_auth_us: 0,
+            timing_groups_us: 0,
+            timing_unread_us: 0,
+            timing_middleware_us: 0,
         }
     }
 }
@@ -73,34 +91,43 @@ impl ClientCtxInner {
         use crate::middleware::csrf::get_or_create_csrf_token;
         use crate::session::authenticate_client_by_session;
 
+        let middleware_start = Instant::now();
+
+        // Phase 1: Authentication
+        let auth_start = Instant::now();
         let db = get_db_pool();
         let client = authenticate_client_by_session(session).await;
+        let timing_auth_us = auth_start.elapsed().as_micros() as u64;
 
-        // Try to get cached group_ids from session
-        let groups = if let Some(ref user) = client {
+        // Phase 2: Groups loading (with session cache)
+        let groups_start = Instant::now();
+        let (groups, groups_cache_hit) = if let Some(ref user) = client {
             // For logged-in users, cache group_ids in session
             if let Ok(Some(cached_groups)) = session.get::<Vec<i32>>("group_ids") {
-                cached_groups
+                (cached_groups, true)
             } else {
                 let groups = get_group_ids_for_client(db, &Some(user.clone())).await;
                 let _ = session.insert("group_ids", &groups);
-                groups
+                (groups, false)
             }
         } else {
             // For guests, always query (groups are static and rarely change)
-            get_group_ids_for_client(db, &None).await
+            (get_group_ids_for_client(db, &None).await, false)
         };
+        let timing_groups_us = groups_start.elapsed().as_micros() as u64;
 
         // Get or create CSRF token for this session
         let csrf_token = get_or_create_csrf_token(session).unwrap_or_else(|_| String::new());
 
-        // Get unread counts for logged-in users (cached with 30s TTL)
-        let (unread_notifications, unread_messages) = if let Some(ref user) = client {
-            let counts = crate::cache::get_unread_counts(user.id).await;
-            (counts.notifications, counts.messages)
+        // Phase 3: Unread counts (with moka cache)
+        let unread_start = Instant::now();
+        let (unread_notifications, unread_messages, unread_cache_hit) = if let Some(ref user) = client {
+            let (counts, was_cached) = crate::cache::get_unread_counts_with_status(user.id).await;
+            (counts.notifications, counts.messages, was_cached)
         } else {
-            (0, 0)
+            (0, 0, false)
         };
+        let timing_unread_us = unread_start.elapsed().as_micros() as u64;
 
         // Update last activity for logged-in users (rate-limited internally)
         if let Some(ref user) = client {
@@ -121,6 +148,8 @@ impl ClientCtxInner {
             (crate::theme::get_theme("light"), false)
         };
 
+        let timing_middleware_us = middleware_start.elapsed().as_micros() as u64;
+
         ClientCtxInner {
             client,
             groups,
@@ -131,6 +160,12 @@ impl ClientCtxInner {
             unread_messages,
             theme,
             theme_auto,
+            unread_cache_hit,
+            groups_cache_hit,
+            timing_auth_us,
+            timing_groups_us,
+            timing_unread_us,
+            timing_middleware_us,
             ..Default::default()
         }
     }
@@ -357,6 +392,45 @@ impl ClientCtx {
         } else {
             format!("{}μs", us)
         }
+    }
+
+    /// Returns detailed performance info for debugging.
+    /// Shows render time breakdown by phase.
+    pub fn performance_info(&self) -> String {
+        let total_us = self.request_time().as_micros() as u64;
+        let middleware_us = self.0.timing_middleware_us;
+        let handler_us = total_us.saturating_sub(middleware_us);
+
+        // Format time helper
+        let fmt_time = |us: u64| -> String {
+            if us >= 1000 {
+                format!("{}ms", us / 1000)
+            } else {
+                format!("{}μs", us)
+            }
+        };
+
+        // Build timing breakdown
+        let mut parts = Vec::new();
+
+        // Total time
+        parts.push(format!("total: {}", fmt_time(total_us)));
+
+        // Middleware breakdown
+        parts.push(format!(
+            "mw: {} (auth:{} grp:{}{} unread:{}{})",
+            fmt_time(middleware_us),
+            fmt_time(self.0.timing_auth_us),
+            fmt_time(self.0.timing_groups_us),
+            if self.0.groups_cache_hit { "✓" } else { "" },
+            fmt_time(self.0.timing_unread_us),
+            if self.0.unread_cache_hit { "✓" } else { "" },
+        ));
+
+        // Handler/template time
+        parts.push(format!("handler: {}", fmt_time(handler_us)));
+
+        parts.join(" | ")
     }
 
     /// Get site title from configuration
