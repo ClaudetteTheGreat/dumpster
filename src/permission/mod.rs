@@ -56,6 +56,7 @@ pub fn init_permission_data(data: PermissionData) {
 /// Call this after modifying forum permissions via admin UI
 pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
     use crate::db::get_db_pool;
+    use crate::orm::forum_moderators;
     use crate::orm::forum_permissions;
     use crate::orm::forums;
     use crate::orm::permission_collections;
@@ -66,41 +67,65 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
 
     log::info!("Reloading forum permissions from database...");
 
-    // Get write lock
-    let mut perm_data = PERMISSION_DATA
-        .get()
-        .expect("Permission data not initialized")
-        .write()
-        .expect("Permission data lock poisoned");
+    // Clone the lookup table first (brief read lock, no await)
+    let lookup = {
+        let perm_data = PERMISSION_DATA
+            .get()
+            .expect("Permission data not initialized")
+            .read()
+            .expect("Permission data lock poisoned");
+        perm_data.collection.lookup.clone()
+    };
 
-    // Load forum permissions
+    // Fetch all data from database (no lock held during awaits)
     let forum_perm_rows = forum_permissions::Entity::find()
         .find_with_related(permission_collections::Entity)
         .all(get_db_pool())
         .await?;
 
+    // Collect all collection IDs to fetch permission values in bulk
+    let collection_ids: Vec<i32> = forum_perm_rows
+        .iter()
+        .flat_map(|(_, collections)| collections.iter().map(|pc| pc.id))
+        .collect();
+
+    // Bulk fetch all permission values
+    let all_permission_values = if !collection_ids.is_empty() {
+        permission_values::Entity::find()
+            .filter(permission_values::Column::CollectionId.is_in(collection_ids))
+            .all(get_db_pool())
+            .await?
+    } else {
+        Vec::new()
+    };
+
+    // Group permission values by collection_id for efficient lookup
+    let mut pv_by_collection: HashMap<i32, Vec<permission_values::Model>> = HashMap::new();
+    for pv in all_permission_values {
+        pv_by_collection.entry(pv.collection_id).or_default().push(pv);
+    }
+
+    let forum_rows = forums::Entity::find().all(get_db_pool()).await?;
+    let forum_mod_rows = forum_moderators::Entity::find().all(get_db_pool()).await?;
+
+    // Process data into temporary structures (no lock, no await)
     let mut forum_perms_map: HashMap<i32, DashMap<(i32, i32), CollectionValues>> = HashMap::new();
 
     for (fp, collections) in forum_perm_rows {
         let forum_id = fp.forum_id;
 
         for pc in collections {
-            // Load permission values for this collection
-            let pvs = permission_values::Entity::find()
-                .filter(permission_values::Column::CollectionId.eq(pc.id))
-                .all(get_db_pool())
-                .await?;
-
             let mut cv = CollectionValues::default();
 
-            for pv in pvs {
-                if let Some(pindices) = perm_data.collection.lookup.get(&pv.permission_id) {
-                    cv.set_flag(pindices.0, pindices.1, pv.value);
+            if let Some(pvs) = pv_by_collection.get(&pc.id) {
+                for pv in pvs {
+                    if let Some(pindices) = lookup.get(&pv.permission_id) {
+                        cv.set_flag(pindices.0, pindices.1, pv.value);
+                    }
                 }
             }
 
             let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
-
             let forum_vals = forum_perms_map.entry(forum_id).or_default();
 
             if forum_vals.contains_key(&val_key) {
@@ -111,17 +136,10 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
         }
     }
 
-    // Load forum parent relationships
-    let forum_rows = forums::Entity::find().all(get_db_pool()).await?;
-
     let forum_parents: HashMap<i32, Option<i32>> = forum_rows
         .into_iter()
         .map(|f| (f.id, f.parent_id))
         .collect();
-
-    // Load forum moderators
-    use crate::orm::forum_moderators;
-    let forum_mod_rows = forum_moderators::Entity::find().all(get_db_pool()).await?;
 
     let mut forum_moderators_map: HashMap<i32, HashSet<i32>> = HashMap::new();
     for fm in forum_mod_rows {
@@ -131,7 +149,13 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
             .insert(fm.user_id);
     }
 
-    // Update the permission data
+    // Acquire write lock only for final update (no awaits after this)
+    let mut perm_data = PERMISSION_DATA
+        .get()
+        .expect("Permission data not initialized")
+        .write()
+        .expect("Permission data lock poisoned");
+
     perm_data.forum_permissions = forum_perms_map;
     perm_data.forum_parents = forum_parents;
     perm_data.forum_moderators = forum_moderators_map;
