@@ -10,7 +10,7 @@ use argon2::{
 };
 use askama_actix::TemplateToResponse;
 use chrono::Utc;
-use sea_orm::{entity::*, sea_query::Expr, DbErr, InsertResult, QueryFilter, TransactionTrait};
+use sea_orm::{entity::*, ConnectionTrait, DbErr, InsertResult, QueryFilter, Statement, TransactionTrait};
 use serde::Deserialize;
 use validator::Validate;
 
@@ -64,9 +64,12 @@ async fn insert_new_user(
     let db = get_db_pool();
 
     // Check if username already exists (case-insensitive)
-    let existing_user = user_names::Entity::find()
-        .filter(Expr::cust_with_values("LOWER(name) = LOWER($1)", [name]))
-        .one(db)
+    let existing_user = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            "SELECT user_id FROM user_names WHERE LOWER(name) = LOWER($1) LIMIT 1",
+            vec![name.into()],
+        ))
         .await?;
 
     if existing_user.is_some() {

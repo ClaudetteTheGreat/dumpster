@@ -8,7 +8,7 @@ use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use askama::Template;
 use askama_actix::TemplateToResponse;
 use google_authenticator::GoogleAuthenticator;
-use sea_orm::{entity::*, query::*, DbErr, QueryFilter, sea_query::Expr};
+use sea_orm::{entity::*, query::*, DbErr, QueryFilter, ConnectionTrait, Statement};
 use serde::Deserialize;
 use validator::Validate;
 
@@ -145,10 +145,17 @@ pub async fn login<S: AsRef<str>>(
 
     let db = get_db_pool();
     // Case-insensitive username lookup using LOWER()
-    let user_id = user_names::Entity::find()
-        .filter(Expr::cust_with_values("LOWER(name) = LOWER($1)", [name]))
-        .one(db)
-        .await?;
+    let user_id: Option<user_names::Model> = db
+        .query_one(Statement::from_sql_and_values(
+            db.get_database_backend(),
+            "SELECT user_id, name FROM user_names WHERE LOWER(name) = LOWER($1) LIMIT 1",
+            vec![name.into()],
+        ))
+        .await?
+        .map(|row| user_names::Model {
+            user_id: row.try_get("", "user_id").unwrap(),
+            name: row.try_get("", "name").unwrap(),
+        });
 
     let user_id = match user_id {
         Some(user) => user.user_id,
