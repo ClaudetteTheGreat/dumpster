@@ -10,7 +10,7 @@ use argon2::{
 };
 use askama_actix::TemplateToResponse;
 use chrono::Utc;
-use sea_orm::{entity::*, DbErr, InsertResult, TransactionTrait};
+use sea_orm::{entity::*, sea_query::Expr, DbErr, InsertResult, QueryFilter, TransactionTrait};
 use serde::Deserialize;
 use validator::Validate;
 
@@ -29,15 +29,60 @@ pub struct FormData {
     turnstile_response: Option<String>,
 }
 
+/// Error type for user creation
+#[derive(Debug)]
+pub enum CreateUserError {
+    UsernameExists,
+    EmailExists,
+    Database(DbErr),
+}
+
+impl From<DbErr> for CreateUserError {
+    fn from(err: DbErr) -> Self {
+        CreateUserError::Database(err)
+    }
+}
+
+impl std::fmt::Display for CreateUserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CreateUserError::UsernameExists => write!(f, "Username already exists"),
+            CreateUserError::EmailExists => write!(f, "Email already exists"),
+            CreateUserError::Database(e) => write!(f, "Database error: {}", e),
+        }
+    }
+}
+
 async fn insert_new_user(
     name: &str,
     pass: &str,
     email: &str,
-) -> Result<InsertResult<users::ActiveModel>, DbErr> {
+) -> Result<InsertResult<users::ActiveModel>, CreateUserError> {
     use crate::orm::{user_name_history, user_names};
     use futures::join;
 
     let db = get_db_pool();
+
+    // Check if username already exists (case-insensitive)
+    let existing_user = user_names::Entity::find()
+        .filter(Expr::cust_with_values("LOWER(name) = LOWER($1)", [name]))
+        .one(db)
+        .await?;
+
+    if existing_user.is_some() {
+        return Err(CreateUserError::UsernameExists);
+    }
+
+    // Check if email already exists
+    let existing_email = users::Entity::find()
+        .filter(users::Column::Email.eq(email.to_lowercase()))
+        .one(db)
+        .await?;
+
+    if existing_email.is_some() {
+        return Err(CreateUserError::EmailExists);
+    }
+
     let txn = db.begin().await?;
     let now = Utc::now().naive_utc();
 
@@ -176,12 +221,21 @@ pub async fn create_user_post(
         .to_string();
 
     // Create user
-    let result = insert_new_user(username, &password_hash, &email)
-        .await
-        .map_err(|e| {
+    let result = match insert_new_user(username, &password_hash, &email).await {
+        Ok(result) => result,
+        Err(CreateUserError::UsernameExists) => {
+            log::info!("Registration failed - username already exists: {}", username);
+            return Err(error::ErrorConflict("Username already exists (usernames are case-insensitive)"));
+        }
+        Err(CreateUserError::EmailExists) => {
+            log::info!("Registration failed - email already exists: {}", email);
+            return Err(error::ErrorConflict("An account with this email address already exists"));
+        }
+        Err(CreateUserError::Database(e)) => {
             log::error!("Failed to create user: {}", e);
-            error::ErrorInternalServerError("Failed to create user")
-        })?;
+            return Err(error::ErrorInternalServerError("Failed to create user"));
+        }
+    };
 
     let user_id = result.last_insert_id;
 
