@@ -24,7 +24,9 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
         .service(delete_message_handler)
         .service(leave_conversation_handler)
         .service(archive_conversation_handler)
-        .service(unarchive_conversation_handler);
+        .service(unarchive_conversation_handler)
+        .service(kick_participant_handler)
+        .service(invite_participant_handler);
 }
 
 /// Template for inbox (conversation list)
@@ -51,9 +53,10 @@ struct ConversationViewTemplate {
     client: ClientCtx,
     conversation_id: i32,
     messages: Vec<conversations::MessageDisplay>,
-    participants: Vec<String>,
+    participants: Vec<conversations::ParticipantInfo>,
     title: Option<String>,
     is_archived: bool,
+    is_creator: bool,
 }
 
 /// Template for new conversation form
@@ -116,29 +119,23 @@ pub async fn view_conversation(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    // Get all participants
-    let participants_data = conversation_participants::Entity::find()
-        .filter(conversation_participants::Column::ConversationId.eq(conv_id))
-        .all(db)
+    // Get participant info (includes creator status)
+    let participants = conversations::get_participant_info(conv_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let mut participant_names = Vec::new();
-    for participant in participants_data {
-        use crate::user::Profile;
-        if let Ok(Some(profile)) = Profile::get_by_id(db, participant.user_id).await {
-            participant_names.push(profile.name);
-        }
-    }
-
-    // Get conversation title
+    // Get conversation title and creator
     use crate::orm::conversations as conv_orm;
     let conversation = conv_orm::Entity::find_by_id(conv_id)
         .one(db)
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    let title = conversation.and_then(|c| c.title);
+    let (title, is_creator) = if let Some(c) = conversation {
+        (c.title, c.creator_id == Some(user_id))
+    } else {
+        (None, false)
+    };
 
     // Mark as read
     conversations::mark_conversation_read(user_id, conv_id)
@@ -149,9 +146,10 @@ pub async fn view_conversation(
         client,
         conversation_id: conv_id,
         messages,
-        participants: participant_names,
+        participants,
         title,
         is_archived,
+        is_creator,
     }
     .to_response())
 }
@@ -517,6 +515,123 @@ pub async fn unarchive_conversation_handler(
     log::info!("User {} unarchived conversation {}", user_id, conv_id);
 
     // Redirect to the conversation
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}
+
+/// Form data for kicking a participant
+#[derive(Deserialize)]
+pub struct KickParticipantForm {
+    csrf_token: String,
+    user_id: i32,
+}
+
+/// POST /conversations/{id}/kick - Kick a participant (creator only)
+#[post("/conversations/{id}/kick")]
+pub async fn kick_participant_handler(
+    client: ClientCtx,
+    session: actix_session::Session,
+    conversation_id: web::Path<i32>,
+    form: web::Form<KickParticipantForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Kick the participant
+    conversations::kick_participant(user_id, conv_id, form.user_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to kick participant: {}", e);
+            error::ErrorForbidden(e.to_string())
+        })?;
+
+    log::info!(
+        "User {} kicked user {} from conversation {}",
+        user_id,
+        form.user_id,
+        conv_id
+    );
+
+    // Redirect back to the conversation
+    Ok(HttpResponse::SeeOther()
+        .append_header(("Location", format!("/conversations/{}", conv_id)))
+        .finish())
+}
+
+/// Form data for inviting a participant
+#[derive(Deserialize)]
+pub struct InviteParticipantForm {
+    csrf_token: String,
+    username: String,
+}
+
+/// POST /conversations/{id}/invite - Invite a user (creator only)
+#[post("/conversations/{id}/invite")]
+pub async fn invite_participant_handler(
+    client: ClientCtx,
+    session: actix_session::Session,
+    conversation_id: web::Path<i32>,
+    form: web::Form<InviteParticipantForm>,
+) -> Result<impl Responder, Error> {
+    let user_id = client.require_login()?;
+    let conv_id = *conversation_id;
+
+    // Validate CSRF token
+    crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
+
+    // Look up the user by username
+    use crate::orm::user_names;
+    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+
+    let db = crate::db::get_db_pool();
+    let target_user = user_names::Entity::find()
+        .filter(user_names::Column::Name.eq(form.username.trim()))
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorBadRequest(format!("User '{}' not found", form.username)))?;
+
+    // Invite the participant
+    conversations::invite_participant(user_id, conv_id, target_user.user_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to invite participant: {}", e);
+            error::ErrorForbidden(e.to_string())
+        })?;
+
+    log::info!(
+        "User {} invited user {} to conversation {}",
+        user_id,
+        target_user.user_id,
+        conv_id
+    );
+
+    // Send notification to the invited user
+    use crate::user::Profile;
+    let inviter_name = Profile::get_by_id(db, user_id)
+        .await
+        .ok()
+        .flatten()
+        .map(|p| p.name)
+        .unwrap_or_else(|| "Someone".to_string());
+
+    let _ = crate::notifications::create_notification(
+        target_user.user_id,
+        crate::notifications::NotificationType::PrivateMessage,
+        format!("{} added you to a conversation", inviter_name),
+        "You have been added to a private conversation".to_string(),
+        Some(format!("/conversations/{}", conv_id)),
+        Some(user_id),
+        Some("conversation".to_string()),
+        Some(conv_id),
+    )
+    .await;
+
+    // Redirect back to the conversation
     Ok(HttpResponse::SeeOther()
         .append_header(("Location", format!("/conversations/{}", conv_id)))
         .finish())

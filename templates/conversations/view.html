@@ -1,40 +1,38 @@
 {% extends "container/public.html" %}
 
 {% block content %}
-<div class="thread">
-    <div class="thread-header">
-        <div class="thread-title-section">
-            <h1>
-                {% if let Some(t) = title %}
-                    {{ t }}
+<div class="conversation-container">
+    <div class="thread">
+        <div class="thread-header">
+            <div class="thread-title-section">
+                <h1>
+                    {% if let Some(t) = title %}
+                        {{ t }}
+                    {% else %}
+                        Conversation with {% for participant in participants %}{{ participant.name }}{% if !loop.last %}, {% endif %}{% endfor %}
+                    {% endif %}
+                </h1>
+            </div>
+            <div class="thread-actions">
+                {% if is_archived %}
+                    <a href="/conversations/archived" class="action-button action-button--secondary">← Back to Archived</a>
+                    <form action="/conversations/{{ conversation_id }}/unarchive" method="post" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                        <button type="submit" class="action-button">Unarchive</button>
+                    </form>
                 {% else %}
-                    Conversation with {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}
+                    <a href="/conversations" class="action-button action-button--secondary">← Back to Inbox</a>
+                    <form action="/conversations/{{ conversation_id }}/archive" method="post" style="display: inline;">
+                        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                        <button type="submit" class="watch-button">Archive</button>
+                    </form>
                 {% endif %}
-            </h1>
-            <div class="thread-meta">
-                <span class="participants-list">Participants: {% for participant in participants %}{{ participant }}{% if !loop.last %}, {% endif %}{% endfor %}</span>
+                <form action="/conversations/{{ conversation_id }}/leave" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
+                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                    <button type="submit" class="watch-button watch-button--danger">Leave</button>
+                </form>
             </div>
         </div>
-        <div class="thread-actions">
-            {% if is_archived %}
-                <a href="/conversations/archived" class="action-button action-button--secondary">← Back to Archived</a>
-                <form action="/conversations/{{ conversation_id }}/unarchive" method="post" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                    <button type="submit" class="action-button">Unarchive</button>
-                </form>
-            {% else %}
-                <a href="/conversations" class="action-button action-button--secondary">← Back to Inbox</a>
-                <form action="/conversations/{{ conversation_id }}/archive" method="post" style="display: inline;">
-                    <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                    <button type="submit" class="watch-button">Archive</button>
-                </form>
-            {% endif %}
-            <form action="/conversations/{{ conversation_id }}/leave" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
-                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
-                <button type="submit" class="watch-button watch-button--danger">Leave</button>
-            </form>
-        </div>
-    </div>
 
     {% if messages.is_empty() %}
         <div class="message">
@@ -171,9 +169,185 @@
         </div>
         <button type="submit">Send</button>
     </form>
+    </div>
+
+    <aside class="conversation-sidebar">
+        <div class="sidebar-section">
+            <h3>Participants ({{ participants.len() }})</h3>
+            <ul class="participant-list">
+                {% for participant in participants %}
+                <li class="participant-item">
+                    <a href="/members/{{ participant.user_id }}" class="participant-name">
+                        {{ participant.name }}
+                        {% if participant.is_creator %}
+                            <span class="creator-badge" title="Conversation creator">★</span>
+                        {% endif %}
+                    </a>
+                    {% if is_creator && participant.user_id != client.get_id().unwrap_or(0) %}
+                    <form action="/conversations/{{ conversation_id }}/kick" method="post" class="kick-form" onsubmit="return confirm('Remove {{ participant.name }} from this conversation?');">
+                        <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                        <input type="hidden" name="user_id" value="{{ participant.user_id }}">
+                        <button type="submit" class="kick-btn" title="Remove from conversation">×</button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        {% if is_creator %}
+        <div class="sidebar-section">
+            <h3>Invite User</h3>
+            <form action="/conversations/{{ conversation_id }}/invite" method="post" class="invite-form">
+                <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
+                <input type="text" name="username" placeholder="Username" class="invite-input" required autocomplete="off" data-autocomplete-url="/api/users/search">
+                <button type="submit" class="invite-btn">Invite</button>
+            </form>
+        </div>
+        {% endif %}
+    </aside>
 </div>
 
 <style>
+    .conversation-container {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .conversation-container .thread {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .conversation-sidebar {
+        width: 250px;
+        flex-shrink: 0;
+    }
+
+    .sidebar-section {
+        background: var(--bg-secondary, #f5f5f5);
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 4px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    html.dark .sidebar-section {
+        background: var(--bg-secondary-dark, #2a2a2a);
+        border-color: var(--border-color-dark, #444);
+    }
+
+    .sidebar-section h3 {
+        margin: 0 0 0.75rem 0;
+        font-size: 0.9rem;
+        border-bottom: 1px solid var(--border-color, #ddd);
+        padding-bottom: 0.5rem;
+    }
+
+    html.dark .sidebar-section h3 {
+        border-color: var(--border-color-dark, #444);
+    }
+
+    .participant-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .participant-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0;
+        border-bottom: 1px solid var(--border-color-light, #eee);
+    }
+
+    html.dark .participant-item {
+        border-color: var(--border-color-dark, #444);
+    }
+
+    .participant-item:last-child {
+        border-bottom: none;
+    }
+
+    .participant-name {
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .participant-name:hover {
+        text-decoration: underline;
+    }
+
+    .creator-badge {
+        color: gold;
+        margin-left: 0.25rem;
+    }
+
+    .kick-form {
+        display: inline;
+    }
+
+    .kick-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    .kick-btn:hover {
+        background: #c82333;
+    }
+
+    .invite-form {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .invite-input {
+        flex: 1;
+        padding: 0.5rem;
+        border: 1px solid var(--border-color, #ddd);
+        border-radius: 4px;
+        font-size: 0.9rem;
+    }
+
+    html.dark .invite-input {
+        background: var(--bg-input-dark, #333);
+        border-color: var(--border-color-dark, #555);
+        color: var(--text-color-dark, #eee);
+    }
+
+    .invite-btn {
+        padding: 0.5rem 1rem;
+        background: var(--primary-color, #007bff);
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+
+    .invite-btn:hover {
+        background: var(--primary-color-hover, #0056b3);
+    }
+
+    @media (max-width: 768px) {
+        .conversation-container {
+            flex-direction: column-reverse;
+        }
+
+        .conversation-sidebar {
+            width: 100%;
+        }
+    }
+
     .watch-button--danger {
         background: #dc3545;
     }
@@ -188,10 +362,6 @@
 
     html.dark .message--own {
         background: var(--bg-own-message-dark, #1a3a5c);
-    }
-
-    .participants-list {
-        color: var(--text-secondary, #666);
     }
 
     .edit-message-btn,

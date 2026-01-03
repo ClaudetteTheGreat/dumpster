@@ -14,9 +14,10 @@ pub async fn create_conversation(
     let db = get_db_pool();
     let txn = db.begin().await?;
 
-    // Create conversation
+    // Create conversation with creator
     let conversation = conversations::ActiveModel {
         title: Set(title.map(|s| s.to_string())),
+        creator_id: Set(Some(creator_id)),
         ..Default::default()
     };
     let conversation_model = conversation.insert(&txn).await?;
@@ -680,4 +681,137 @@ pub async fn leave_conversation(user_id: i32, conversation_id: i32) -> Result<()
     txn.commit().await?;
 
     Ok(())
+}
+
+/// Get the creator ID of a conversation
+pub async fn get_conversation_creator(conversation_id: i32) -> Result<Option<i32>, DbErr> {
+    let db = get_db_pool();
+    let conversation = conversations::Entity::find_by_id(conversation_id)
+        .one(db)
+        .await?;
+    Ok(conversation.and_then(|c| c.creator_id))
+}
+
+/// Kick a participant from a conversation (only creator can do this)
+pub async fn kick_participant(
+    requester_id: i32,
+    conversation_id: i32,
+    target_user_id: i32,
+) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Verify requester is the creator
+    let conversation = conversations::Entity::find_by_id(conversation_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("Conversation not found".to_string()))?;
+
+    if conversation.creator_id != Some(requester_id) {
+        return Err(DbErr::Custom(
+            "Only the conversation creator can kick participants".to_string(),
+        ));
+    }
+
+    // Cannot kick yourself
+    if target_user_id == requester_id {
+        return Err(DbErr::Custom("Cannot kick yourself".to_string()));
+    }
+
+    // Verify target is a participant
+    verify_participant(db, target_user_id, conversation_id).await?;
+
+    // Remove the participant
+    conversation_participants::Entity::delete_many()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(target_user_id))
+        .exec(db)
+        .await?;
+
+    Ok(())
+}
+
+/// Invite a user to a conversation (only creator can do this)
+pub async fn invite_participant(
+    requester_id: i32,
+    conversation_id: i32,
+    target_user_id: i32,
+) -> Result<(), DbErr> {
+    let db = get_db_pool();
+
+    // Verify requester is the creator
+    let conversation = conversations::Entity::find_by_id(conversation_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("Conversation not found".to_string()))?;
+
+    if conversation.creator_id != Some(requester_id) {
+        return Err(DbErr::Custom(
+            "Only the conversation creator can invite participants".to_string(),
+        ));
+    }
+
+    // Check if user is already a participant
+    let existing = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(target_user_id))
+        .one(db)
+        .await?;
+
+    if existing.is_some() {
+        return Err(DbErr::Custom("User is already a participant".to_string()));
+    }
+
+    // Add the participant
+    let participant = conversation_participants::ActiveModel {
+        conversation_id: Set(conversation_id),
+        user_id: Set(target_user_id),
+        ..Default::default()
+    };
+    participant.insert(db).await?;
+
+    Ok(())
+}
+
+/// Participant data with user profile info
+#[derive(Debug, Clone)]
+pub struct ParticipantInfo {
+    pub user_id: i32,
+    pub name: String,
+    pub joined_at: chrono::NaiveDateTime,
+    pub is_creator: bool,
+}
+
+/// Get full participant info for a conversation
+pub async fn get_participant_info(conversation_id: i32) -> Result<Vec<ParticipantInfo>, DbErr> {
+    use crate::user::Profile;
+
+    let db = get_db_pool();
+
+    // Get the conversation to find creator
+    let conversation = conversations::Entity::find_by_id(conversation_id)
+        .one(db)
+        .await?
+        .ok_or_else(|| DbErr::Custom("Conversation not found".to_string()))?;
+
+    let creator_id = conversation.creator_id;
+
+    // Get all participants
+    let participants = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .all(db)
+        .await?;
+
+    let mut infos = Vec::new();
+    for participant in participants {
+        if let Ok(Some(profile)) = Profile::get_by_id(db, participant.user_id).await {
+            infos.push(ParticipantInfo {
+                user_id: participant.user_id,
+                name: profile.name,
+                joined_at: participant.joined_at,
+                is_creator: creator_id == Some(participant.user_id),
+            });
+        }
+    }
+
+    Ok(infos)
 }
