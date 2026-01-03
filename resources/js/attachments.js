@@ -198,19 +198,4 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     attachmentEventListeners();
-
-    // Reply button scroll handler (moved from inline onclick for CSP compliance)
-    const scrollToReplyBtn = document.querySelector('.scroll-to-reply');
-    if (scrollToReplyBtn) {
-        scrollToReplyBtn.addEventListener('click', function() {
-            const replyForm = document.getElementById('reply-form');
-            const replyTextarea = document.getElementById('reply-textarea');
-            if (replyForm) {
-                replyForm.scrollIntoView({ behavior: 'smooth' });
-                if (replyTextarea) {
-                    setTimeout(() => replyTextarea.focus(), 500);
-                }
-            }
-        });
-    }
 });

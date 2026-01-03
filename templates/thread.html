@@ -40,11 +40,6 @@
             </a>
             {% when None %}{% endmatch %}
             {% endif %}
-            {% if client.can_post_in_thread(thread) %}
-            <button type="button" class="action-button scroll-to-reply">
-                ✏️ Reply
-            </button>
-            {% endif %}
             {% if client.is_user() %}
             {% if is_watching %}
             <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
