@@ -76,11 +76,12 @@ This document covers the user-facing features and interface elements.
   - Toggle reactions on/off with single click
   - Real-time reaction count updates
   - Visual indication of user's own reactions
+  - Click reaction count to view users who reacted (overlay modal with avatars and profile links)
   - Database-backed with automatic count triggers
   - Reputation system: reactions affect post author's reputation score
   - Admin-configurable reputation values per reaction type
   - Voting restrictions: cannot react to own posts, minimum post count required
-- **Quote Reply** - Click Quote button on any post to insert quoted content into reply
+- **Reply Button** - Click Reply button on any post to insert quoted content into reply
   - Inserts `[quote=username;thread_id;post_id]content[/quote]` BBCode with link metadata
   - Scrolls to and focuses the reply textarea
   - Rendered quotes display framed box with ↑ link to original post
