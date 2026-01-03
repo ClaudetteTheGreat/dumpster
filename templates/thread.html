@@ -190,13 +190,9 @@
             <textarea id="reply-textarea" name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
         </div>
         <div class="attachment-section">
-            <div class="attachment-preview" style="display: none;">
-                <img class="attachment-thumbnail" src="" alt="Preview" />
-                <span class="attachment-filename"></span>
-                <button type="button" class="attachment-remove" title="Remove">&times;</button>
-            </div>
+            <div class="attachment-previews"></div>
             <div class="attachment-controls">
-                <input type="file" name="attachment" class="attachment-input" accept="image/*,video/*,audio/*,.pdf,.zip,.rar,.7z,.txt" />
+                <input type="file" name="attachment" class="attachment-input" accept="image/*,video/*,audio/*,.pdf,.zip,.rar,.7z,.txt" multiple />
                 <button type="button" class="attachment-upload">Attach File</button>
             </div>
         </div>
