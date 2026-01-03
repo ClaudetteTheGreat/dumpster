@@ -105,7 +105,7 @@
             // Find a good place to insert the indicator
             const submitBtn = form.querySelector('button[type="submit"], button:not([type])');
             if (submitBtn) {
-                submitBtn.parentNode.insertBefore(indicator, submitBtn.nextSibling);
+                submitBtn.parentNode.insertBefore(indicator, submitBtn);
             } else {
                 form.appendChild(indicator);
             }
@@ -132,7 +132,7 @@
 
             const submitBtn = form.querySelector('button[type="submit"], button:not([type])');
             if (submitBtn) {
-                submitBtn.parentNode.insertBefore(indicator, submitBtn.nextSibling);
+                submitBtn.parentNode.insertBefore(indicator, submitBtn);
             } else {
                 form.appendChild(indicator);
             }
