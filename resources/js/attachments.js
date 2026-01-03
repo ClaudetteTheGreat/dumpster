@@ -3,9 +3,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const inputEl = document.querySelector('.attachment-input');
         const previewsContainer = document.querySelector('.attachment-previews');
         const uploadBtn = document.querySelector('.attachment-upload');
-        const textarea = document.querySelector('#reply-textarea, textarea[name="content"]');
 
         if (!inputEl || !previewsContainer) return;
+
+        // Find the textarea dynamically (handles WYSIWYG mode changes)
+        function getTextarea() {
+            return document.querySelector('#reply-textarea, textarea[name="content"]');
+        }
 
         // Track uploaded files with their server responses
         let uploadedFiles = [];
@@ -23,7 +27,9 @@ document.addEventListener("DOMContentLoaded", function () {
             removeBtn.className = 'attachment-remove';
             removeBtn.title = 'Remove';
             removeBtn.textContent = '×';
-            removeBtn.addEventListener('click', function () {
+            removeBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
                 removeFile(index);
             });
             previewEl.appendChild(removeBtn);
@@ -40,14 +46,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 reader.readAsDataURL(file);
                 previewEl.appendChild(thumbnailEl);
 
-                // Add insert button for images
-                if (uploadResponse && textarea) {
+                // Add insert button for images (always add if uploaded)
+                if (uploadResponse) {
                     const insertBtn = document.createElement('button');
                     insertBtn.type = 'button';
                     insertBtn.className = 'attachment-insert';
                     insertBtn.title = 'Insert into post';
                     insertBtn.textContent = 'Insert';
-                    insertBtn.addEventListener('click', function () {
+                    insertBtn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         insertIntoEditor(uploadResponse, file.name);
                     });
                     previewEl.appendChild(insertBtn);
@@ -76,7 +84,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Insert image BBCode into editor
         function insertIntoEditor(uploadResponse, originalFilename) {
-            if (!textarea) return;
+            const textarea = getTextarea();
+            if (!textarea) {
+                console.error('Textarea not found');
+                return;
+            }
+            if (!uploadResponse || !uploadResponse.hash) {
+                console.error('Invalid upload response', uploadResponse);
+                return;
+            }
+
             const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
             const bbcode = `[img]${url}[/img]`;
 
