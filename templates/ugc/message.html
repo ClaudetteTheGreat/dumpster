@@ -88,46 +88,60 @@
         </div>
         {% when None %}{% endmatch %}
 
-        <div class="message-footer">
-            <div class="message-footer--left">
-                {# Mod Checkbox, Report, Delete, IP, Warn #}
-                {% if client.is_user() %}
-                <button type="button" class="quote-btn"
-                    data-post-id="{{ post.id }}"
-                    data-thread-id="{{ post.thread_id }}"
-                    data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
-                    data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
-                    title="Quote this post">Quote</button>
-                <button type="button" class="add-quote-btn"
-                    data-post-id="{{ post.id }}"
-                    data-thread-id="{{ post.thread_id }}"
-                    data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
-                    data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
-                    title="Add to quotes">+Quote</button>
-                <button type="button" class="report-btn"
-                    data-content-type="post"
-                    data-content-id="{{ post.id }}"
-                    data-csrf="{{ client.get_csrf_token() }}"
-                    title="Report this post">Report</button>
-                {% if client.can_update_post(post) %}<button type="button" class="edit-post-btn" data-post-id="{{ post.id }}">Edit</button>{% endif %}
-                {% if client.can_update_post(post) %}<a href="/posts/{{ post.id }}/delete">Delete</a>{% endif %}
-                {% if post.created_at != post.updated_at && client.can_update_post(post) %}<a
-                    href="/posts/{{ post.id }}/history">History</a>{% endif %}
-                {% endif %}
+        <footer class="message-footer">
+            {# Reactions summary bar #}
+            <div class="reactionsBar" data-ugc-id="{{ post.ugc_id }}">
+                <ul class="reactionsSummary"></ul>
             </div>
-            <div class="message-footer--right">
-                {# Reactions #}
-                <div class="reactions-container" data-ugc-id="{{ post.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
-                    <div class="reactions-display"></div>
+
+            {# Action bar #}
+            <div class="message-actionBar actionBar">
+                <div class="actionBar-set actionBar-set--external">
                     {% if client.is_user() && client.get_id() != post.user_id %}
-                    <div class="reactions-picker">
-                        <button type="button" class="reaction-picker-toggle" title="Add reaction">+</button>
-                        <div class="reaction-picker-dropdown" style="display: none;"></div>
+                    <div class="reactions-container" data-ugc-id="{{ post.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
+                        <div class="reactions-picker">
+                            <button type="button" class="reaction-picker-toggle actionBar-action actionBar-action--reaction" title="Add reaction">
+                                <span class="reaction-text">React</span>
+                            </button>
+                            <div class="reaction-picker-dropdown" style="display: none;"></div>
+                        </div>
                     </div>
+                    {% endif %}
+
+                    {% if client.is_user() %}
+                    <button type="button" class="actionBar-action actionBar-action--quote quote-btn"
+                        data-post-id="{{ post.id }}"
+                        data-thread-id="{{ post.thread_id }}"
+                        data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
+                        data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
+                        title="Quote this post">Quote</button>
+                    <button type="button" class="actionBar-action actionBar-action--multiQuote add-quote-btn"
+                        data-post-id="{{ post.id }}"
+                        data-thread-id="{{ post.thread_id }}"
+                        data-username="{% if let Some(u) = user %}{{ u.name }}{% else %}Guest{% endif %}"
+                        data-content="{% match post.content %}{% when Some with (c) %}{{ c }}{% when None %}{% endmatch %}"
+                        title="Add to multi-quote">+Quote</button>
+                    {% endif %}
+                </div>
+
+                <div class="actionBar-set actionBar-set--internal">
+                    {% if client.is_user() %}
+                    <button type="button" class="actionBar-action actionBar-action--report report-btn"
+                        data-content-type="post"
+                        data-content-id="{{ post.id }}"
+                        data-csrf="{{ client.get_csrf_token() }}"
+                        title="Report this post">Report</button>
+                    {% endif %}
+                    {% if client.can_update_post(post) %}
+                    <button type="button" class="actionBar-action actionBar-action--edit edit-post-btn" data-post-id="{{ post.id }}">Edit</button>
+                    <a href="/posts/{{ post.id }}/delete" class="actionBar-action actionBar-action--delete">Delete</a>
+                    {% endif %}
+                    {% if post.created_at != post.updated_at && client.can_update_post(post) %}
+                    <a href="/posts/{{ post.id }}/history" class="actionBar-action actionBar-action--history">History</a>
                     {% endif %}
                 </div>
             </div>
-        </div>
+        </footer>
 
         {% if let Some(user) = user %}
         {% if let Some(signature_html) = user.get_signature_html() %}

@@ -86,19 +86,141 @@
 }
 
 .message-footer {
-    display: flex;
     border-top: 1px solid var(--border-color);
     font-size: 0.8rem;
-    padding: $padding;
+    padding: 0;
 }
 
-.message-footer--left,
-.message-footer--right {
-    flex: 1;
+// Reactions summary bar
+.reactionsBar {
+    padding: 8px $padding;
+    min-height: 20px;
+
+    &:empty, &:not(:has(.reactionsSummary li)) {
+        display: none;
+    }
 }
 
-.message-footer--right {
-    text-align: right;
+.reactionsSummary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .reactionsBar-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        text-decoration: none;
+        color: var(--text-secondary);
+        font-size: 0.85em;
+        transition: background 0.15s ease;
+
+        &:hover {
+            background: var(--bg-hover);
+            text-decoration: none;
+        }
+
+        .reaction {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+
+            img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain;
+            }
+        }
+    }
+}
+
+// Action bar
+.message-actionBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px $padding;
+    border-top: 1px solid var(--border-color);
+}
+
+.actionBar-set {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.actionBar-set--external {
+    // Left side actions (React, Quote, +Quote)
+}
+
+.actionBar-set--internal {
+    // Right side actions (Report, Edit, Delete, History)
+}
+
+.actionBar-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    cursor: pointer;
+    border-radius: 3px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: var(--bg-hover);
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+}
+
+.actionBar-action--reaction {
+    color: var(--link-color);
+
+    &:hover {
+        background: var(--reaction-picker-hover-bg, rgba(0, 102, 204, 0.1));
+    }
+
+    .reaction-text {
+        font-weight: 500;
+    }
+}
+
+.actionBar-action--quote,
+.actionBar-action--multiQuote {
+    // Inherits from .actionBar-action
+}
+
+.actionBar-action--report {
+    &:hover {
+        color: var(--danger-color, #dc3545);
+    }
+}
+
+.actionBar-action--edit,
+.actionBar-action--delete,
+.actionBar-action--history {
+    // Inherits from .actionBar-action
+}
+
+// Keep reactions picker styling
+.reactions-container {
+    display: inline-flex;
+    align-items: center;
 }
 
 // Quote button
