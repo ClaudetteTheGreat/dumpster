@@ -1,7 +1,7 @@
 {
-  "name": "ruforo",
+  "name": "dumpster",
   "version": "0.1.0",
-  "description": "_Name pending._",
+  "description": "A traditional web forum built in Rust",
   "private": true,
   "directories": {
     "test": "tests"
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git@git.kiwifarms.net:KiwiFarms/ruforo.git"
+    "url": "git@git.kiwifarms.net:KiwiFarms/dumpster.git"
   },
   "keywords": [],
   "author": "",

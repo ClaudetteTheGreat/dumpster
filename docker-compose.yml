@@ -3,10 +3,10 @@ version: "3.9"
 services:
   minio:
     image: minio/minio:latest
-    command: server /opt/ruforo --console-address ":9001"
+    command: server /opt/dumpster --console-address ":9001"
     hostname: minio2
     volumes:
-      - s3:/opt/ruforo
+      - s3:/opt/dumpster
     ports:
       - '9000:9000'
       - '9001:9001'

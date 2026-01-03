@@ -1,20 +1,20 @@
 [Unit]
-Description=Ruforo Forum Server
-Documentation=https://github.com/yourorg/ruforo
+Description=Dumpster Forum Server
+Documentation=https://github.com/yourorg/dumpster
 After=network.target postgresql.service
 Wants=postgresql.service
 
 [Service]
 Type=simple
-User=ruforo
-Group=ruforo
-WorkingDirectory=/opt/ruforo
+User=dumpster
+Group=dumpster
+WorkingDirectory=/opt/dumpster
 
 # Environment configuration
-EnvironmentFile=/opt/ruforo/.env
+EnvironmentFile=/opt/dumpster/.env
 
 # Main process
-ExecStart=/opt/ruforo/bin/ruforo
+ExecStart=/opt/dumpster/bin/dumpster
 ExecReload=/bin/kill -HUP $MAINPID
 
 # Restart policy
@@ -26,7 +26,7 @@ TimeoutStopSec=30
 # Logging
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=ruforo
+SyslogIdentifier=dumpster
 
 # Security hardening
 NoNewPrivileges=true
@@ -44,8 +44,8 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 
 # Allow write access to specific directories
-ReadWritePaths=/opt/ruforo/tmp
-ReadWritePaths=/opt/ruforo/logs
+ReadWritePaths=/opt/dumpster/tmp
+ReadWritePaths=/opt/dumpster/logs
 
 # Resource limits
 LimitNOFILE=65536

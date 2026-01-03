@@ -1,6 +1,6 @@
-# Ruforo Installation Guide
+# Dumpster Installation Guide
 
-This guide covers installing and running Ruforo, a Rust-based web forum.
+This guide covers installing and running Dumpster, a Rust-based web forum.
 
 ## Prerequisites
 
@@ -50,8 +50,8 @@ sudo pacman -S pkg-config openssl ffmpeg
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/ruforo.git
-cd ruforo
+git clone https://github.com/your-org/dumpster.git
+cd dumpster
 
 # 2. Start PostgreSQL (using Docker)
 docker-compose up -d postgres
@@ -62,7 +62,7 @@ cp config.toml.example config.toml
 
 # 4. Install sqlx-cli and set up database
 cargo install sqlx-cli --no-default-features --features postgres
-export DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo"
+export DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster"
 sqlx database create
 sqlx migrate run
 
@@ -71,7 +71,7 @@ npm install
 npm run build
 
 # 6. Run the server
-cargo run --bin ruforo
+cargo run --bin dumpster
 ```
 
 The forum will be available at http://localhost:8080
@@ -90,8 +90,8 @@ This starts PostgreSQL on port 5433 with credentials `postgres:postgres`.
 ```bash
 # Create database and user
 sudo -u postgres psql
-CREATE USER ruforo WITH PASSWORD 'your_password';
-CREATE DATABASE ruforo OWNER ruforo;
+CREATE USER dumpster WITH PASSWORD 'your_password';
+CREATE DATABASE dumpster OWNER dumpster;
 \q
 ```
 
@@ -106,7 +106,7 @@ cp config.toml.example config.toml
 Edit `.env` with your settings:
 ```bash
 # Required
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/ruforo
+DATABASE_URL=postgres://postgres:postgres@localhost:5433/dumpster
 SECRET_KEY=generate_a_64_byte_secure_random_string
 SALT=generate_a_secure_salt_string
 
@@ -139,7 +139,7 @@ cargo install sqlx-cli --no-default-features --features postgres
 
 Run migrations:
 ```bash
-export DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo"
+export DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster"
 sqlx database create
 sqlx migrate run
 ```
@@ -162,13 +162,13 @@ This compiles JavaScript and CSS to `public/assets/`.
 
 #### Development
 ```bash
-cargo run --bin ruforo
+cargo run --bin dumpster
 ```
 
 #### Production
 ```bash
 cargo build --release
-./target/release/ruforo
+./target/release/dumpster
 ```
 
 ## Configuration Reference
@@ -179,7 +179,7 @@ The `config.toml` file contains application settings. Key sections:
 
 ```toml
 [site]
-name = "Ruforo"
+name = "Dumpster"
 description = "A forum built in Rust"
 base_url = "http://localhost:8080"
 
@@ -197,22 +197,22 @@ session_timeout_minutes = 1440
 # "hcaptcha", "turnstile", or "" to disable
 provider = ""
 site_key = ""
-# Set secret via RUFORO_CAPTCHA_SECRET_KEY env var
+# Set secret via DUMPSTER_CAPTCHA_SECRET_KEY env var
 ```
 
 ### Environment Variables
 
-Environment variables override config file values. Use the `RUFORO_` prefix:
+Environment variables override config file values. Use the `DUMPSTER_` prefix:
 
 | Variable | Description |
 |----------|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `SECRET_KEY` | Session encryption key (64 bytes) |
 | `SALT` | Password hashing salt |
-| `RUFORO_CAPTCHA_SECRET_KEY` | CAPTCHA secret key |
-| `RUFORO_EMAIL_SMTP_PASSWORD` | SMTP password |
-| `RUFORO_STORAGE_S3_ACCESS_KEY` | S3 access key |
-| `RUFORO_STORAGE_S3_SECRET_KEY` | S3 secret key |
+| `DUMPSTER_CAPTCHA_SECRET_KEY` | CAPTCHA secret key |
+| `DUMPSTER_EMAIL_SMTP_PASSWORD` | SMTP password |
+| `DUMPSTER_STORAGE_S3_ACCESS_KEY` | S3 access key |
+| `DUMPSTER_STORAGE_S3_SECRET_KEY` | S3 secret key |
 
 ## File Storage
 
@@ -239,8 +239,8 @@ s3_public_url = "https://your-bucket.s3.amazonaws.com"
 
 Set credentials via environment:
 ```bash
-export RUFORO_STORAGE_S3_ACCESS_KEY="your-access-key"
-export RUFORO_STORAGE_S3_SECRET_KEY="your-secret-key"
+export DUMPSTER_STORAGE_S3_ACCESS_KEY="your-access-key"
+export DUMPSTER_STORAGE_S3_SECRET_KEY="your-secret-key"
 ```
 
 #### Development with MinIO
@@ -253,7 +253,7 @@ MinIO console: http://localhost:9001 (minioadmin/minioadmin)
 
 ```bash
 # Set up test database
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster_test"
 sqlx database create
 sqlx migrate run
 
@@ -265,7 +265,7 @@ cargo test
 
 ### Recommended Setup
 
-1. **Reverse Proxy**: Use nginx or Caddy in front of Ruforo
+1. **Reverse Proxy**: Use nginx or Caddy in front of Dumpster
 2. **Process Manager**: Use systemd or supervisor
 3. **Database**: Use managed PostgreSQL or secure your installation
 4. **Storage**: Use S3 or compatible object storage
@@ -275,17 +275,17 @@ cargo test
 
 ```ini
 [Unit]
-Description=Ruforo Forum
+Description=Dumpster Forum
 After=network.target postgresql.service
 
 [Service]
 Type=simple
-User=ruforo
-WorkingDirectory=/opt/ruforo
-Environment=DATABASE_URL=postgres://ruforo:password@localhost/ruforo
+User=dumpster
+WorkingDirectory=/opt/dumpster
+Environment=DATABASE_URL=postgres://dumpster:password@localhost/dumpster
 Environment=SECRET_KEY=your_secret_key
 Environment=RUST_LOG=info
-ExecStart=/opt/ruforo/target/release/ruforo
+ExecStart=/opt/dumpster/target/release/dumpster
 Restart=always
 RestartSec=5
 
@@ -317,7 +317,7 @@ server {
     }
 
     location /static/ {
-        alias /opt/ruforo/public/;
+        alias /opt/dumpster/public/;
         expires 30d;
     }
 }

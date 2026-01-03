@@ -1,26 +1,14 @@
-# _Unnamed Web Forum Project_
-(Formerly ruforo, formerly Sneedforo, formerly Chuckforo, formerly XenForo)
+# Dumpster
 
-PROJECT_NAME is a traditional web forum built in Rust.
+A traditional web forum built in Rust.
 
 ## Stack
- - Rust
-   - Actix-Web
-   - Askama for templating
-   - SeaQL (sqlx) for ORM
- - Postgres
- - S3
- - NPM
-   - SWC for asset compilation
-   - SCSS for stylesheets
-   - Vanilla JS
 
-## Aspirations
- - Minimal bloat.
- - No-JS, Tor compatability.
- - Unit tested.
- - Event driven WebSocket subscriptions.
- - Total replacement for XenForo.
+- **Backend**: Rust with Actix-Web
+- **Database**: PostgreSQL with SeaORM
+- **Templates**: Askama
+- **Storage**: S3-compatible (MinIO for development)
+- **Frontend**: Webpack + SWC for JS/SCSS compilation
 
 ## Documentation
 
@@ -36,6 +24,7 @@ PROJECT_NAME is a traditional web forum built in Rust.
 ## Quick Start
 
 ### Prerequisites
+
 - Rust (latest stable)
 - PostgreSQL 14+
 - Node.js 18+ (for frontend assets)
@@ -44,105 +33,97 @@ PROJECT_NAME is a traditional web forum built in Rust.
 ### Development Setup
 
 ```bash
-# Start local services
+# Start local services (PostgreSQL on 5433, MinIO on 9000/9001)
 docker-compose up -d
 
 # Set up environment
 cp .env.example .env
 
-# Install frontend dependencies
+# Install frontend dependencies and build assets
 npm install
+npm run build
 
-# Build frontend assets
-npx webpack
+# Set database URL
+export DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster"
 
-# Run database migrations
-export DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo"
+# Create database and run migrations
 sqlx database create
 sqlx migrate run
 
-# Run the forum
-cargo run --bin ruforo
+# Run the forum (binds to 0.0.0.0:8080)
+cargo run --bin dumpster
 ```
 
-The forum will be available at http://localhost:8080 (binds to 0.0.0.0:8080)
+The forum will be available at http://localhost:8080
 
 ### Running Tests
 
 ```bash
 # Set up test database
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test"
-TEST_DATABASE_URL="$TEST_DATABASE_URL" sqlx database create
-TEST_DATABASE_URL="$TEST_DATABASE_URL" sqlx migrate run
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster_test"
+sqlx database create
+sqlx migrate run
 
-# Run all tests (270+ tests)
-TEST_DATABASE_URL="$TEST_DATABASE_URL" cargo test
+# Run all tests
+cargo test
 ```
 
 ## Features Overview
 
 ### Core Forum
+
 - Forums with sub-forums and hierarchical navigation
 - Threads with tags, prefixes, and polls
 - Posts with BBCode formatting, reactions, and multi-quote
 - Full-text search across threads and posts
+- Activity feeds (personal, global, per-user)
 
 ### User Features
+
 - User profiles with avatars and custom titles
 - Reputation system based on post reactions
 - Online status tracking with privacy controls
 - Private messaging and conversations
 - Thread watching with email notifications
 - Real-time WebSocket chat
-- Dark mode and user preferences
-- Activity feeds (personal, global, per-user)
+- Dark mode and theme support
 - User following system
 
 ### Moderation
+
 - Thread lock/pin/move/merge operations
 - User warnings with point system
 - User and IP bans with expiration
 - Report system for user-submitted reports
 - Word filters with replace/block/flag actions
 - Mass moderation actions for bulk operations
-- Custom permission groups
+- Custom permission groups with forum-specific overrides
 
 ### Security
+
 - Argon2 password hashing
 - Two-factor authentication (TOTP)
 - Account lockout protection
-- Rate limiting on all endpoints
+- Configurable rate limiting on all endpoints
 - CAPTCHA support (hCaptcha, Turnstile)
 - CSRF protection on all forms
+- Spam detection with heuristic analysis
 
-## Environment
- - Example `.env` file
-   + NOTE: AWS variables will likely be migrated to DB
- - PostgreSQL
-   + Required. Database agnosticism not planned.
- - S3 Storage
-   + Any S3-compatible storage API for attachments.
-   + Suggested to use [MinIO](https://min.io/) (FOSS + Self-Hosted)
- - node and webpack
-   + Install [npm](https://nodejs.org/en/download/).
-   + Run `npm install` from the root directory to install node dependencies.
-   + Run `npx webpack` from the root directory to deploy browser-friendly resource files.
-   + _webpack will be replaced with SWC when SASS compilation is available._
+## Development
 
-### WebM Validation Notes
- - https://www.webmproject.org/docs/container/
- - VP8
- - VP9
- - AV1
- - OPUS
- - VORBIS
-
-## Contributions
 ### Code Guidelines
- - We use [rustfmt](https://github.com/rust-lang/rustfmt).
- - `cargo clippy` whenever possible.
- - Try to eliminate warnings.
+
+- We use [rustfmt](https://github.com/rust-lang/rustfmt) for formatting
+- Run `cargo clippy` before commits
+- Try to eliminate warnings
 
 ### Database Guidelines
- - Any data which would apply to two types of content (i.e. posts, chat messages, profile posts) should interact with the `ugc` tables, not individual content type tables.
- - Usernames should be referenced by `user_id,created_at DESC` from `user_name`. User rows can be deleted, but a historical reference for their name will be added to this table. This complies with [GDPR software requirements](https://gdpr.eu/right-to-be-forgotten).
+
+- Any data which would apply to multiple content types (posts, chat messages, profile posts) should use the `ugc` tables
+- Usernames are referenced via `user_name` table with `(user_id, created_at DESC)`. User rows can be deleted while preserving historical username references (GDPR compliant)
+
+### WebM Validation
+
+Supported codecs:
+- Video: VP8, VP9, AV1
+- Audio: Opus, Vorbis

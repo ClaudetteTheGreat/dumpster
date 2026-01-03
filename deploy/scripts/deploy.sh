@@ -1,14 +1,14 @@
 #!/bin/bash
-# Ruforo Forum - Deployment Script
+# Dumpster Forum - Deployment Script
 # Downloads latest release and deploys with minimal downtime
 
 set -e
 
 # Configuration
-RUFORO_HOME="/opt/ruforo"
-RUFORO_USER="ruforo"
-GITHUB_REPO="yourorg/ruforo"
-BACKUP_DIR="$RUFORO_HOME/backups"
+DUMPSTER_HOME="/opt/dumpster"
+DUMPSTER_USER="dumpster"
+GITHUB_REPO="yourorg/dumpster"
+BACKUP_DIR="$DUMPSTER_HOME/backups"
 
 # Colors for output
 RED='\033[0;31m'
@@ -32,12 +32,12 @@ log_error() {
 VERSION="${1:-latest}"
 SKIP_BACKUP="${2:-false}"
 
-log_info "Starting deployment of ruforo version: $VERSION"
+log_info "Starting deployment of dumpster version: $VERSION"
 
 # Create backup before deployment
 if [[ "$SKIP_BACKUP" != "--skip-backup" ]]; then
     log_info "Creating pre-deployment backup..."
-    "$RUFORO_HOME/scripts/backup.sh" || log_warn "Backup failed, continuing anyway"
+    "$DUMPSTER_HOME/scripts/backup.sh" || log_warn "Backup failed, continuing anyway"
 fi
 
 # Download release
@@ -47,9 +47,9 @@ cd "$DOWNLOAD_DIR"
 
 if [[ "$VERSION" == "latest" ]]; then
     RELEASE_URL="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
-    ASSET_URL=$(curl -s "$RELEASE_URL" | grep "browser_download_url.*ruforo-linux-x86_64.tar.gz" | cut -d '"' -f 4)
+    ASSET_URL=$(curl -s "$RELEASE_URL" | grep "browser_download_url.*dumpster-linux-x86_64.tar.gz" | cut -d '"' -f 4)
 else
-    ASSET_URL="https://github.com/$GITHUB_REPO/releases/download/$VERSION/ruforo-linux-x86_64.tar.gz"
+    ASSET_URL="https://github.com/$GITHUB_REPO/releases/download/$VERSION/dumpster-linux-x86_64.tar.gz"
 fi
 
 if [[ -z "$ASSET_URL" ]]; then
@@ -61,81 +61,81 @@ curl -L -o release.tar.gz "$ASSET_URL"
 tar -xzf release.tar.gz
 
 # Verify binaries exist
-if [[ ! -f "ruforo" ]] || [[ ! -f "xf-chat" ]]; then
+if [[ ! -f "dumpster" ]] || [[ ! -f "xf-chat" ]]; then
     log_error "Release archive does not contain expected binaries"
     exit 1
 fi
 
 # Stop services gracefully
 log_info "Stopping services..."
-systemctl stop ruforo-xf-chat 2>/dev/null || true
-systemctl stop ruforo 2>/dev/null || true
+systemctl stop dumpster-xf-chat 2>/dev/null || true
+systemctl stop dumpster 2>/dev/null || true
 
 # Backup current binaries
 log_info "Backing up current binaries..."
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-if [[ -f "$RUFORO_HOME/bin/ruforo" ]]; then
-    mv "$RUFORO_HOME/bin/ruforo" "$BACKUP_DIR/ruforo.$TIMESTAMP"
+if [[ -f "$DUMPSTER_HOME/bin/dumpster" ]]; then
+    mv "$DUMPSTER_HOME/bin/dumpster" "$BACKUP_DIR/dumpster.$TIMESTAMP"
 fi
-if [[ -f "$RUFORO_HOME/bin/xf-chat" ]]; then
-    mv "$RUFORO_HOME/bin/xf-chat" "$BACKUP_DIR/xf-chat.$TIMESTAMP"
+if [[ -f "$DUMPSTER_HOME/bin/xf-chat" ]]; then
+    mv "$DUMPSTER_HOME/bin/xf-chat" "$BACKUP_DIR/xf-chat.$TIMESTAMP"
 fi
 
 # Install new binaries
 log_info "Installing new binaries..."
-cp ruforo "$RUFORO_HOME/bin/"
-cp xf-chat "$RUFORO_HOME/bin/"
-chmod +x "$RUFORO_HOME/bin/"*
-chown "$RUFORO_USER:$RUFORO_USER" "$RUFORO_HOME/bin/"*
+cp dumpster "$DUMPSTER_HOME/bin/"
+cp xf-chat "$DUMPSTER_HOME/bin/"
+chmod +x "$DUMPSTER_HOME/bin/"*
+chown "$DUMPSTER_USER:$DUMPSTER_USER" "$DUMPSTER_HOME/bin/"*
 
 # Update assets if included
 if [[ -d "public" ]]; then
     log_info "Updating public assets..."
-    rsync -a --delete public/ "$RUFORO_HOME/public/"
-    chown -R "$RUFORO_USER:$RUFORO_USER" "$RUFORO_HOME/public/"
+    rsync -a --delete public/ "$DUMPSTER_HOME/public/"
+    chown -R "$DUMPSTER_USER:$DUMPSTER_USER" "$DUMPSTER_HOME/public/"
 fi
 
 # Update templates if included
 if [[ -d "templates" ]]; then
     log_info "Updating templates..."
-    rsync -a --delete templates/ "$RUFORO_HOME/templates/"
-    chown -R "$RUFORO_USER:$RUFORO_USER" "$RUFORO_HOME/templates/"
+    rsync -a --delete templates/ "$DUMPSTER_HOME/templates/"
+    chown -R "$DUMPSTER_USER:$DUMPSTER_USER" "$DUMPSTER_HOME/templates/"
 fi
 
 # Update migrations if included
 if [[ -d "migrations" ]]; then
     log_info "Updating migrations..."
-    rsync -a migrations/ "$RUFORO_HOME/migrations/"
-    chown -R "$RUFORO_USER:$RUFORO_USER" "$RUFORO_HOME/migrations/"
+    rsync -a migrations/ "$DUMPSTER_HOME/migrations/"
+    chown -R "$DUMPSTER_USER:$DUMPSTER_USER" "$DUMPSTER_HOME/migrations/"
 fi
 
 # Run database migrations
 log_info "Running database migrations..."
-cd "$RUFORO_HOME"
-source "$RUFORO_HOME/.env"
+cd "$DUMPSTER_HOME"
+source "$DUMPSTER_HOME/.env"
 # Note: Requires sqlx-cli installed, or use the binary with migrate subcommand
-# sudo -u "$RUFORO_USER" sqlx migrate run 2>&1 || log_warn "Migration command not available"
+# sudo -u "$DUMPSTER_USER" sqlx migrate run 2>&1 || log_warn "Migration command not available"
 
 # Start services
 log_info "Starting services..."
-systemctl start ruforo
+systemctl start dumpster
 sleep 2
-systemctl start ruforo-xf-chat
+systemctl start dumpster-xf-chat
 
 # Verify services are running
 log_info "Verifying services..."
-if systemctl is-active --quiet ruforo; then
-    log_info "ruforo service is running"
+if systemctl is-active --quiet dumpster; then
+    log_info "dumpster service is running"
 else
-    log_error "ruforo service failed to start"
-    journalctl -u ruforo --no-pager -n 20
+    log_error "dumpster service failed to start"
+    journalctl -u dumpster --no-pager -n 20
     exit 1
 fi
 
-if systemctl is-active --quiet ruforo-xf-chat; then
-    log_info "ruforo-xf-chat service is running"
+if systemctl is-active --quiet dumpster-xf-chat; then
+    log_info "dumpster-xf-chat service is running"
 else
-    log_warn "ruforo-xf-chat service is not running (may be optional)"
+    log_warn "dumpster-xf-chat service is not running (may be optional)"
 fi
 
 # Health check
@@ -153,11 +153,11 @@ rm -rf "$DOWNLOAD_DIR"
 
 # Clean old backups (keep last 5)
 log_info "Cleaning old binary backups..."
-ls -t "$BACKUP_DIR"/ruforo.* 2>/dev/null | tail -n +6 | xargs -r rm
+ls -t "$BACKUP_DIR"/dumpster.* 2>/dev/null | tail -n +6 | xargs -r rm
 ls -t "$BACKUP_DIR"/xf-chat.* 2>/dev/null | tail -n +6 | xargs -r rm
 
 log_info "Deployment complete!"
 echo ""
 echo "Deployed version: $VERSION"
 echo "Services status:"
-systemctl status ruforo --no-pager -l | head -5
+systemctl status dumpster --no-pager -l | head -5

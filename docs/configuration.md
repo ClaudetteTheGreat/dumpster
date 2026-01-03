@@ -4,9 +4,9 @@ This document covers the configuration options for the forum.
 
 ## Configuration File (`config.toml`)
 
-Ruforo supports a TOML configuration file with layered priority:
+Dumpster supports a TOML configuration file with layered priority:
 
-1. **Environment variables** (`RUFORO_*` prefix) - highest priority
+1. **Environment variables** (`DUMPSTER_*` prefix) - highest priority
 2. **Config file** (`config.toml`) - optional, for non-secret settings
 3. **Default values** - sensible secure defaults
 
@@ -27,17 +27,17 @@ Copy `config.toml.example` to `config.toml` and customize as needed.
 
 ## Environment Variable Override
 
-All config values can be overridden with environment variables using the `RUFORO_` prefix:
+All config values can be overridden with environment variables using the `DUMPSTER_` prefix:
 
 ```bash
 # Override site name
-RUFORO_SITE_NAME=MyForum
+DUMPSTER_SITE_NAME=MyForum
 
 # Override CAPTCHA provider
-RUFORO_CAPTCHA_PROVIDER=turnstile
+DUMPSTER_CAPTCHA_PROVIDER=turnstile
 
 # Override rate limits
-RUFORO_RATE_LIMIT_LOGIN_MAX_ATTEMPTS=10
+DUMPSTER_RATE_LIMIT_LOGIN_MAX_ATTEMPTS=10
 ```
 
 ## Secrets
@@ -46,10 +46,10 @@ Keep secrets in environment variables (not config file):
 
 | Variable | Description |
 |----------|-------------|
-| `RUFORO_CAPTCHA_SECRET_KEY` | CAPTCHA verification secret |
-| `RUFORO_EMAIL_SMTP_PASSWORD` | SMTP password |
-| `RUFORO_STORAGE_S3_ACCESS_KEY` | S3 access key |
-| `RUFORO_STORAGE_S3_SECRET_KEY` | S3 secret key |
+| `DUMPSTER_CAPTCHA_SECRET_KEY` | CAPTCHA verification secret |
+| `DUMPSTER_EMAIL_SMTP_PASSWORD` | SMTP password |
+| `DUMPSTER_STORAGE_S3_ACCESS_KEY` | S3 access key |
+| `DUMPSTER_STORAGE_S3_SECRET_KEY` | S3 secret key |
 | `DATABASE_URL` | Database connection string (no prefix) |
 | `SECRET_KEY` | Session signing key (64+ bytes) |
 
@@ -59,7 +59,7 @@ Keep secrets in environment variables (not config file):
 
 ```bash
 # Database
-DATABASE_URL=postgres://user:password@localhost:5432/ruforo
+DATABASE_URL=postgres://user:password@localhost:5432/dumpster
 
 # Session security
 SECRET_KEY=your-64-byte-secret-key-here
@@ -72,7 +72,7 @@ SECRET_KEY=your-64-byte-secret-key-here
 AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
-S3_BUCKET=ruforo-uploads
+S3_BUCKET=dumpster-uploads
 S3_ENDPOINT=https://s3.amazonaws.com
 
 # CAPTCHA (disabled if not set)
@@ -90,7 +90,7 @@ SMTP_FROM=noreply@example.com
 
 ## Storage Configuration
 
-Ruforo supports two storage backends for file uploads:
+Dumpster supports two storage backends for file uploads:
 
 ### Local Storage (Default)
 
@@ -115,14 +115,14 @@ Stores files in S3-compatible object storage (AWS S3, MinIO, etc.).
 backend = "s3"
 s3_endpoint = "http://localhost:9000"
 s3_region = "us-east-1"
-s3_bucket = "ruforo"
-s3_public_url = "http://localhost:9000/ruforo"
+s3_bucket = "dumpster"
+s3_public_url = "http://localhost:9000/dumpster"
 ```
 
 S3 credentials should be set via environment variables:
 ```bash
-RUFORO_STORAGE_S3_ACCESS_KEY=your-access-key
-RUFORO_STORAGE_S3_SECRET_KEY=your-secret-key
+DUMPSTER_STORAGE_S3_ACCESS_KEY=your-access-key
+DUMPSTER_STORAGE_S3_SECRET_KEY=your-secret-key
 ```
 
 ### Migrating from S3 to Local
@@ -153,26 +153,26 @@ docker-compose up -d
 ### Example `.env` for Development
 
 ```bash
-DATABASE_URL=postgres://postgres:postgres@localhost:5433/ruforo
+DATABASE_URL=postgres://postgres:postgres@localhost:5433/dumpster
 SECRET_KEY=development-secret-key-64-bytes-minimum-required-for-security
 AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
 S3_ENDPOINT=http://localhost:9000
-S3_BUCKET=ruforo-uploads
+S3_BUCKET=dumpster-uploads
 ```
 
 ## Test Database Setup
 
 ```bash
 # Set up test database (required for running tests)
-export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test"
+export TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/dumpster_test"
 
 # Create and migrate test database
-TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test" sqlx database create
-TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test" sqlx migrate run
+sqlx database create
+sqlx migrate run
 
 # Run tests
-TEST_DATABASE_URL="postgres://postgres:postgres@localhost:5433/ruforo_test" cargo test
+cargo test
 ```
 
 ## Database Migrations

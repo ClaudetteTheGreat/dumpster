@@ -1,6 +1,6 @@
-# Ruforo Deployment Guide
+# Dumpster Deployment Guide
 
-This directory contains deployment configuration for running Ruforo in production.
+This directory contains deployment configuration for running Dumpster in production.
 
 ## Quick Start (Bare Metal / VM)
 
@@ -21,7 +21,7 @@ This directory contains deployment configuration for running Ruforo in productio
 
 2. **Configure environment**:
    ```bash
-   sudo nano /opt/ruforo/.env
+   sudo nano /opt/dumpster/.env
    ```
 
 3. **Set up SSL with Let's Encrypt**:
@@ -31,21 +31,21 @@ This directory contains deployment configuration for running Ruforo in productio
 
 4. **Download and deploy the latest release**:
    ```bash
-   sudo /opt/ruforo/scripts/deploy.sh
+   sudo /opt/dumpster/scripts/deploy.sh
    ```
 
 5. **Enable and start services**:
    ```bash
-   sudo systemctl enable ruforo ruforo-xf-chat
-   sudo systemctl start ruforo
+   sudo systemctl enable dumpster dumpster-xf-chat
+   sudo systemctl start dumpster
    ```
 
 ## Directory Structure
 
 ```
-/opt/ruforo/
+/opt/dumpster/
 ├── bin/           # Binary executables
-│   ├── ruforo     # Main forum server
+│   ├── dumpster   # Main forum server
 │   └── xf-chat    # XenForo chat compatibility server
 ├── public/        # Static assets
 │   └── assets/    # Compiled JS/CSS
@@ -62,11 +62,11 @@ This directory contains deployment configuration for running Ruforo in productio
 
 ### Environment Variables
 
-Edit `/opt/ruforo/.env`:
+Edit `/opt/dumpster/.env`:
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection | `postgres://user:pass@localhost/ruforo` |
+| `DATABASE_URL` | PostgreSQL connection | `postgres://user:pass@localhost/dumpster` |
 | `SECRET_KEY` | Session encryption key | 64-byte hex string |
 | `SALT` | Password hashing salt | Random string |
 | `AWS_*` | S3/MinIO configuration | See .env.example |
@@ -74,7 +74,7 @@ Edit `/opt/ruforo/.env`:
 
 ### Nginx
 
-The nginx configuration is in `/etc/nginx/sites-available/ruforo.conf`.
+The nginx configuration is in `/etc/nginx/sites-available/dumpster.conf`.
 
 Key features:
 - HTTPS with modern TLS
@@ -85,19 +85,19 @@ Key features:
 
 ### Systemd Services
 
-- `ruforo.service` - Main forum server (port 8080)
-- `ruforo-xf-chat.service` - Chat server (port 8081)
+- `dumpster.service` - Main forum server (port 8080)
+- `dumpster-xf-chat.service` - Chat server (port 8081)
 
 Commands:
 ```bash
 # View status
-sudo systemctl status ruforo
+sudo systemctl status dumpster
 
 # View logs
-sudo journalctl -u ruforo -f
+sudo journalctl -u dumpster -f
 
 # Restart
-sudo systemctl restart ruforo
+sudo systemctl restart dumpster
 ```
 
 ## Deployment
@@ -106,18 +106,18 @@ sudo systemctl restart ruforo
 
 ```bash
 # Stop services
-sudo systemctl stop ruforo ruforo-xf-chat
+sudo systemctl stop dumpster dumpster-xf-chat
 
 # Copy new binaries
-sudo cp ruforo /opt/ruforo/bin/
-sudo cp xf-chat /opt/ruforo/bin/
-sudo chown ruforo:ruforo /opt/ruforo/bin/*
+sudo cp dumpster /opt/dumpster/bin/
+sudo cp xf-chat /opt/dumpster/bin/
+sudo chown dumpster:dumpster /opt/dumpster/bin/*
 
 # Run migrations
-cd /opt/ruforo && sudo -u ruforo sqlx migrate run
+cd /opt/dumpster && sudo -u dumpster sqlx migrate run
 
 # Restart services
-sudo systemctl start ruforo ruforo-xf-chat
+sudo systemctl start dumpster dumpster-xf-chat
 ```
 
 ### Automated Deployment
@@ -125,13 +125,13 @@ sudo systemctl start ruforo ruforo-xf-chat
 Use the deploy script:
 ```bash
 # Deploy latest release
-sudo /opt/ruforo/scripts/deploy.sh
+sudo /opt/dumpster/scripts/deploy.sh
 
 # Deploy specific version
-sudo /opt/ruforo/scripts/deploy.sh v1.2.3
+sudo /opt/dumpster/scripts/deploy.sh v1.2.3
 
 # Skip pre-deployment backup
-sudo /opt/ruforo/scripts/deploy.sh latest --skip-backup
+sudo /opt/dumpster/scripts/deploy.sh latest --skip-backup
 ```
 
 ## Backups
@@ -140,22 +140,22 @@ Automatic daily backups run at 3:00 AM via cron.
 
 Manual backup:
 ```bash
-sudo -u ruforo /opt/ruforo/scripts/backup.sh
+sudo -u dumpster /opt/dumpster/scripts/backup.sh
 ```
 
-Backups are stored in `/opt/ruforo/backups/` with 30-day retention.
+Backups are stored in `/opt/dumpster/backups/` with 30-day retention.
 
 ### Restore from Backup
 
 ```bash
 # Stop the service
-sudo systemctl stop ruforo
+sudo systemctl stop dumpster
 
 # Restore database
-sudo -u postgres pg_restore -d ruforo /opt/ruforo/backups/db_YYYYMMDD_HHMMSS.dump
+sudo -u postgres pg_restore -d dumpster /opt/dumpster/backups/db_YYYYMMDD_HHMMSS.dump
 
 # Start the service
-sudo systemctl start ruforo
+sudo systemctl start dumpster
 ```
 
 ## Monitoring
@@ -170,13 +170,13 @@ curl http://localhost:8080/
 
 ```bash
 # Application logs
-sudo journalctl -u ruforo -f
+sudo journalctl -u dumpster -f
 
 # Nginx access logs
-sudo tail -f /var/log/nginx/ruforo_access.log
+sudo tail -f /var/log/nginx/dumpster_access.log
 
 # Nginx error logs
-sudo tail -f /var/log/nginx/ruforo_error.log
+sudo tail -f /var/log/nginx/dumpster_error.log
 ```
 
 ## Security
@@ -210,7 +210,7 @@ sudo certbot renew --dry-run
 
 Check logs:
 ```bash
-sudo journalctl -u ruforo -n 50 --no-pager
+sudo journalctl -u dumpster -n 50 --no-pager
 ```
 
 Common issues:
@@ -221,7 +221,7 @@ Common issues:
 ### 502 Bad Gateway
 
 The backend is not responding. Check:
-1. Is the service running? `systemctl status ruforo`
+1. Is the service running? `systemctl status dumpster`
 2. Is it bound to the correct port? `ss -tlnp | grep 8080`
 3. Check application logs for errors
 
@@ -229,7 +229,7 @@ The backend is not responding. Check:
 
 Ensure the database user has sufficient privileges:
 ```sql
-GRANT ALL PRIVILEGES ON DATABASE ruforo TO ruforo;
+GRANT ALL PRIVILEGES ON DATABASE dumpster TO dumpster;
 ```
 
 ## CI/CD with GitHub Actions
@@ -271,9 +271,9 @@ The release workflow will:
 
 ```bash
 # Download latest release
-curl -L -o ruforo.tar.gz \
-  https://github.com/yourorg/ruforo/releases/latest/download/ruforo-linux-x86_64.tar.gz
+curl -L -o dumpster.tar.gz \
+  https://github.com/yourorg/dumpster/releases/latest/download/dumpster-linux-x86_64.tar.gz
 
-# Extract to /opt/ruforo
-sudo tar -xzf ruforo.tar.gz -C /opt/ruforo/
+# Extract to /opt/dumpster
+sudo tar -xzf dumpster.tar.gz -C /opt/dumpster/
 ```

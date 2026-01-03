@@ -1,17 +1,17 @@
 #!/bin/bash
-# Ruforo Forum - Backup Script
+# Dumpster Forum - Backup Script
 # Creates database backups and manages retention
 
 set -e
 
 # Configuration
-RUFORO_HOME="/opt/ruforo"
-BACKUP_DIR="$RUFORO_HOME/backups"
+DUMPSTER_HOME="/opt/dumpster"
+BACKUP_DIR="$DUMPSTER_HOME/backups"
 RETENTION_DAYS=30
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
 # Load environment
-source "$RUFORO_HOME/.env"
+source "$DUMPSTER_HOME/.env"
 
 # Colors for output
 RED='\033[0;31m'
