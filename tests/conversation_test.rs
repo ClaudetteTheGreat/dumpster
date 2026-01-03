@@ -771,3 +771,69 @@ async fn test_get_archived_conversations() {
     assert_eq!(archived_convs.len(), 1);
     assert_eq!(archived_convs[0].title, Some("Conv 1".to_string()));
 }
+
+/// Test that sending a message does not mark the conversation as unread for the sender
+/// but does mark it as unread for other participants
+#[actix_rt::test]
+#[serial]
+async fn test_send_message_does_not_mark_sender_unread() {
+    let db = setup_test_database()
+        .await
+        .expect("Failed to connect to test database");
+
+    cleanup_test_data(&db).await.expect("Failed to cleanup");
+
+    let user1 = create_test_user_with_email(&db, "alice", "alice@example.com", true)
+        .await
+        .expect("Failed to create alice");
+
+    let user2 = create_test_user_with_email(&db, "bob", "bob@example.com", true)
+        .await
+        .expect("Failed to create bob");
+
+    // Create conversation
+    let conversation_id = conversations::create_conversation(user1.id, &[user2.id], Some("Test"))
+        .await
+        .expect("Failed to create conversation");
+
+    // Mark as read for both users initially
+    conversations::mark_conversation_read(user1.id, conversation_id)
+        .await
+        .expect("Failed to mark read for user1");
+    conversations::mark_conversation_read(user2.id, conversation_id)
+        .await
+        .expect("Failed to mark read for user2");
+
+    // Verify both users have 0 unread conversations
+    let user1_unread_before = conversations::count_unread_conversations(user1.id)
+        .await
+        .expect("Failed to count unread");
+    let user2_unread_before = conversations::count_unread_conversations(user2.id)
+        .await
+        .expect("Failed to count unread");
+    assert_eq!(user1_unread_before, 0, "User1 should have 0 unread before");
+    assert_eq!(user2_unread_before, 0, "User2 should have 0 unread before");
+
+    // User1 sends a message
+    conversations::send_message(conversation_id, user1.id, "Hello from Alice!")
+        .await
+        .expect("Failed to send message");
+
+    // User1 (sender) should still have 0 unread
+    let user1_unread_after = conversations::count_unread_conversations(user1.id)
+        .await
+        .expect("Failed to count unread");
+    assert_eq!(
+        user1_unread_after, 0,
+        "Sender should NOT have unread conversation after sending"
+    );
+
+    // User2 (recipient) should have 1 unread
+    let user2_unread_after = conversations::count_unread_conversations(user2.id)
+        .await
+        .expect("Failed to count unread");
+    assert_eq!(
+        user2_unread_after, 1,
+        "Recipient should have 1 unread conversation after message received"
+    );
+}
