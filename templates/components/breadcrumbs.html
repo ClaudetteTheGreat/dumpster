@@ -76,4 +76,54 @@
         margin: 0 4px;
     }
 }
+
+/* Dark mode */
+html.dark .breadcrumbs,
+[data-theme="dark"] .breadcrumbs {
+    background: #1a1a1a;
+    border-bottom-color: #333;
+}
+
+html.dark .breadcrumb-separator,
+[data-theme="dark"] .breadcrumb-separator {
+    color: #666;
+}
+
+html.dark .breadcrumb-link,
+[data-theme="dark"] .breadcrumb-link {
+    color: #6ea8fe;
+}
+
+html.dark .breadcrumb-link:hover,
+[data-theme="dark"] .breadcrumb-link:hover {
+    background-color: #2a2a2a;
+}
+
+html.dark .breadcrumb-current,
+[data-theme="dark"] .breadcrumb-current {
+    color: #e0e0e0;
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not([data-theme="light"]) .breadcrumbs {
+        background: #1a1a1a;
+        border-bottom-color: #333;
+    }
+
+    html:not([data-theme="light"]) .breadcrumb-separator {
+        color: #666;
+    }
+
+    html:not([data-theme="light"]) .breadcrumb-link {
+        color: #6ea8fe;
+    }
+
+    html:not([data-theme="light"]) .breadcrumb-link:hover {
+        background-color: #2a2a2a;
+    }
+
+    html:not([data-theme="light"]) .breadcrumb-current {
+        color: #e0e0e0;
+    }
+}
 </style>
