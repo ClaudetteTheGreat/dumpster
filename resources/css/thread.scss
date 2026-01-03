@@ -607,9 +607,15 @@
     }
 }
 
-// When in actionBar, inherit actionBar-action styling
+// When in actionBar, reset to match other action buttons
 .actionBar-action.reaction-picker-toggle {
-    // Uses actionBar-action styles - no overrides needed
+    width: auto;
+    height: auto;
+    padding: 4px 10px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    background: transparent;
+    border: none;
 }
 
 .reaction-picker-dropdown {
