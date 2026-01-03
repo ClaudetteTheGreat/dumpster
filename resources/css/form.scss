@@ -1110,16 +1110,18 @@ a.attachment-preview {
 // BBCode thumbnail images
 .bbcode-thumb {
     display: inline-block;
-}
 
-.bbcode-thumb-img {
-    max-width: 150px;
-    max-height: 150px;
-    object-fit: contain;
-    cursor: pointer;
-    border-radius: 4px;
+    .bbcode-thumb-img {
+        max-width: 150px !important;
+        max-height: 150px !important;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        cursor: pointer;
+        border-radius: 4px;
 
-    &:hover {
-        opacity: 0.9;
+        &:hover {
+            opacity: 0.9;
+        }
     }
 }
