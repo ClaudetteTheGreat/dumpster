@@ -89,9 +89,13 @@
     border-top: 1px solid var(--border-color);
     font-size: 0.8rem;
     padding: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+
+    // When using --left/--right children (conversations), use horizontal flex
+    &:has(.message-footer--left) {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
 }
 
 .message-footer--left {
