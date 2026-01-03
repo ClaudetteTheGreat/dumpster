@@ -5,5 +5,7 @@
         {% include "components/bbcode_toolbar.html" %}
         <textarea name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}">{% match post.content %}{% when Some with (content) %}{{ content }}{% when None %}{% endmatch %}</textarea>
     </div>
-    <button>Sneed</button>
+    <div class="form-actions">
+        <button type="submit" class="btn-primary">Save</button>
+    </div>
 </form>
