@@ -1106,3 +1106,20 @@ a.attachment-preview {
         border-color: var(--link-color, #007bff);
     }
 }
+
+// BBCode thumbnail images
+.bbcode-thumb {
+    display: inline-block;
+}
+
+.bbcode-thumb-img {
+    max-width: 150px;
+    max-height: 150px;
+    object-fit: contain;
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover {
+        opacity: 0.9;
+    }
+}

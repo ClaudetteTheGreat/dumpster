@@ -173,6 +173,7 @@ impl Constructor {
                     Tag::TableCell => Tag::open_simple_tag("td"),
 
                     Tag::Image => Tag::open_img_tag(el),
+                    Tag::Thumbnail => Tag::open_thumb_tag(el),
                     Tag::Link => Tag::open_url_tag(el),
 
                     Tag::Video => Tag::open_video_tag(el),
@@ -202,6 +203,7 @@ impl Constructor {
                         Tag::fill_img_tag_as_link(el, contents)
                     }
                 }
+                Tag::Thumbnail => Tag::fill_thumb_tag(el, contents),
                 Tag::Link => Tag::fill_url_tag(el, contents),
                 Tag::Video => {
                     if self.enable_youtube_embeds {

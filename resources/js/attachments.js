@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
-            const bbcode = `[img]${url}[/img]`;
+            const bbcode = `[thumb]${url}[/thumb]`;
 
             // Use the global insertEditorContent function if available
             if (typeof window.insertEditorContent === 'function') {

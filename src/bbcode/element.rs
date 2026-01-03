@@ -69,6 +69,7 @@ impl<'str> Element<'str> {
             Tag::TableHeader => ElementDisplay::Block,
             Tag::TableCell => ElementDisplay::Block,
             Tag::Image => ElementDisplay::Plain,
+            Tag::Thumbnail => ElementDisplay::Plain,
             Tag::Link => ElementDisplay::Inline,
             Tag::Video => ElementDisplay::Plain,
             Tag::Audio => ElementDisplay::Plain,

@@ -175,6 +175,34 @@ mod tests {
     }
 
     #[test]
+    fn thumb() {
+        use super::parse;
+
+        // Absolute URL
+        assert_eq!(
+            "<a href=\"https://example.com/image.jpg\" class=\"bbcode-thumb\" target=\"_blank\">\
+             <img src=\"https://example.com/image.jpg\" class=\"bbcode-thumb-img\" /></a>",
+            parse("[thumb]https://example.com/image.jpg[/thumb]")
+        );
+
+        // Relative URL
+        assert_eq!(
+            "<a href=\"/content/abc123/image.png\" class=\"bbcode-thumb\" target=\"_blank\">\
+             <img src=\"/content/abc123/image.png\" class=\"bbcode-thumb-img\" /></a>",
+            parse("[thumb]/content/abc123/image.png[/thumb]")
+        );
+
+        // Invalid URL
+        assert_eq!("[thumb]not a link[/thumb]", parse("[thumb]not a link[/thumb]"));
+
+        // Path traversal should be rejected
+        assert_eq!(
+            "[thumb]/../etc/passwd[/thumb]",
+            parse("[thumb]/../etc/passwd[/thumb]")
+        );
+    }
+
+    #[test]
     fn inline_tags() {
         use super::parse;
 

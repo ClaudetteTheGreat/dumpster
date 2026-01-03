@@ -51,6 +51,7 @@ pub enum Tag {
 
     // Embed Tags
     Image,
+    Thumbnail,
     Link,
 
     // Media Embed Tags
@@ -72,6 +73,7 @@ impl Tag {
             "hr" => Tag::HorizontalRule,
             "i" => Tag::Italics,
             "img" => Tag::Image,
+            "thumb" => Tag::Thumbnail,
             "left" => Tag::Left,
             "list" => Tag::List,
             "*" => Tag::ListItem,

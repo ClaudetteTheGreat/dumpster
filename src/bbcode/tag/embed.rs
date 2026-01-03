@@ -48,6 +48,44 @@ impl super::Tag {
         contents
     }
 
+    pub fn open_thumb_tag(_: RefMut<Element>) -> String {
+        String::new()
+    }
+
+    pub fn fill_thumb_tag(mut el: RefMut<Element>, contents: String) -> String {
+        // Support relative URLs starting with /
+        if contents.starts_with('/') {
+            if !contents.contains("..") && !contents.contains('\0') {
+                el.clear_contents();
+                let escaped = html_escape(&contents);
+                return format!(
+                    "<a href=\"{}\" class=\"bbcode-thumb\" target=\"_blank\">\
+                     <img src=\"{}\" class=\"bbcode-thumb-img\" /></a>",
+                    escaped, escaped
+                );
+            }
+        }
+
+        // Support absolute URLs
+        if let Ok(url) = Url::parse(&contents) {
+            match url.scheme() {
+                "http" | "https" => {
+                    el.clear_contents();
+                    return format!(
+                        "<a href=\"{}\" class=\"bbcode-thumb\" target=\"_blank\">\
+                         <img src=\"{}\" class=\"bbcode-thumb-img\" /></a>",
+                        url.as_str(),
+                        url.as_str()
+                    );
+                }
+                _ => {}
+            }
+        }
+
+        el.set_broken();
+        contents
+    }
+
     /// Render image tag as a plain link (when domain is not whitelisted)
     pub fn fill_img_tag_as_link(mut el: RefMut<Element>, contents: String) -> String {
         if let Ok(url) = Url::parse(&contents) {
