@@ -44,6 +44,8 @@ pub struct ClientCtxInner {
     pub unread_cache_hit: bool,
     /// Performance tracking: cache hit for group_ids
     pub groups_cache_hit: bool,
+    /// Performance tracking: cache hit for auth/profile
+    pub auth_cache_hit: bool,
     /// Timing: microseconds spent in session/auth
     pub timing_auth_us: u64,
     /// Timing: microseconds spent loading groups
@@ -73,6 +75,7 @@ impl Default for ClientCtxInner {
             theme_auto: false,
             unread_cache_hit: false,
             groups_cache_hit: false,
+            auth_cache_hit: false,
             timing_auth_us: 0,
             timing_groups_us: 0,
             timing_unread_us: 0,
@@ -89,14 +92,16 @@ impl ClientCtxInner {
     ) -> Self {
         use crate::group::get_group_ids_for_client;
         use crate::middleware::csrf::get_or_create_csrf_token;
-        use crate::session::authenticate_client_by_session;
+        use crate::session::authenticate_client_by_session_with_status;
 
         let middleware_start = Instant::now();
 
-        // Phase 1: Authentication
+        // Phase 1: Authentication (with moka cache)
         let auth_start = Instant::now();
         let db = get_db_pool();
-        let client = authenticate_client_by_session(session).await;
+        let auth_result = authenticate_client_by_session_with_status(session).await;
+        let client = auth_result.profile;
+        let auth_cache_hit = auth_result.cache_hit;
         let timing_auth_us = auth_start.elapsed().as_micros() as u64;
 
         // Phase 2: Groups loading (with session cache)
@@ -162,6 +167,7 @@ impl ClientCtxInner {
             theme_auto,
             unread_cache_hit,
             groups_cache_hit,
+            auth_cache_hit,
             timing_auth_us,
             timing_groups_us,
             timing_unread_us,
@@ -418,9 +424,10 @@ impl ClientCtx {
 
         // Middleware breakdown
         parts.push(format!(
-            "mw: {} (auth:{} grp:{}{} unread:{}{})",
+            "mw: {} (auth:{}{} grp:{}{} unread:{}{})",
             fmt_time(middleware_us),
             fmt_time(self.0.timing_auth_us),
+            if self.0.auth_cache_hit { "✓" } else { "" },
             fmt_time(self.0.timing_groups_us),
             if self.0.groups_cache_hit { "✓" } else { "" },
             fmt_time(self.0.timing_unread_us),

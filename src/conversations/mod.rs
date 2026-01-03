@@ -170,34 +170,37 @@ pub async fn mark_conversation_read(user_id: i32, conversation_id: i32) -> Resul
     Ok(())
 }
 
-/// Count unread conversations for a user
+/// Count unread conversations for a user.
+/// Optimized: single COUNT query instead of loading all rows.
 pub async fn count_unread_conversations(user_id: i32) -> Result<i64, DbErr> {
+    use sea_orm::{DbBackend, Statement};
+
     let db = get_db_pool();
 
-    // Get all non-archived conversation participants with their conversations
-    let participants = conversation_participants::Entity::find()
-        .filter(conversation_participants::Column::UserId.eq(user_id))
-        .filter(conversation_participants::Column::IsArchived.eq(false))
-        .find_also_related(conversations::Entity)
-        .all(db)
-        .await?;
+    // Single COUNT query with proper filtering in database
+    let sql = r#"
+        SELECT COUNT(*) as count
+        FROM conversation_participants cp
+        JOIN conversations c ON c.id = cp.conversation_id
+        WHERE cp.user_id = $1
+          AND cp.is_archived = false
+          AND (cp.last_read_at IS NULL OR c.updated_at > cp.last_read_at)
+    "#;
 
-    // Count conversations where updated_at is after last_read_at
-    let mut count = 0i64;
-    for (participant, conversation) in participants {
-        if let Some(conv) = conversation {
-            let is_unread = if let Some(last_read) = participant.last_read_at {
-                conv.updated_at > last_read
-            } else {
-                true // Never read
-            };
-            if is_unread {
-                count += 1;
-            }
-        }
+    #[derive(sea_orm::FromQueryResult)]
+    struct CountResult {
+        count: i64,
     }
 
-    Ok(count)
+    let result = CountResult::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        sql,
+        [user_id.into()],
+    ))
+    .one(db)
+    .await?;
+
+    Ok(result.map(|r| r.count).unwrap_or(0))
 }
 
 /// Get list of conversations for a user with preview data

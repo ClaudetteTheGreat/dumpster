@@ -222,6 +222,62 @@ impl Profile {
             .filter(|s| !s.is_empty())
             .map(|sig| crate::bbcode::parse(sig))
     }
+
+    /// Convert to cached profile for auth cache.
+    pub fn to_cached(&self) -> crate::cache::CachedProfile {
+        crate::cache::CachedProfile {
+            id: self.id,
+            name: self.name.clone(),
+            created_at: self.created_at,
+            password_cipher: self.password_cipher.clone(),
+            avatar_filename: self.avatar_filename.clone(),
+            avatar_height: self.avatar_height,
+            avatar_width: self.avatar_width,
+            posts_per_page: self.posts_per_page,
+            post_count: self.post_count,
+            theme: self.theme.clone(),
+            theme_auto: self.theme_auto,
+            bio: self.bio.clone(),
+            location: self.location.clone(),
+            website_url: self.website_url.clone(),
+            signature: self.signature.clone(),
+            custom_title: self.custom_title.clone(),
+            show_online: self.show_online,
+            reputation_score: self.reputation_score,
+            allow_profile_posts: self.allow_profile_posts,
+            follower_count: self.follower_count,
+            following_count: self.following_count,
+            default_chat_room: self.default_chat_room,
+        }
+    }
+
+    /// Create from cached profile.
+    pub fn from_cached(cached: crate::cache::CachedProfile) -> Self {
+        Self {
+            id: cached.id,
+            name: cached.name,
+            created_at: cached.created_at,
+            password_cipher: cached.password_cipher,
+            avatar_filename: cached.avatar_filename,
+            avatar_height: cached.avatar_height,
+            avatar_width: cached.avatar_width,
+            posts_per_page: cached.posts_per_page,
+            post_count: cached.post_count,
+            theme: cached.theme,
+            theme_auto: cached.theme_auto,
+            bio: cached.bio,
+            location: cached.location,
+            website_url: cached.website_url,
+            signature: cached.signature,
+            custom_title: cached.custom_title,
+            show_online: cached.show_online,
+            reputation_score: cached.reputation_score,
+            allow_profile_posts: cached.allow_profile_posts,
+            follower_count: cached.follower_count,
+            following_count: cached.following_count,
+            default_chat_room: cached.default_chat_room,
+        }
+    }
 }
 
 pub async fn get_user_id_from_name(db: &DatabaseConnection, name: &str) -> Option<i32> {

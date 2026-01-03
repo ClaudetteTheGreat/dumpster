@@ -204,39 +204,80 @@ pub async fn get_available_tags_for_forum(
     Ok(all_tags)
 }
 
-/// Build breadcrumbs for a forum, including parent forums
+/// Result of forum ancestor query
+#[derive(Debug, FromQueryResult)]
+struct ForumAncestor {
+    id: i32,
+    label: String,
+    #[allow(dead_code)]
+    depth: i32,
+}
+
+/// Build breadcrumbs for a forum, including parent forums.
+/// Uses a single recursive CTE query instead of N+1 queries.
 pub async fn build_forum_breadcrumbs(
     forum: &crate::orm::forums::Model,
 ) -> Vec<super::thread::Breadcrumb> {
-    use crate::orm::forums;
+    use sea_orm::{DbBackend, Statement};
 
     let mut breadcrumbs = vec![super::thread::Breadcrumb {
         title: "Forums".to_string(),
         url: Some("/forums".to_string()),
     }];
 
-    // Build list of parent forums (in reverse order)
-    let mut parent_chain = Vec::new();
-    let mut current_parent_id = forum.parent_id;
-
-    while let Some(parent_id) = current_parent_id {
-        if let Ok(Some(parent)) = forums::Entity::find_by_id(parent_id)
-            .one(get_db_pool())
-            .await
-        {
-            parent_chain.push(super::thread::Breadcrumb {
-                title: parent.label.clone(),
-                url: Some(format!("/forums/{}/", parent.id)),
-            });
-            current_parent_id = parent.parent_id;
-        } else {
-            break;
-        }
+    // If no parent, just add current forum and return
+    if forum.parent_id.is_none() {
+        breadcrumbs.push(super::thread::Breadcrumb {
+            title: forum.label.clone(),
+            url: None,
+        });
+        return breadcrumbs;
     }
 
-    // Add parents in correct order (top-level first)
-    parent_chain.reverse();
-    breadcrumbs.extend(parent_chain);
+    // Use recursive CTE to fetch all ancestors in a single query
+    // The CTE starts from the parent_id and walks up the tree
+    let sql = r#"
+        WITH RECURSIVE ancestors AS (
+            -- Base case: start with the immediate parent
+            SELECT id, parent_id, label, 0 as depth
+            FROM forums
+            WHERE id = $1
+            UNION ALL
+            -- Recursive case: fetch parents
+            SELECT f.id, f.parent_id, f.label, a.depth + 1
+            FROM forums f
+            JOIN ancestors a ON f.id = a.parent_id
+        )
+        SELECT id, label, depth
+        FROM ancestors
+        ORDER BY depth DESC
+    "#;
+
+    let db = get_db_pool();
+    let ancestors: Vec<ForumAncestor> = match ForumAncestor::find_by_statement(
+        Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            sql,
+            [forum.parent_id.unwrap().into()],
+        ),
+    )
+    .all(db)
+    .await
+    {
+        Ok(results) => results,
+        Err(e) => {
+            log::error!("Failed to fetch forum ancestors: {}", e);
+            Vec::new()
+        }
+    };
+
+    // Add ancestors as breadcrumbs (already ordered top-level first)
+    for ancestor in ancestors {
+        breadcrumbs.push(super::thread::Breadcrumb {
+            title: ancestor.label,
+            url: Some(format!("/forums/{}/", ancestor.id)),
+        });
+    }
 
     // Add current forum
     breadcrumbs.push(super::thread::Breadcrumb {

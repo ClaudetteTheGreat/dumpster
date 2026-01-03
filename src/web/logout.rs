@@ -12,6 +12,9 @@ pub async fn view_logout(cookies: actix_session::Session) -> Result<impl Respond
     match cookies.get::<String>("token") {
         Ok(Some(uuid)) => match Uuid::parse_str(&uuid) {
             Ok(uuid) => {
+                // Invalidate auth cache for this session
+                crate::cache::invalidate_auth_cache(&uuid);
+
                 if let Err(e) = remove_session(get_sess(), uuid).await {
                     log::error!("view_logout: remove_session() {}", e);
                 }

@@ -47,6 +47,19 @@ pub struct TagForTemplate {
     pub color: String,
 }
 
+/// Handler timing breakdown for performance debugging
+#[derive(Debug, Default)]
+struct HandlerTiming {
+    total_us: u64,
+    thread_forum_us: u64,
+    posts_us: u64,
+    attachments_us: u64,
+    breadcrumbs_us: u64,
+    poll_us: u64,
+    tags_us: u64,
+    similar_us: u64,
+}
+
 #[derive(Debug, FromQueryResult)]
 pub struct ThreadForTemplate {
     pub id: i32,
@@ -459,8 +472,15 @@ async fn get_thread_and_replies_for_page(
     use super::post::get_replies_and_author_for_template;
     use crate::attachment::get_attachments_for_ugc_by_id;
     use crate::orm::forums;
+    use std::time::Instant;
+
+    let handler_start = Instant::now();
+    let mut timing = HandlerTiming::default();
 
     let db = get_db_pool();
+
+    // Time: thread + forum load
+    let query_start = Instant::now();
     let thread = Thread::find_by_id(thread_id)
         .one(db)
         .await
@@ -471,6 +491,7 @@ async fn get_thread_and_replies_for_page(
         .await
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
+    timing.thread_forum_us = query_start.elapsed().as_micros() as u64;
 
     // Get user's posts per page preference from already-loaded profile
     let posts_per_page = client.get_posts_per_page();
@@ -492,7 +513,8 @@ async fn get_thread_and_replies_for_page(
     let can_view_pending = client.can("moderate.approval.view");
     let current_user_id = client.get_id();
 
-    // Load posts, their ugc associations, and their living revision.
+    // Time: posts query
+    let query_start = Instant::now();
     let posts = get_replies_and_author_for_template(
         db,
         thread_id,
@@ -503,9 +525,13 @@ async fn get_thread_and_replies_for_page(
     )
     .await
     .map_err(error::ErrorInternalServerError)?;
+    timing.posts_us = query_start.elapsed().as_micros() as u64;
 
+    // Time: attachments query
+    let query_start = Instant::now();
     let attachments =
         get_attachments_for_ugc_by_id(posts.iter().map(|p| p.0.ugc_id).collect()).await;
+    timing.attachments_us = query_start.elapsed().as_micros() as u64;
 
     // Check if user is watching this thread and email preference
     let (is_watching, email_on_reply) = if let Some(user_id) = client.get_id() {
@@ -529,8 +555,10 @@ async fn get_thread_and_replies_for_page(
         page_count: get_pages_in_thread(thread.post_count, posts_per_page),
     };
 
-    // Build breadcrumbs (including parent forums)
+    // Time: breadcrumbs build
+    let query_start = Instant::now();
     let mut breadcrumbs = super::forum::build_forum_breadcrumbs(&forum).await;
+    timing.breadcrumbs_us = query_start.elapsed().as_micros() as u64;
     // Change last item (forum) to have a link since we're in thread view
     if let Some(last) = breadcrumbs.last_mut() {
         last.url = Some(format!("/forums/{}/", forum.id));
@@ -541,21 +569,42 @@ async fn get_thread_and_replies_for_page(
         url: None, // Current page, no link
     });
 
-    // Fetch poll if exists
+    // Time: poll query
+    let query_start = Instant::now();
     let poll = get_poll_for_thread(thread_id, client.get_id())
         .await
         .map_err(error::ErrorInternalServerError)?;
+    timing.poll_us = query_start.elapsed().as_micros() as u64;
 
-    // Fetch tags for this thread
+    // Time: tags query
+    let query_start = Instant::now();
     let tags = get_tags_for_thread(thread_id)
         .await
         .map_err(error::ErrorInternalServerError)?;
+    timing.tags_us = query_start.elapsed().as_micros() as u64;
 
-    // Fetch similar threads based on shared tags
+    // Time: similar threads query
+    let query_start = Instant::now();
     let tag_ids: Vec<i32> = tags.iter().map(|t| t.id).collect();
     let similar_threads = get_similar_threads(thread_id, thread.forum_id, &tag_ids, 5)
         .await
         .map_err(error::ErrorInternalServerError)?;
+    timing.similar_us = query_start.elapsed().as_micros() as u64;
+
+    // Log handler timing breakdown
+    timing.total_us = handler_start.elapsed().as_micros() as u64;
+    log::debug!(
+        "Thread {} handler: total={}μs thread={}μs posts={}μs attach={}μs bread={}μs poll={}μs tags={}μs similar={}μs",
+        thread_id,
+        timing.total_us,
+        timing.thread_forum_us,
+        timing.posts_us,
+        timing.attachments_us,
+        timing.breadcrumbs_us,
+        timing.poll_us,
+        timing.tags_us,
+        timing.similar_us
+    );
 
     Ok(ThreadTemplate {
         client,

@@ -116,28 +116,67 @@ pub async fn authenticate_by_cookie(cookies: &actix_session::Session) -> Option<
         .map(|session| (uuid, session))
 }
 
+/// Result of authenticate_client_by_session_with_status.
+pub struct AuthResult {
+    pub profile: Option<Profile>,
+    pub cache_hit: bool,
+    pub session_uuid: Option<Uuid>,
+}
+
 pub async fn authenticate_client_by_session(cookies: &actix_session::Session) -> Option<Profile> {
+    authenticate_client_by_session_with_status(cookies).await.profile
+}
+
+/// Authenticate user from session with cache hit status for timing instrumentation.
+pub async fn authenticate_client_by_session_with_status(
+    cookies: &actix_session::Session,
+) -> AuthResult {
     let db = get_db_pool();
     let token = match cookies.get::<String>("token") {
         Ok(Some(token)) => token,
-        _ => return None,
+        _ => return AuthResult { profile: None, cache_hit: false, session_uuid: None },
     };
 
     let uuid = match Uuid::parse_str(&token) {
         Ok(uuid) => uuid,
         Err(e) => {
             log::error!("authenticate_client_ctx: parse_str(): {}", e);
-            return None;
+            return AuthResult { profile: None, cache_hit: false, session_uuid: None };
         }
     };
 
+    // Check auth cache first (fast path)
+    let (cached, _cache_hit, negative_cached) = crate::cache::get_cached_profile(&uuid);
+    if let Some(cached_profile) = cached {
+        // Cache hit - skip DB query entirely
+        return AuthResult {
+            profile: Some(Profile::from_cached(cached_profile)),
+            cache_hit: true,
+            session_uuid: Some(uuid),
+        };
+    }
+
+    // Negative cache hit - session was recently invalid
+    if negative_cached {
+        return AuthResult { profile: None, cache_hit: false, session_uuid: Some(uuid) };
+    }
+
+    // Cache miss - validate session and load from DB
     if let Some(session) = authenticate_by_uuid(get_sess(), &uuid).await {
-        if let Ok(user) = Profile::get_by_id(db, session.user_id).await {
-            return user;
+        if let Ok(Some(user)) = Profile::get_by_id(db, session.user_id).await {
+            // Store in cache for next request
+            crate::cache::cache_profile(uuid, user.to_cached());
+            return AuthResult {
+                profile: Some(user),
+                cache_hit: false,
+                session_uuid: Some(uuid),
+            };
         }
     }
 
-    None
+    // Invalid session - add to negative cache
+    crate::cache::cache_invalid_session(uuid);
+    AuthResult { profile: None, cache_hit: false, session_uuid: Some(uuid) }
 }
 
 /// Accepts a UUID as a string and returns a session, if the UUID can parse and authenticate.
