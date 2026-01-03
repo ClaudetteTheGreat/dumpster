@@ -176,9 +176,10 @@ html.chat #chat {
         }
     }
 
-    // Message Line
+    // Message Line - indented to align first letter with username
     .message {
         border-left: 2px solid transparent;
+        margin-left: calc(24px + 1rem); // avatar + indent to align with username
         padding-left: 0.25rem;
         overflow: hidden;
 
