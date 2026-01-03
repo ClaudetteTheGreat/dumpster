@@ -609,12 +609,11 @@
 
     /* Dark mode action buttons - ensure text is white */
     html.dark .action-button,
-    [data-theme="dark"] .action-button {
-        color: white;
-    }
-
     html.dark .action-button--secondary,
-    [data-theme="dark"] .action-button--secondary {
+    html.dark .mod-button--move,
+    [data-theme="dark"] .action-button,
+    [data-theme="dark"] .action-button--secondary,
+    [data-theme="dark"] .mod-button--move {
         color: white;
     }
 
@@ -638,7 +637,8 @@
         }
 
         html:not([data-theme="light"]) .action-button,
-        html:not([data-theme="light"]) .action-button--secondary {
+        html:not([data-theme="light"]) .action-button--secondary,
+        html:not([data-theme="light"]) .mod-button--move {
             color: white;
         }
     }
