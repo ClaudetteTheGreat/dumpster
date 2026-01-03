@@ -28,9 +28,10 @@ pub async fn view_logout(cookies: actix_session::Session) -> Result<impl Respond
         }
     }
 
-    // Remove session cookies
+    // Remove session cookies and cached data
     cookies.remove("logged_in");
     cookies.remove("token");
+    crate::group::invalidate_session_groups(&cookies);
 
     // Redirect to home page
     // This ensures the page loads with fresh guest context and avoids any caching issues

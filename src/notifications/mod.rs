@@ -54,6 +54,9 @@ pub async fn create_notification(
 
     let result = notification.insert(db).await?;
 
+    // Invalidate unread counts cache for this user
+    crate::cache::invalidate_notification_count(user_id);
+
     // Send email if preferences allow
     if prefs.email && prefs.frequency == "immediate" {
         // Email sending will be handled by a background task or in the dispatcher
@@ -134,6 +137,9 @@ pub async fn mark_notification_read(notification_id: i32, user_id: i32) -> Resul
         .exec(db)
         .await?;
 
+    // Invalidate cache so new count is fetched on next request
+    crate::cache::invalidate_notification_count(user_id);
+
     Ok(())
 }
 
@@ -151,6 +157,9 @@ pub async fn mark_all_read(user_id: i32) -> Result<(), DbErr> {
         .filter(notifications::Column::IsRead.eq(false))
         .exec(db)
         .await?;
+
+    // Invalidate cache so new count is fetched on next request
+    crate::cache::invalidate_notification_count(user_id);
 
     Ok(())
 }

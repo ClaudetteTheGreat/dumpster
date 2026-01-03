@@ -1,7 +1,14 @@
 use crate::orm::{groups, user_groups};
 use crate::user::Profile as Client;
+use actix_session::Session;
 use sea_orm::entity::prelude::{DeriveActiveEnum, EnumIter};
 use sea_orm::{entity::*, query::*, DatabaseConnection, FromQueryResult};
+
+/// Clear cached group_ids from session.
+/// Call this when admin modifies user groups.
+pub fn invalidate_session_groups(session: &Session) {
+    let _ = session.remove("group_ids");
+}
 
 /// Value set for a single permission.
 /// Compatible with sea_orm enum type.

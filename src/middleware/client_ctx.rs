@@ -75,27 +75,31 @@ impl ClientCtxInner {
 
         let db = get_db_pool();
         let client = authenticate_client_by_session(session).await;
-        let groups = get_group_ids_for_client(db, &client).await;
+
+        // Try to get cached group_ids from session
+        let groups = if let Some(ref user) = client {
+            // For logged-in users, cache group_ids in session
+            if let Ok(Some(cached_groups)) = session.get::<Vec<i32>>("group_ids") {
+                cached_groups
+            } else {
+                let groups = get_group_ids_for_client(db, &Some(user.clone())).await;
+                let _ = session.insert("group_ids", &groups);
+                groups
+            }
+        } else {
+            // For guests, always query (groups are static and rarely change)
+            get_group_ids_for_client(db, &None).await
+        };
 
         // Get or create CSRF token for this session
         let csrf_token = get_or_create_csrf_token(session).unwrap_or_else(|_| String::new());
 
-        // Get unread notification count for logged-in users
-        let unread_notifications = if let Some(ref user) = client {
-            crate::notifications::count_unread_notifications(user.id)
-                .await
-                .unwrap_or(0)
+        // Get unread counts for logged-in users (cached with 30s TTL)
+        let (unread_notifications, unread_messages) = if let Some(ref user) = client {
+            let counts = crate::cache::get_unread_counts(user.id).await;
+            (counts.notifications, counts.messages)
         } else {
-            0
-        };
-
-        // Get unread message count for logged-in users
-        let unread_messages = if let Some(ref user) = client {
-            crate::conversations::count_unread_conversations(user.id)
-                .await
-                .unwrap_or(0)
-        } else {
-            0
+            (0, 0)
         };
 
         // Update last activity for logged-in users (rate-limited internally)

@@ -8,6 +8,7 @@ pub mod attachment;
 pub mod auth_2fa;
 pub mod badges;
 pub mod bbcode;
+pub mod cache;
 pub mod captcha;
 pub mod config;
 pub mod constants;

@@ -10,6 +10,7 @@ use chrono::prelude::Utc;
 use sea_orm::{entity::*, query::*, sea_query::Expr};
 use sea_orm::{DatabaseConnection, DbErr, FromQueryResult, QueryFilter};
 use serde::Deserialize;
+use std::collections::HashSet;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(delete_post)
@@ -673,6 +674,8 @@ pub async fn get_post_and_author_for_template(
     .await
 }
 
+/// Batch-optimized: loads posts first, then batch-loads unique user profiles.
+/// Reduces N+1 queries (N user joins) to 2 queries (posts + users IN query).
 pub async fn get_replies_and_author_for_template(
     db: &DatabaseConnection,
     id: i32,
@@ -681,55 +684,71 @@ pub async fn get_replies_and_author_for_template(
     show_pending: bool,
     current_user_id: Option<i32>,
 ) -> Result<Vec<(PostForTemplate, Option<UserProfile>)>, DbErr> {
-    let mut query = crate::user::find_also_user(
-        posts::Entity::find()
-            .left_join(ugc_revisions::Entity)
-            .column_as(ugc_revisions::Column::Id, "ugc_revision_id")
-            .column_as(ugc_revisions::Column::Content, "content")
-            .column_as(ugc_revisions::Column::IpId, "ip_id")
-            .column_as(ugc_revisions::Column::CreatedAt, "updated_at")
-            .left_join(ugc_deletions::Entity)
-            .column_as(ugc_deletions::Column::UserId, "deleted_by")
-            .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
-            .column_as(ugc_deletions::Column::Reason, "deleted_reason")
-            // Cast enum to text for String field
-            .column_as(
-                Expr::cust("ugc_deletions.deletion_type::TEXT"),
-                "deletion_type",
-            ),
-        posts::Column::UserId,
-    )
-    .filter(posts::Column::ThreadId.eq(id))
-    .filter(
-        posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page),
-    );
+    // Step 1: Load posts WITHOUT user joins
+    let mut query = posts::Entity::find()
+        .left_join(ugc_revisions::Entity)
+        .column_as(ugc_revisions::Column::Id, "ugc_revision_id")
+        .column_as(ugc_revisions::Column::Content, "content")
+        .column_as(ugc_revisions::Column::IpId, "ip_id")
+        .column_as(ugc_revisions::Column::CreatedAt, "updated_at")
+        .left_join(ugc_deletions::Entity)
+        .column_as(ugc_deletions::Column::UserId, "deleted_by")
+        .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
+        .column_as(ugc_deletions::Column::Reason, "deleted_reason")
+        .column_as(
+            Expr::cust("ugc_deletions.deletion_type::TEXT"),
+            "deletion_type",
+        )
+        .filter(posts::Column::ThreadId.eq(id))
+        .filter(
+            posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page),
+        );
 
     // Filter out pending/rejected posts unless user is a moderator or the post author
     if !show_pending {
-        // Only show approved posts, or user's own pending posts
         if let Some(user_id) = current_user_id {
-            // Show approved posts OR user's own pending posts
-            query =
-                query.filter(
-                    Condition::any()
-                        .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
-                        .add(Condition::all().add(posts::Column::UserId.eq(user_id)).add(
-                            posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending),
-                        )),
-                );
+            query = query.filter(
+                Condition::any()
+                    .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
+                    .add(
+                        Condition::all()
+                            .add(posts::Column::UserId.eq(user_id))
+                            .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending)),
+                    ),
+            );
         } else {
-            // Anonymous: only show approved posts
-            query =
-                query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
+            query = query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
         }
     }
 
-    query
+    let posts: Vec<PostForTemplate> = query
         .order_by_asc(posts::Column::Position)
         .order_by_asc(posts::Column::CreatedAt)
-        .into_model::<PostForTemplate, UserProfile>()
+        .into_model()
         .all(db)
-        .await
+        .await?;
+
+    // Step 2: Collect unique user IDs from posts
+    let user_ids: Vec<i32> = posts
+        .iter()
+        .filter_map(|p| p.user_id)
+        .collect::<HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    // Step 3: Batch load user profiles with single IN query
+    let users = UserProfile::get_by_ids(db, &user_ids).await?;
+
+    // Step 4: Join results in memory
+    let result = posts
+        .into_iter()
+        .map(|post| {
+            let user = post.user_id.and_then(|uid| users.get(&uid).cloned());
+            (post, user)
+        })
+        .collect();
+
+    Ok(result)
 }
 
 async fn view_post(id: i32) -> Result<HttpResponse, Error> {

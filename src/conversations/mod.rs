@@ -45,6 +45,13 @@ pub async fn create_conversation(
 
     txn.commit().await?;
 
+    // Invalidate unread message cache for recipients (not creator)
+    for &participant_id in participant_ids {
+        if participant_id != creator_id {
+            crate::cache::invalidate_message_count(participant_id);
+        }
+    }
+
     Ok(conversation_model.id)
 }
 
@@ -103,7 +110,22 @@ pub async fn send_message(
         .exec(&txn)
         .await?;
 
+    // Get other participants to invalidate their cache
+    let other_participants: Vec<i32> = conversation_participants::Entity::find()
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.ne(sender_id))
+        .all(&txn)
+        .await?
+        .into_iter()
+        .map(|p| p.user_id)
+        .collect();
+
     txn.commit().await?;
+
+    // Invalidate unread message cache for recipients
+    for user_id in other_participants {
+        crate::cache::invalidate_message_count(user_id);
+    }
 
     Ok(message_model.id)
 }
@@ -141,6 +163,9 @@ pub async fn mark_conversation_read(user_id: i32, conversation_id: i32) -> Resul
         .filter(conversation_participants::Column::UserId.eq(user_id))
         .exec(db)
         .await?;
+
+    // Invalidate cache so new count is fetched on next request
+    crate::cache::invalidate_message_count(user_id);
 
     Ok(())
 }
