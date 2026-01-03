@@ -21,10 +21,11 @@ pub async fn create_conversation(
     };
     let conversation_model = conversation.insert(&txn).await?;
 
-    // Add creator as participant
+    // Add creator as participant (with last_read_at set so they don't see their own conversation as unread)
     let creator_participant = conversation_participants::ActiveModel {
         conversation_id: Set(conversation_model.id),
         user_id: Set(creator_id),
+        last_read_at: Set(Some(conversation_model.updated_at)),
         ..Default::default()
     };
     creator_participant.insert(&txn).await?;
@@ -87,6 +88,17 @@ pub async fn send_message(
             Expr::value(ugc_revision.created_at),
         )
         .filter(conversations::Column::Id.eq(conversation_id))
+        .exec(&txn)
+        .await?;
+
+    // Update sender's last_read_at so they don't see their own message as unread
+    conversation_participants::Entity::update_many()
+        .col_expr(
+            conversation_participants::Column::LastReadAt,
+            Expr::value(ugc_revision.created_at),
+        )
+        .filter(conversation_participants::Column::ConversationId.eq(conversation_id))
+        .filter(conversation_participants::Column::UserId.eq(sender_id))
         .exec(&txn)
         .await?;
 
