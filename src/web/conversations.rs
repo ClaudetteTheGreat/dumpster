@@ -2,6 +2,7 @@
 
 use crate::conversations;
 use crate::middleware::ClientCtx;
+use actix_multipart::Multipart;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use serde::Deserialize;
@@ -57,6 +58,7 @@ struct ConversationViewTemplate {
     title: Option<String>,
     is_archived: bool,
     is_creator: bool,
+    attachments: std::collections::HashMap<i32, Vec<crate::attachment::AttachmentForTemplate>>,
 }
 
 /// Template for new conversation form
@@ -119,6 +121,11 @@ pub async fn view_conversation(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
+    // Get attachments for messages
+    use crate::attachment::get_attachments_for_ugc_by_id;
+    let attachments =
+        get_attachments_for_ugc_by_id(messages.iter().map(|m| m.ugc_id).collect()).await;
+
     // Get participant info (includes creator status)
     let participants = conversations::get_participant_info(conv_id)
         .await
@@ -150,6 +157,7 @@ pub async fn view_conversation(
         title,
         is_archived,
         is_creator,
+        attachments,
     }
     .to_response())
 }
@@ -257,36 +265,161 @@ pub async fn create_conversation(
         .finish())
 }
 
-/// Form data for sending a message
-#[derive(Deserialize)]
-pub struct SendMessageForm {
-    message: String,
-}
-
 /// POST /conversations/{id}/send - Send a message in a conversation
 #[post("/conversations/{id}/send")]
 pub async fn send_message_handler(
     client: ClientCtx,
+    session: actix_session::Session,
     conversation_id: web::Path<i32>,
-    form: web::Form<SendMessageForm>,
+    mut payload: Multipart,
 ) -> Result<impl Responder, Error> {
+    use crate::db::get_db_pool;
+    use crate::filesystem::{insert_field_as_attachment, UploadResponse};
+    use crate::orm::{
+        conversation_participants, conversations as conv_orm, private_messages, ugc_attachments,
+    };
+    use crate::ugc::{create_ugc, NewUgcPartial};
+    use futures::{future::try_join_all, StreamExt, TryStreamExt};
+    use sea_orm::{
+        entity::*, sea_query::Expr, ColumnTrait, EntityTrait, QueryFilter, TransactionTrait,
+    };
+
     let user_id = client.require_login()?;
     let conv_id = *conversation_id;
 
-    if form.message.trim().is_empty() {
+    // Parse multipart form data
+    let mut content = String::new();
+    let mut uploads: Vec<(String, UploadResponse)> = Vec::new();
+    let mut csrf_token: Option<String> = None;
+
+    while let Ok(Some(mut field)) = payload.try_next().await {
+        if let Some(field_name) = field.content_disposition().get_name() {
+            match field_name {
+                "csrf_token" => {
+                    let mut buf: Vec<u8> = Vec::with_capacity(128);
+                    while let Some(chunk) = field.next().await {
+                        let bytes = chunk.map_err(|e| {
+                            log::error!("send_message: multipart read error: {}", e);
+                            error::ErrorBadRequest("Error interpreting user input.")
+                        })?;
+                        buf.extend(bytes.to_owned());
+                    }
+                    csrf_token = Some(std::str::from_utf8(&buf).unwrap().to_owned());
+                }
+                "content" => {
+                    let mut buf: Vec<u8> = Vec::with_capacity(65536);
+                    while let Some(chunk) = field.next().await {
+                        let bytes = chunk.map_err(|e| {
+                            log::error!("send_message: multipart read error: {}", e);
+                            error::ErrorBadRequest("Error interpreting user input.")
+                        })?;
+                        buf.extend(bytes.to_owned());
+                    }
+                    content = std::str::from_utf8(&buf).unwrap().to_owned();
+                }
+                "attachment" => {
+                    if let Some(upload) = insert_field_as_attachment(&mut field).await? {
+                        let filename = field
+                            .content_disposition()
+                            .get_filename()
+                            .unwrap_or(&upload.filename)
+                            .to_owned();
+                        uploads.push((filename, upload));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Validate CSRF token
+    let token = csrf_token.ok_or_else(|| error::ErrorBadRequest("CSRF token missing"))?;
+    crate::middleware::csrf::validate_csrf_token(&session, &token)?;
+
+    // Validate content
+    if content.trim().is_empty() {
         return Err(error::ErrorBadRequest("Message cannot be empty"));
     }
 
-    // Send message
-    conversations::send_message(conv_id, user_id, &form.message)
+    let db = get_db_pool();
+    let txn = db.begin().await.map_err(error::ErrorInternalServerError)?;
+
+    // Verify sender is a participant
+    conversations::verify_participant(&txn, user_id, conv_id)
+        .await
+        .map_err(|_| error::ErrorForbidden("You are not a participant in this conversation"))?;
+
+    // Create UGC for the message
+    let ugc_revision = create_ugc(
+        &txn,
+        NewUgcPartial {
+            ip_id: None,
+            user_id: Some(user_id),
+            content: &content,
+        },
+    )
+    .await
+    .map_err(error::ErrorInternalServerError)?;
+
+    // Create private message
+    let message = private_messages::ActiveModel {
+        conversation_id: Set(conv_id),
+        ugc_id: Set(ugc_revision.ugc_id),
+        user_id: Set(Some(user_id)),
+        created_at: Set(ugc_revision.created_at),
+        ..Default::default()
+    };
+    message
+        .insert(&txn)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Insert attachments, if any
+    if !uploads.is_empty() {
+        try_join_all(uploads.iter().map(|u| {
+            ugc_attachments::ActiveModel {
+                attachment_id: Set(u.1.id),
+                ugc_id: Set(ugc_revision.ugc_id),
+                ip_id: Set(None),
+                user_id: Set(Some(user_id)),
+                created_at: Set(ugc_revision.created_at),
+                filename: Set(u.0.to_owned()),
+                ..Default::default()
+            }
+            .insert(&txn)
+        }))
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+    }
+
+    // Update conversation updated_at timestamp
+    conv_orm::Entity::update_many()
+        .col_expr(
+            conv_orm::Column::UpdatedAt,
+            Expr::value(ugc_revision.created_at),
+        )
+        .filter(conv_orm::Column::Id.eq(conv_id))
+        .exec(&txn)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Update sender's last_read_at so they don't see their own message as unread
+    conversation_participants::Entity::update_many()
+        .col_expr(
+            conversation_participants::Column::LastReadAt,
+            Expr::value(ugc_revision.created_at),
+        )
+        .filter(conversation_participants::Column::ConversationId.eq(conv_id))
+        .filter(conversation_participants::Column::UserId.eq(user_id))
+        .exec(&txn)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    txn.commit()
         .await
         .map_err(error::ErrorInternalServerError)?;
 
     // Get participants to notify
-    use crate::orm::conversation_participants;
-    use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
-
-    let db = crate::db::get_db_pool();
     let participants = conversation_participants::Entity::find()
         .filter(conversation_participants::Column::ConversationId.eq(conv_id))
         .filter(conversation_participants::Column::UserId.ne(user_id))

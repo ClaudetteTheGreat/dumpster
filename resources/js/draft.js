@@ -31,7 +31,7 @@
         }
 
         // Conversation reply or new conversation
-        const convMatch = action.match(/\/conversations\/(\d+)\/reply/);
+        const convMatch = action.match(/\/conversations\/(\d+)\/send/);
         if (convMatch) {
             return DRAFT_PREFIX + 'conv_reply_' + convMatch[1];
         }

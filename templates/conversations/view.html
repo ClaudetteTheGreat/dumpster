@@ -99,6 +99,21 @@
                 <div class="message-content ugc" data-message-id="{{ msg.id }}">
                     {{ msg.content|ugc|safe }}
                 </div>
+                {% let msg_attachments = attachments.get(msg.ugc_id) %}
+                {% match msg_attachments %}{% when Some with (msg_attachments) %}
+                <div class="message-attachments">
+                    {% for attachment in msg_attachments %}
+                    <a href="{{ attachment.get_download_url() }}" class="attachment-preview" target="_blank" data-lightbox="conversation">
+                        {% if attachment.mime.starts_with("image/") %}
+                        <img class="attachment-thumbnail" src="{{ attachment.get_download_url() }}" alt="{{ attachment.ugc_filename }}" />
+                        {% else %}
+                        <div class="attachment-file-icon">{% if attachment.mime.starts_with("video/") %}🎬{% else if attachment.mime.starts_with("audio/") %}🎵{% else if attachment.mime == "application/pdf" %}📄{% else %}📎{% endif %}</div>
+                        {% endif %}
+                        <span class="attachment-filename" title="{{ attachment.ugc_filename }}">{{ attachment.ugc_filename }}</span>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% when None %}{% endmatch %}
                 {% if msg.user_id == client.get_id() %}
                 <div class="message-edit-form" data-message-id="{{ msg.id }}" style="display: none;">
                     <form action="/conversations/messages/{{ msg.id }}/edit" method="post">
@@ -160,14 +175,23 @@
         {% endfor %}
     {% endif %}
 
-    <form id="reply-form" action="/conversations/{{ conversation_id }}/send" method="post">
+    <form id="reply-form" action="/conversations/{{ conversation_id }}/send" method="post" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
         <h2>Send Message</h2>
         <div class="bbcode-editor-container">
             {% include "components/bbcode_toolbar.html" %}
-            <textarea id="reply-textarea" name="message" rows="6" placeholder="Type your message..." required></textarea>
+            <textarea id="reply-textarea" name="content" rows="8" cols="80" data-char-limit="{% if client.can("moderate.post.edit") %}100000{% else %}50000{% endif %}"></textarea>
         </div>
-        <button type="submit">Send</button>
+        <div class="attachment-section">
+            <div class="attachment-previews"></div>
+            <div class="attachment-controls">
+                <input type="file" name="attachment" class="attachment-input" accept="image/*,video/*,audio/*,.pdf,.zip,.rar,.7z,.txt" multiple />
+                <button type="button" class="attachment-upload">Attach File</button>
+                <span class="form-submit-group">
+                    <button type="submit" class="attachment-upload">Send</button>
+                </span>
+            </div>
+        </div>
     </form>
     </div>
 

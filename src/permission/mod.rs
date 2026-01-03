@@ -102,7 +102,10 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
     // Group permission values by collection_id for efficient lookup
     let mut pv_by_collection: HashMap<i32, Vec<permission_values::Model>> = HashMap::new();
     for pv in all_permission_values {
-        pv_by_collection.entry(pv.collection_id).or_default().push(pv);
+        pv_by_collection
+            .entry(pv.collection_id)
+            .or_default()
+            .push(pv);
     }
 
     let forum_rows = forums::Entity::find().all(get_db_pool()).await?;

@@ -8,9 +8,19 @@
 
     const STORAGE_KEY = 'ruforo_multi_quotes';
 
-    // Find the reply textarea on the page
+    // Find the reply textarea on the page (supports thread replies and conversations)
     function getReplyTextarea() {
-        return document.querySelector('form[action*="post-reply"] textarea[name="content"]');
+        // Try thread reply form first
+        let textarea = document.querySelector('form[action*="post-reply"] textarea[name="content"]');
+        if (textarea) return textarea;
+
+        // Try conversation send form
+        textarea = document.querySelector('form[action*="/conversations/"][action*="/send"] textarea[name="content"]');
+        if (textarea) return textarea;
+
+        // Generic fallback: any form with id="reply-form"
+        textarea = document.querySelector('form#reply-form textarea[name="content"]');
+        return textarea;
     }
 
     // Decode HTML entities in content
