@@ -263,7 +263,7 @@
     }
 
     .struct-item--subforum .struct-item-cell--stats dl dd {
-        font-size: 1em;
+        font-size: 0.7em;
     }
 
     .forum-title {
@@ -297,7 +297,9 @@
 
     .struct-item-cell--stats dl {
         margin: 0;
-        text-align: center;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
     }
 
     .struct-item-cell--stats dt {
@@ -305,12 +307,11 @@
         color: #999;
         text-transform: uppercase;
         font-weight: 500;
-        margin-bottom: 4px;
     }
 
     .struct-item-cell--stats dd {
         margin: 0;
-        font-size: 1.2em;
+        font-size: 0.75em;
         font-weight: bold;
         color: #333;
     }
@@ -419,6 +420,10 @@
         color: #777;
     }
 
+    [data-theme="dark"] .struct-item-cell--stats dd {
+        color: #e0e0e0;
+    }
+
     @media (prefers-color-scheme: dark) {
         html:not([data-theme="light"]) .struct-item--subforum {
             border-left-color: #444;
@@ -443,6 +448,10 @@
 
         html:not([data-theme="light"]) .latest-meta time {
             color: #777;
+        }
+
+        html:not([data-theme="light"]) .struct-item-cell--stats dd {
+            color: #e0e0e0;
         }
     }
 </style>

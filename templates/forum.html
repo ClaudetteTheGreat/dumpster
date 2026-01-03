@@ -475,6 +475,81 @@
         color: #999;
     }
 
+    /* Stats styling */
+    .struct-item-cell--stats {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        padding: 10px 15px;
+        min-width: 150px;
+    }
+
+    .struct-item-cell--stats dl {
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+    }
+
+    .struct-item-cell--stats dt {
+        font-size: 0.75em;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    .struct-item-cell--stats dd {
+        margin: 0;
+        font-size: 0.75em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    html.dark .struct-item-cell--stats dd {
+        color: #e0e0e0;
+    }
+
+    /* Thread meta styling (replies/views) */
+    .struct-item-cell--meta {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        padding: 10px 15px;
+        min-width: 150px;
+    }
+
+    .struct-item-cell--meta dl {
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+    }
+
+    .struct-item-cell--meta dt {
+        font-size: 0.75em;
+        color: #999;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    .struct-item-cell--meta dd {
+        margin: 0;
+        font-size: 0.75em;
+        font-weight: bold;
+        color: #333;
+    }
+
+    html.dark .struct-item-cell--meta dd {
+        color: #e0e0e0;
+    }
+
+    @media (max-width: 768px) {
+        .struct-item-cell--stats,
+        .struct-item-cell--meta {
+            display: none;
+        }
+    }
+
     /* Forum actions */
     .forum-actions {
         display: flex;
