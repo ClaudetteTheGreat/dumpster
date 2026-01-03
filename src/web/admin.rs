@@ -358,10 +358,24 @@ async fn view_dashboard(client: ClientCtx) -> Result<impl Responder, Error> {
         .await
         .unwrap_or(0) as i64;
 
-    let active_sessions = sessions::Entity::find().count(db).await.unwrap_or(0) as i64;
+    let active_sessions = sessions::Entity::find()
+        .filter(sessions::Column::ExpiresAt.gt(now))
+        .count(db)
+        .await
+        .unwrap_or(0) as i64;
 
-    // Database size would require raw query - simplified for now
-    let db_size = "N/A".to_string();
+    // Get database size using PostgreSQL's pg_size_pretty function
+    let db_size = {
+        use sea_orm::{ConnectionTrait, Statement};
+        let sql = "SELECT pg_size_pretty(pg_database_size(current_database())) as size";
+        match db
+            .query_one(Statement::from_string(db.get_database_backend(), sql.to_string()))
+            .await
+        {
+            Ok(Some(row)) => row.try_get::<String>("", "size").unwrap_or_else(|_| "N/A".to_string()),
+            _ => "N/A".to_string(),
+        }
+    };
 
     let stats = DashboardStats {
         total_users,

@@ -208,14 +208,20 @@
         <!-- System Info -->
         <div class="dashboard-section">
             <h2>System Info</h2>
-            <dl class="info-list">
-                <dt>Active Sessions</dt>
-                <dd>{{ stats.active_sessions }}</dd>
-                <dt>Database Size</dt>
-                <dd>{{ stats.db_size }}</dd>
-                <dt>Server Time</dt>
-                <dd>{{ server_time }}</dd>
-            </dl>
+            <table class="system-info-table">
+                <tr>
+                    <td class="info-label">Active Sessions</td>
+                    <td class="info-value">{{ stats.active_sessions }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label">Database Size</td>
+                    <td class="info-value">{{ stats.db_size }}</td>
+                </tr>
+                <tr>
+                    <td class="info-label">Server Time</td>
+                    <td class="info-value">{{ server_time }}</td>
+                </tr>
+            </table>
         </div>
         {% endif %}
     </div>
@@ -426,23 +432,31 @@
     text-decoration: underline;
 }
 
-/* Info List */
-.info-list {
-    margin: 0;
+/* System Info Table */
+.system-info-table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
-.info-list dt {
+.system-info-table tr {
+    border-bottom: 1px solid #eee;
+}
+
+.system-info-table tr:last-child {
+    border-bottom: none;
+}
+
+.system-info-table td {
+    padding: 8px 0;
+}
+
+.system-info-table .info-label {
     color: #666;
-    font-size: 0.85em;
-    margin-top: 10px;
+    font-size: 0.9em;
 }
 
-.info-list dt:first-child {
-    margin-top: 0;
-}
-
-.info-list dd {
-    margin: 3px 0 0 0;
+.system-info-table .info-value {
+    text-align: right;
     font-weight: 500;
     color: #333;
 }
@@ -475,13 +489,17 @@
 html.dark .panel-header h1,
 html.dark .dashboard-section h2,
 html.dark .link-text,
-html.dark .info-list dd {
+html.dark .system-info-table .info-value {
     color: #fff;
 }
 
 html.dark .panel-subtitle,
-html.dark .info-list dt {
+html.dark .system-info-table .info-label {
     color: #aaa;
+}
+
+html.dark .system-info-table tr {
+    border-bottom-color: #444;
 }
 
 html.dark .quick-link {
