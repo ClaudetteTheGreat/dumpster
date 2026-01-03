@@ -166,7 +166,7 @@ const nodes = {
       alt: { default: '' }
     },
     parseDOM: [{
-      tag: 'img[src]',
+      tag: 'img[src]:not(.bbcode-thumb-img)',
       getAttrs(dom) {
         return {
           src: dom.getAttribute('src'),
