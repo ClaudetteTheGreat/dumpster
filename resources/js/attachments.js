@@ -54,15 +54,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     insertBtn.title = 'Insert into post';
                     insertBtn.textContent = 'Insert';
                     insertBtn.addEventListener('click', function (e) {
-                        console.log('Insert button clicked', uploadResponse, file.name);
                         e.preventDefault();
                         e.stopPropagation();
                         insertIntoEditor(uploadResponse, file.name);
                     });
                     previewEl.appendChild(insertBtn);
-                    console.log('Insert button created for', file.name);
-                } else {
-                    console.log('No uploadResponse for', file.name, '- button not created');
                 }
             } else {
                 const iconEl = document.createElement('div');
@@ -88,30 +84,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Insert image BBCode into editor
         function insertIntoEditor(uploadResponse, originalFilename) {
-            console.log('=== insertIntoEditor START ===');
-
             if (!uploadResponse || !uploadResponse.hash) {
-                console.error('Invalid upload response', uploadResponse);
                 return;
             }
 
             const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
             const bbcode = `[img]${url}[/img]`;
-            console.log('URL:', url);
-            console.log('BBCode:', bbcode);
 
             // Use the global insertEditorContent function if available
             if (typeof window.insertEditorContent === 'function') {
-                console.log('Using window.insertEditorContent');
                 window.insertEditorContent('reply-textarea', bbcode);
-                console.log('Inserted via insertEditorContent');
                 return;
             }
 
             // Fallback: insert directly into textarea
             const textarea = getTextarea();
             if (textarea) {
-                console.log('Fallback: inserting into textarea');
                 const start = textarea.selectionStart;
                 const end = textarea.selectionEnd;
                 const text = textarea.value;
@@ -120,7 +108,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 textarea.focus();
                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
             }
-            console.log('=== insertIntoEditor END ===');
         }
 
         // Get icon for file type
@@ -167,19 +154,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     body: formData,
                 });
 
-                console.log('Upload response status:', response.status);
-
                 if (response.ok) {
                     const results = await response.json();
-                    console.log('Upload results:', results);
                     if (results.length > 0) {
                         return results[0];
                     }
-                } else {
-                    console.error('Upload failed:', response.status, await response.text());
                 }
             } catch (err) {
-                console.error('Error uploading file:', err);
+                // Upload failed silently
             }
             return null;
         }
