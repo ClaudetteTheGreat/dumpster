@@ -583,6 +583,50 @@
         font-style: italic;
     }
 
+    /* Dark mode thread header */
+    html.dark .thread-header,
+    [data-theme="dark"] .thread-header {
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .thread-meta,
+    [data-theme="dark"] .thread-meta {
+        color: #999;
+    }
+
+    /* Dark mode moderation tools */
+    html.dark .moderation-tools,
+    [data-theme="dark"] .moderation-tools {
+        background: #3a3520;
+        border-color: #8a7520;
+    }
+
+    html.dark .moderation-tools h3,
+    [data-theme="dark"] .moderation-tools h3 {
+        color: #ffc107;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) .thread-header {
+            background: #2a2a2a;
+            border-color: #444;
+        }
+
+        html:not([data-theme="light"]) .thread-meta {
+            color: #999;
+        }
+
+        html:not([data-theme="light"]) .moderation-tools {
+            background: #3a3520;
+            border-color: #8a7520;
+        }
+
+        html:not([data-theme="light"]) .moderation-tools h3 {
+            color: #ffc107;
+        }
+    }
+
     /* Dark mode poll styles */
     html.dark .poll-container {
         background: #2a2a2a;
