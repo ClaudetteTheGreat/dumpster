@@ -639,14 +639,14 @@ input {
     }
 }
 
-// Draft auto-save indicator
+// Draft auto-save indicator - styled to match attachment-upload button
 .draft-indicator {
     display: inline-block;
-    margin-right: 10px;
-    padding: 4px 10px;
-    font-size: 0.85em;
-    color: #666;
-    background: #f0f0f0;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    color: var(--btn-secondary-text, #fff);
+    background: var(--btn-secondary-bg, #6c757d);
+    border: 1px solid var(--btn-secondary-border, #6c757d);
     border-radius: 4px;
     opacity: 0;
     transition: opacity 0.3s ease;
