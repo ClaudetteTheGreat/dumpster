@@ -89,6 +89,21 @@
     border-top: 1px solid var(--border-color);
     font-size: 0.8rem;
     padding: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.message-footer--left {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.message-footer--right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 // Reactions summary bar
