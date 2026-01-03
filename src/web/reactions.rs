@@ -3,7 +3,7 @@
 use crate::config::Config;
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use crate::orm::{attachments, posts, reaction_types, threads, ugc_reactions};
+use crate::orm::{attachments, posts, reaction_types, threads, ugc_reactions, user_names, users};
 use actix_web::{error, get, post, web, Error, HttpResponse};
 use chrono::Utc;
 use sea_orm::{entity::*, query::*, ColumnTrait, EntityTrait, QueryFilter};
@@ -14,6 +14,7 @@ pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     // Note: get_reaction_types must be registered before get_reactions
     // because /reactions/types would otherwise match /reactions/{ugc_id}
     conf.service(get_reaction_types)
+        .service(get_reaction_users)
         .service(toggle_reaction)
         .service(get_reactions);
 }
@@ -52,6 +53,120 @@ struct ReactionTypeInfo {
     #[serde(skip_serializing_if = "Option::is_none")]
     image_url: Option<String>,
     is_positive: bool,
+}
+
+/// Response for getting users who reacted
+#[derive(Serialize)]
+struct ReactionUsersResponse {
+    users: Vec<ReactionUserInfo>,
+    reaction_name: String,
+    reaction_emoji: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reaction_image_url: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ReactionUserInfo {
+    id: i32,
+    name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    avatar_url: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ReactionUsersQuery {
+    reaction_type_id: i32,
+}
+
+/// Get users who reacted with a specific reaction type
+#[get("/reactions/{ugc_id}/users")]
+async fn get_reaction_users(
+    path: web::Path<i32>,
+    query: web::Query<ReactionUsersQuery>,
+) -> Result<HttpResponse, Error> {
+    let ugc_id = path.into_inner();
+    let reaction_type_id = query.reaction_type_id;
+    let db = get_db_pool();
+
+    // Get reaction type info
+    let reaction_type = reaction_types::Entity::find_by_id(reaction_type_id)
+        .find_also_related(attachments::Entity)
+        .one(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?
+        .ok_or_else(|| error::ErrorNotFound("Reaction type not found"))?;
+
+    let (rt, att) = reaction_type;
+    let reaction_image_url = att.map(|a| format!("/content/{}/{}", &a.hash[0..64], a.filename));
+
+    // Get all reactions of this type for this UGC
+    let reactions = ugc_reactions::Entity::find()
+        .filter(ugc_reactions::Column::UgcId.eq(ugc_id))
+        .filter(ugc_reactions::Column::ReactionTypeId.eq(reaction_type_id))
+        .order_by_desc(ugc_reactions::Column::CreatedAt)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Get user IDs
+    let user_ids: Vec<i32> = reactions.iter().map(|r| r.user_id).collect();
+
+    if user_ids.is_empty() {
+        return Ok(HttpResponse::Ok().json(ReactionUsersResponse {
+            users: vec![],
+            reaction_name: rt.name,
+            reaction_emoji: rt.emoji,
+            reaction_image_url,
+        }));
+    }
+
+    // Fetch user names
+    let user_names_data = user_names::Entity::find()
+        .filter(user_names::Column::UserId.is_in(user_ids.clone()))
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Fetch user avatars
+    let users_with_avatars = users::Entity::find()
+        .filter(users::Column::Id.is_in(user_ids.clone()))
+        .find_also_related(attachments::Entity)
+        .all(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Build maps
+    let name_map: std::collections::HashMap<i32, String> = user_names_data
+        .into_iter()
+        .map(|un| (un.user_id, un.name))
+        .collect();
+
+    let avatar_map: std::collections::HashMap<i32, Option<String>> = users_with_avatars
+        .into_iter()
+        .map(|(u, att)| {
+            let avatar_url = att.map(|a| format!("/content/{}/{}", &a.hash[0..64], a.filename));
+            (u.id, avatar_url)
+        })
+        .collect();
+
+    // Build user info list (preserving reaction order)
+    let users_info: Vec<ReactionUserInfo> = user_ids
+        .iter()
+        .filter_map(|uid| {
+            name_map.get(uid).map(|name| ReactionUserInfo {
+                id: *uid,
+                name: name.clone(),
+                avatar_url: avatar_map.get(uid).cloned().flatten(),
+            })
+        })
+        .collect();
+
+    Ok(HttpResponse::Ok().json(ReactionUsersResponse {
+        users: users_info,
+        reaction_name: rt.name,
+        reaction_emoji: rt.emoji,
+        reaction_image_url,
+    }))
 }
 
 /// Toggle a reaction on a UGC item (add if not present, remove if present)

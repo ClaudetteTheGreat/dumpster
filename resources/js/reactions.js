@@ -8,6 +8,87 @@
 let reactionTypesCache = null;
 
 /**
+ * Create and show reaction users overlay
+ */
+async function showReactionUsersOverlay(ugcId, reactionTypeId) {
+    // Remove any existing overlay
+    const existingOverlay = document.querySelector('.reaction-users-overlay');
+    if (existingOverlay) {
+        existingOverlay.remove();
+    }
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'reaction-users-overlay';
+    overlay.innerHTML = `
+        <div class="reaction-users-modal">
+            <div class="reaction-users-header">
+                <span class="reaction-users-title">Loading...</span>
+                <button type="button" class="reaction-users-close">&times;</button>
+            </div>
+            <div class="reaction-users-content">
+                <div class="reaction-users-loading">Loading...</div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Close on overlay click or close button
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('reaction-users-close')) {
+            overlay.remove();
+        }
+    });
+
+    // Close on Escape key
+    const escHandler = (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+
+    // Fetch users
+    try {
+        const response = await fetch(`/reactions/${ugcId}/users?reaction_type_id=${reactionTypeId}`);
+        if (!response.ok) throw new Error('Failed to load users');
+        const data = await response.json();
+
+        // Update header with reaction info
+        const icon = data.reaction_image_url
+            ? `<img src="${data.reaction_image_url}" alt="${data.reaction_name}" class="reaction-users-icon" />`
+            : `<span class="reaction-users-emoji">${data.reaction_emoji}</span>`;
+
+        overlay.querySelector('.reaction-users-title').innerHTML = `${icon} ${data.reaction_name}`;
+
+        // Build user list
+        const contentEl = overlay.querySelector('.reaction-users-content');
+        if (data.users.length === 0) {
+            contentEl.innerHTML = '<div class="reaction-users-empty">No reactions</div>';
+        } else {
+            const usersHtml = data.users.map(user => {
+                const avatar = user.avatar_url
+                    ? `<img src="${user.avatar_url}" alt="${user.name}" class="reaction-user-avatar" />`
+                    : `<div class="reaction-user-avatar reaction-user-avatar--placeholder">${user.name.charAt(0).toUpperCase()}</div>`;
+                return `
+                    <a href="/members/${user.id}" class="reaction-user-item">
+                        ${avatar}
+                        <span class="reaction-user-name">${user.name}</span>
+                    </a>
+                `;
+            }).join('');
+            contentEl.innerHTML = `<div class="reaction-users-list">${usersHtml}</div>`;
+        }
+    } catch (error) {
+        console.error('Error loading reaction users:', error);
+        overlay.querySelector('.reaction-users-content').innerHTML =
+            '<div class="reaction-users-error">Failed to load users</div>';
+    }
+}
+
+/**
  * Load all available reaction types
  */
 async function loadReactionTypes() {
@@ -104,11 +185,12 @@ function renderReactionsSummary(ugcId, reactions, userReactions) {
 
     summaryEl.innerHTML = html;
 
-    // Add click handlers to view who reacted (prevent default, could show overlay)
+    // Add click handlers to view who reacted
     summaryEl.querySelectorAll('.reactionsBar-link').forEach(link => {
         link.addEventListener('click', async (e) => {
-            // For now, allow default link behavior
-            // Could be enhanced to show a popup/overlay with reactor list
+            e.preventDefault();
+            const reactionTypeId = link.dataset.reactionType;
+            showReactionUsersOverlay(ugcId, reactionTypeId);
         });
     });
 }
