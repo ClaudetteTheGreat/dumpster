@@ -8,24 +8,36 @@ impl super::Tag {
     }
 
     pub fn fill_img_tag(mut el: RefMut<Element>, contents: String) -> String {
+        // Check for dimension argument: [img=100x100]url[/img]
+        let dimension_attr = if let Some(arg) = el.get_argument() {
+            let dims = parse_image_dimensions(arg);
+            if dims.is_empty() {
+                String::new()
+            } else {
+                format!(" {}", dims)
+            }
+        } else {
+            String::new()
+        };
+
+        // Support relative URLs starting with / (for local content like /content/...)
+        if contents.starts_with('/') {
+            // Validate it's a safe path (no .. or other tricks)
+            if !contents.contains("..") && !contents.contains('\0') {
+                el.clear_contents();
+                return format!(
+                    "<img src=\"{}\"{} />",
+                    html_escape(&contents),
+                    dimension_attr
+                );
+            }
+        }
+
         // Our URL comes from inside the tag.
         if let Ok(url) = Url::parse(&contents) {
             match url.scheme() {
                 "http" | "https" => {
                     el.clear_contents();
-
-                    // Check for dimension argument: [img=100x100]url[/img]
-                    let dimension_attr = if let Some(arg) = el.get_argument() {
-                        let dims = parse_image_dimensions(arg);
-                        if dims.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" {}", dims)
-                        }
-                    } else {
-                        String::new()
-                    };
-
                     return format!("<img src=\"{}\"{} />", url.as_str(), dimension_attr);
                 }
                 _ => {}

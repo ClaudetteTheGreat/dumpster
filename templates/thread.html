@@ -41,7 +41,7 @@
             {% when None %}{% endmatch %}
             {% endif %}
             {% if client.can_post_in_thread(thread) %}
-            <button type="button" class="action-button" onclick="document.getElementById('reply-form').scrollIntoView({behavior: 'smooth'}); setTimeout(() => document.getElementById('reply-textarea').focus(), 500);">
+            <button type="button" class="action-button scroll-to-reply">
                 ✏️ Reply
             </button>
             {% endif %}

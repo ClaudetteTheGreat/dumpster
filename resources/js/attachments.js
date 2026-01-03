@@ -54,11 +54,15 @@ document.addEventListener("DOMContentLoaded", function () {
                     insertBtn.title = 'Insert into post';
                     insertBtn.textContent = 'Insert';
                     insertBtn.addEventListener('click', function (e) {
+                        console.log('Insert button clicked', uploadResponse, file.name);
                         e.preventDefault();
                         e.stopPropagation();
                         insertIntoEditor(uploadResponse, file.name);
                     });
                     previewEl.appendChild(insertBtn);
+                    console.log('Insert button created for', file.name);
+                } else {
+                    console.log('No uploadResponse for', file.name, '- button not created');
                 }
             } else {
                 const iconEl = document.createElement('div');
@@ -84,11 +88,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Insert image BBCode into editor
         function insertIntoEditor(uploadResponse, originalFilename) {
-            const textarea = getTextarea();
-            if (!textarea) {
-                console.error('Textarea not found');
-                return;
-            }
+            console.log('=== insertIntoEditor START ===');
+
             if (!uploadResponse || !uploadResponse.hash) {
                 console.error('Invalid upload response', uploadResponse);
                 return;
@@ -96,17 +97,30 @@ document.addEventListener("DOMContentLoaded", function () {
 
             const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
             const bbcode = `[img]${url}[/img]`;
+            console.log('URL:', url);
+            console.log('BBCode:', bbcode);
 
-            // Insert at cursor position
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const text = textarea.value;
-            textarea.value = text.substring(0, start) + bbcode + text.substring(end);
-            textarea.selectionStart = textarea.selectionEnd = start + bbcode.length;
-            textarea.focus();
+            // Use the global insertEditorContent function if available
+            if (typeof window.insertEditorContent === 'function') {
+                console.log('Using window.insertEditorContent');
+                window.insertEditorContent('reply-textarea', bbcode);
+                console.log('Inserted via insertEditorContent');
+                return;
+            }
 
-            // Trigger input event for draft saving
-            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            // Fallback: insert directly into textarea
+            const textarea = getTextarea();
+            if (textarea) {
+                console.log('Fallback: inserting into textarea');
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const text = textarea.value;
+                textarea.value = text.substring(0, start) + bbcode + text.substring(end);
+                textarea.selectionStart = textarea.selectionEnd = start + bbcode.length;
+                textarea.focus();
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            console.log('=== insertIntoEditor END ===');
         }
 
         // Get icon for file type
@@ -153,11 +167,16 @@ document.addEventListener("DOMContentLoaded", function () {
                     body: formData,
                 });
 
+                console.log('Upload response status:', response.status);
+
                 if (response.ok) {
                     const results = await response.json();
+                    console.log('Upload results:', results);
                     if (results.length > 0) {
                         return results[0];
                     }
+                } else {
+                    console.error('Upload failed:', response.status, await response.text());
                 }
             } catch (err) {
                 console.error('Error uploading file:', err);
@@ -196,4 +215,19 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     attachmentEventListeners();
+
+    // Reply button scroll handler (moved from inline onclick for CSP compliance)
+    const scrollToReplyBtn = document.querySelector('.scroll-to-reply');
+    if (scrollToReplyBtn) {
+        scrollToReplyBtn.addEventListener('click', function() {
+            const replyForm = document.getElementById('reply-form');
+            const replyTextarea = document.getElementById('reply-textarea');
+            if (replyForm) {
+                replyForm.scrollIntoView({ behavior: 'smooth' });
+                if (replyTextarea) {
+                    setTimeout(() => replyTextarea.focus(), 500);
+                }
+            }
+        });
+    }
 });

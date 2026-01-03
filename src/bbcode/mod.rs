@@ -161,6 +161,17 @@ mod tests {
         assert_eq!("[img]", parse("[img]"));
         assert_eq!("[img]not a link[/img]", parse("[img]not a link[/img]"));
         assert_eq!("[img]not a link", parse("[img]not a link"));
+
+        // Relative URLs (for local content)
+        assert_eq!(
+            "<img src=\"/content/abc123/image.png\" />",
+            parse("[img]/content/abc123/image.png[/img]")
+        );
+        // Path traversal should be rejected
+        assert_eq!(
+            "[img]/../etc/passwd[/img]",
+            parse("[img]/../etc/passwd[/img]")
+        );
     }
 
     #[test]
