@@ -82,8 +82,14 @@
         {% match post_attachments %}{% when Some with (post_attachments) %}
         <div class="message-attachments">
             {% for attachment in post_attachments %}
-            <div class="attachment">📎 <a href="{{ attachment.get_download_url() }}">{{ attachment.ugc_filename }}</a>
-            </div>
+            <a href="{{ attachment.get_download_url() }}" class="attachment-preview" target="_blank">
+                {% if attachment.mime.starts_with("image/") %}
+                <img class="attachment-thumbnail" src="{{ attachment.get_download_url() }}" alt="{{ attachment.ugc_filename }}" />
+                {% else %}
+                <div class="attachment-file-icon">{% if attachment.mime.starts_with("video/") %}🎬{% else if attachment.mime.starts_with("audio/") %}🎵{% else if attachment.mime == "application/pdf" %}📄{% else %}📎{% endif %}</div>
+                {% endif %}
+                <span class="attachment-filename" title="{{ attachment.ugc_filename }}">{{ attachment.ugc_filename }}</span>
+            </a>
             {% endfor %}
         </div>
         {% when None %}{% endmatch %}
