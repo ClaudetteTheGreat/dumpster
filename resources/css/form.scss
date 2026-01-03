@@ -1070,6 +1070,13 @@ blockquote.tagQuote {
     gap: 0.5rem;
 }
 
+.attachment-controls-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
 .attachment-input {
     display: none;
 }
