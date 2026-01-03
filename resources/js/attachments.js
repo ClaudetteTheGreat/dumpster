@@ -89,7 +89,8 @@ document.addEventListener("DOMContentLoaded", function () {
             }
 
             const url = `/content/${uploadResponse.hash}/${encodeURIComponent(originalFilename)}`;
-            const bbcode = `[thumb]${url}[/thumb]`;
+            const useThumb = window.RUFORO_CONFIG?.enforceThumbnails ?? true;
+            const bbcode = useThumb ? `[thumb]${url}[/thumb]` : `[img]${url}[/img]`;
 
             // Use the global insertEditorContent function if available
             if (typeof window.insertEditorContent === 'function') {

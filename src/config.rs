@@ -376,6 +376,18 @@ impl Config {
         self.get_int_or("min_posts_to_create_thread", 0) as i32
     }
 
+    // Thumbnail settings
+
+    /// Check if thumbnails should be enforced for image insertion
+    pub fn enforce_thumbnails(&self) -> bool {
+        self.get_bool_or("enforce_thumbnails", false)
+    }
+
+    /// Get the maximum thumbnail size in pixels
+    pub fn thumbnail_max_size(&self) -> i64 {
+        self.get_int_or("thumbnail_max_size", 150)
+    }
+
     // Chat settings
 
     /// Get maximum chat message length in bytes (0 for unlimited)

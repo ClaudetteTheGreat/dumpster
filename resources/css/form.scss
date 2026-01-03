@@ -1112,8 +1112,8 @@ a.attachment-preview {
     display: inline-block;
 
     .bbcode-thumb-img {
-        max-width: 150px !important;
-        max-height: 150px !important;
+        max-width: var(--thumbnail-max-size, 150px) !important;
+        max-height: var(--thumbnail-max-size, 150px) !important;
         width: auto;
         height: auto;
         object-fit: contain;

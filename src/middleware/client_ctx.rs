@@ -364,6 +364,24 @@ impl ClientCtx {
             .unwrap_or_else(|| "Live Free or Die".to_string())
     }
 
+    /// Check if thumbnails should be enforced for image insertion
+    pub fn enforce_thumbnails(&self) -> bool {
+        self.0
+            .config
+            .as_ref()
+            .map(|c| c.enforce_thumbnails())
+            .unwrap_or(false)
+    }
+
+    /// Get the maximum thumbnail size in pixels
+    pub fn thumbnail_max_size(&self) -> i64 {
+        self.0
+            .config
+            .as_ref()
+            .map(|c| c.thumbnail_max_size())
+            .unwrap_or(150)
+    }
+
     /// Require user to be logged in. Returns user_id or ErrorUnauthorized.
     pub fn require_login(&self) -> Result<i32, actix_web::Error> {
         self.get_id()

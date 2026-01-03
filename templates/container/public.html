@@ -163,6 +163,15 @@
     <!-- Notification toast container -->
     <div id="notification-toasts" class="notification-toasts" aria-live="polite" aria-label="Notifications"></div>
 
+    <script type="application/javascript" nonce="{{ client.get_nonce() }}">
+        window.RUFORO_CONFIG = {
+            enforceThumbnails: {{ client.enforce_thumbnails() }},
+            thumbnailMaxSize: {{ client.thumbnail_max_size() }}
+        };
+        // Set CSS variable for thumbnail size
+        document.documentElement.style.setProperty('--thumbnail-max-size', '{{ client.thumbnail_max_size() }}px');
+    </script>
+
     {% if let Some(user) = client.get_user() %}
     <script type="application/javascript" nonce="{{ client.get_nonce() }}">
         window.RUFORO_USER = { id: {{ user.id }} };
