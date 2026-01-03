@@ -607,15 +607,22 @@
     }
 }
 
-// When in actionBar, reset to match other action buttons
+// When in actionBar, reset to match other action buttons (quote-btn style)
 .actionBar-action.reaction-picker-toggle {
     width: auto;
     height: auto;
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-radius: 3px;
     font-size: 0.85em;
-    background: transparent;
-    border: none;
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--btn-secondary-border);
+    color: var(--btn-secondary-text);
+
+    &:hover {
+        background-color: var(--btn-secondary-hover-bg);
+        border-color: var(--btn-secondary-hover-border);
+        color: var(--btn-secondary-hover-text);
+    }
 }
 
 .reaction-picker-dropdown {
