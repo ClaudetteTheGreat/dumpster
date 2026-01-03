@@ -100,9 +100,7 @@
                     {% if client.is_user() && client.get_id() != post.user_id %}
                     <div class="reactions-container" data-ugc-id="{{ post.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
                         <div class="reactions-picker">
-                            <button type="button" class="reaction-picker-toggle actionBar-action actionBar-action--reaction" title="Add reaction">
-                                <span class="reaction-text">React</span>
-                            </button>
+                            <button type="button" class="actionBar-action reaction-picker-toggle" title="Add reaction">React</button>
                             <div class="reaction-picker-dropdown" style="display: none;"></div>
                         </div>
                     </div>

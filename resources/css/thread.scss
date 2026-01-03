@@ -188,18 +188,6 @@
     }
 }
 
-.actionBar-action--reaction {
-    color: var(--link-color);
-
-    &:hover {
-        background: var(--reaction-picker-hover-bg, rgba(0, 102, 204, 0.1));
-    }
-
-    .reaction-text {
-        font-weight: 500;
-    }
-}
-
 .actionBar-action--quote,
 .actionBar-action--multiQuote {
     // Inherits from .actionBar-action
