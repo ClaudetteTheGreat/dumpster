@@ -13,7 +13,7 @@ use sea_orm::{entity::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter
 
 #[test]
 fn test_social_platform_display_names() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     assert_eq!(SocialPlatform::Twitter.display_name(), "Twitter/X");
     assert_eq!(SocialPlatform::Discord.display_name(), "Discord");
@@ -24,7 +24,7 @@ fn test_social_platform_display_names() {
 
 #[test]
 fn test_social_platform_icons() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     // Each platform should have an icon
     assert!(!SocialPlatform::Twitter.icon().is_empty());
@@ -34,7 +34,7 @@ fn test_social_platform_icons() {
 
 #[test]
 fn test_social_platform_url_patterns() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     // Platforms with standard URL patterns
     assert!(SocialPlatform::Twitter.url_pattern().is_some());
@@ -49,7 +49,7 @@ fn test_social_platform_url_patterns() {
 
 #[test]
 fn test_social_platform_generate_url() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     // Twitter URL generation
     let twitter_url = SocialPlatform::Twitter.generate_url("testuser");
@@ -73,7 +73,7 @@ fn test_social_platform_generate_url() {
 
 #[test]
 fn test_social_platform_parse() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     assert_eq!(
         SocialPlatform::parse("twitter"),
@@ -100,7 +100,7 @@ fn test_social_platform_parse() {
 
 #[test]
 fn test_social_platform_all() {
-    use ruforo::orm::user_social_links::SocialPlatform;
+    use dumpster::orm::user_social_links::SocialPlatform;
 
     let all = SocialPlatform::all();
 
@@ -128,7 +128,7 @@ async fn test_create_social_link() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user1", "password123")
@@ -169,7 +169,7 @@ async fn test_unique_platform_per_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user2", "password123")
@@ -224,7 +224,7 @@ async fn test_multiple_platforms_per_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user3", "password123")
@@ -274,7 +274,7 @@ async fn test_delete_social_link() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user4", "password123")
@@ -333,7 +333,7 @@ async fn test_social_link_get_url_with_pattern() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user5", "password123")
@@ -369,7 +369,7 @@ async fn test_social_link_get_url_with_custom_url() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user6", "password123")
@@ -409,7 +409,7 @@ async fn test_social_links_ordered_by_display_order() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user7", "password123")
@@ -485,7 +485,7 @@ async fn test_filter_visible_social_links() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_social_links::{self, SocialPlatform};
+    use dumpster::orm::user_social_links::{self, SocialPlatform};
 
     // Create a test user
     let user = create_test_user(&db, "social_user8", "password123")
@@ -556,7 +556,7 @@ async fn test_social_links_deleted_with_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{
+    use dumpster::orm::{
         user_names,
         user_social_links::{self, SocialPlatform},
         users,

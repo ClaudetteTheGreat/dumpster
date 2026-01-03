@@ -3,7 +3,7 @@
 use super::orm::session;
 use super::orm::user;
 use super::orm::user_ignored;
-use ruforo::web::chat::implement;
+use dumpster::web::chat::implement;
 use sea_orm::entity::prelude::*;
 use sea_orm::{DatabaseConnection, FromQueryResult, QuerySelect};
 use serde::Deserialize;
@@ -34,7 +34,7 @@ impl Default for XfSession {
     fn default() -> Self {
         Self {
             id: 0,
-            username: ruforo::constants::GUEST_USERNAME.to_owned(),
+            username: dumpster::constants::GUEST_USERNAME.to_owned(),
             avatar_date: 0,
             is_staff: false,
         }

@@ -4,7 +4,7 @@ mod common;
 use serial_test::serial;
 
 use common::{database::*, fixtures::*};
-use ruforo::web::login::{check_ip_ban, login, LoginResultStatus};
+use dumpster::web::login::{check_ip_ban, login, LoginResultStatus};
 
 #[actix_rt::test]
 #[serial]

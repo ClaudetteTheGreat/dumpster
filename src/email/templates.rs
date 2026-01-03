@@ -25,7 +25,7 @@ This link will expire in 1 hour.
 If you did not request a password reset, please ignore this email.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         username, reset_link
     );
@@ -86,7 +86,7 @@ Please verify your email address by clicking the link below:
 This link will expire in 24 hours.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         username, verification_link
     );
@@ -100,7 +100,7 @@ Ruforo Forum
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2>Welcome to Ruforo Forum!</h2>
+        <h2>Welcome to Dumpster Forum!</h2>
         <p>Hello <strong>{}</strong>,</p>
         <p>Thank you for registering. Please verify your email address to complete your registration.</p>
         <p style="margin: 30px 0;">
@@ -137,14 +137,14 @@ pub async fn send_welcome_email(to: &str, username: &str) -> EmailResult<()> {
     let body_text = format!(
         r#"Hello {},
 
-Welcome to Ruforo Forum!
+Welcome to Dumpster Forum!
 
 Your email has been verified and your account is now fully activated.
 
 You can now log in and start participating in discussions.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         username
     );
@@ -158,7 +158,7 @@ Ruforo Forum
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2>Welcome to Ruforo Forum!</h2>
+        <h2>Welcome to Dumpster Forum!</h2>
         <p>Hello <strong>{}</strong>,</p>
         <p>Your email has been verified and your account is now fully activated.</p>
         <p>You can now log in and start participating in discussions.</p>
@@ -172,7 +172,7 @@ Ruforo Forum
         username
     );
 
-    send_email(to, "Welcome to Ruforo Forum!", &body_text, Some(&body_html)).await
+    send_email(to, "Welcome to Dumpster Forum!", &body_text, Some(&body_html)).await
 }
 
 /// Send a thread reply notification email
@@ -210,7 +210,7 @@ View the thread: {}
 To stop receiving these emails, visit the thread and disable email notifications.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         recipient_username, poster_username, thread_title, preview, thread_link
     );
@@ -288,7 +288,7 @@ View the post: {}
 To stop receiving these emails, update your notification preferences in your account settings.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         recipient_username, mentioner_username, thread_title, preview, post_link
     );
@@ -366,7 +366,7 @@ View the reply: {}
 To stop receiving these emails, update your notification preferences in your account settings.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         recipient_username, replier_username, thread_title, preview, post_link
     );
@@ -444,7 +444,7 @@ View the post: {}
 To stop receiving these emails, update your notification preferences in your account settings.
 
 ---
-Ruforo Forum
+Dumpster Forum
 "#,
         recipient_username, quoter_username, thread_title, preview, post_link
     );

@@ -1,5 +1,5 @@
 use once_cell::sync::OnceCell;
-use ruforo::permission::{Category, CategoryValues, Flag};
+use dumpster::permission::{Category, CategoryValues, Flag};
 
 const HB_CHAT_PERMS: &[&str] = &[
     "hbChatMessageDeleteOther",

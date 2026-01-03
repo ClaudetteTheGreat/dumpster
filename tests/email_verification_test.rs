@@ -5,7 +5,7 @@ use serial_test::serial;
 
 use chrono::Utc;
 use common::{database::*, fixtures::*};
-use ruforo::orm::{email_verification_tokens, users};
+use dumpster::orm::{email_verification_tokens, users};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
 /// Create a test user with unverified email
@@ -15,10 +15,10 @@ async fn create_unverified_user(
     email: &str,
 ) -> Result<users::Model, DbErr> {
     use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
-    use ruforo::orm::user_names;
+    use dumpster::orm::user_names;
 
     let salt = SaltString::generate(&mut OsRng);
-    let password_hash = ruforo::session::get_argon2()
+    let password_hash = dumpster::session::get_argon2()
         .hash_password("password123".as_bytes(), &salt)
         .map_err(|e| DbErr::Custom(format!("Password hashing failed: {}", e)))?
         .to_string();

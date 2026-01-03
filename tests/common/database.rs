@@ -17,7 +17,7 @@ fn init_sync_globals() {
         }
 
         // Initialize session module (ARGON2, SALT, SESSIONS, START_TIME)
-        ruforo::session::init();
+        dumpster::session::init();
     });
 }
 
@@ -37,7 +37,7 @@ async fn init_async_globals() {
             "postgres://postgres:postgres@localhost:5433/ruforo_test".to_string()
         });
 
-        ruforo::db::init_db(database_url).await;
+        dumpster::db::init_db(database_url).await;
     }
 }
 

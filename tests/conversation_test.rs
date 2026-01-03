@@ -4,8 +4,8 @@ mod common;
 use serial_test::serial;
 
 use common::{database::*, fixtures::*};
-use ruforo::conversations;
-use ruforo::orm::{conversation_participants, conversations as conversation_orm, private_messages};
+use dumpster::conversations;
+use dumpster::orm::{conversation_participants, conversations as conversation_orm, private_messages};
 use sea_orm::{entity::*, DbErr, QueryFilter};
 
 #[actix_rt::test]

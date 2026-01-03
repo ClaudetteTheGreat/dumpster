@@ -5,8 +5,8 @@ use serial_test::serial;
 
 use chrono::Utc;
 use common::{database::*, fixtures::*};
-use ruforo::group::GroupType;
-use ruforo::orm::{forums, groups, threads, user_groups};
+use dumpster::group::GroupType;
+use dumpster::orm::{forums, groups, threads, user_groups};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
 /// Create a test forum

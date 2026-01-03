@@ -72,7 +72,7 @@ impl EmailConfig {
             smtp_password: env::var("SMTP_PASSWORD").unwrap_or_else(|_| String::new()),
             from_email: env::var("SMTP_FROM_EMAIL")
                 .unwrap_or_else(|_| "noreply@localhost".to_string()),
-            from_name: env::var("SMTP_FROM_NAME").unwrap_or_else(|_| "Ruforo Forum".to_string()),
+            from_name: env::var("SMTP_FROM_NAME").unwrap_or_else(|_| "Dumpster Forum".to_string()),
             use_tls: env::var("SMTP_USE_TLS")
                 .unwrap_or_else(|_| "true".to_string())
                 .parse()

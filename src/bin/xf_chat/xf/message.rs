@@ -1,6 +1,6 @@
 use super::orm::chat_message;
-use ruforo::web::chat::implement;
-use ruforo::web::chat::message;
+use dumpster::web::chat::implement;
+use dumpster::web::chat::message;
 use sea_orm::{entity::*, prelude::*, DatabaseConnection};
 use std::time::{SystemTime, UNIX_EPOCH};
 

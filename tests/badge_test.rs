@@ -18,7 +18,7 @@ async fn test_default_badges_exist() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Query active badges
     let active_badges = badges::Entity::find()
@@ -60,7 +60,7 @@ async fn test_badge_condition_types() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     let all_badges = badges::Entity::find()
         .all(&db)
@@ -118,7 +118,7 @@ async fn test_award_badge_to_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user1", "password123")
@@ -134,14 +134,14 @@ async fn test_award_badge_to_user() {
         .expect("Newcomer badge not found");
 
     // Award the badge
-    let awarded = ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    let awarded = dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to award badge");
 
     assert!(awarded, "Badge should be awarded successfully");
 
     // Verify user has the badge
-    let has_badge = ruforo::badges::user_has_badge(&db, user.id, newcomer.id)
+    let has_badge = dumpster::badges::user_has_badge(&db, user.id, newcomer.id)
         .await
         .expect("Failed to check badge");
 
@@ -159,7 +159,7 @@ async fn test_cannot_award_duplicate_badge() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user2", "password123")
@@ -175,14 +175,14 @@ async fn test_cannot_award_duplicate_badge() {
         .expect("Newcomer badge not found");
 
     // Award the badge first time
-    let first_award = ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    let first_award = dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to award badge");
 
     assert!(first_award, "First award should succeed");
 
     // Try to award again
-    let second_award = ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    let second_award = dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to check duplicate award");
 
@@ -192,7 +192,7 @@ async fn test_cannot_award_duplicate_badge() {
     );
 
     // User should still only have one badge
-    let badge_count = ruforo::badges::count_user_badges(&db, user.id)
+    let badge_count = dumpster::badges::count_user_badges(&db, user.id)
         .await
         .expect("Failed to count badges");
 
@@ -210,7 +210,7 @@ async fn test_revoke_badge_from_user() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user3", "password123")
@@ -226,24 +226,24 @@ async fn test_revoke_badge_from_user() {
         .expect("Newcomer badge not found");
 
     // Award the badge
-    ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to award badge");
 
     // Verify user has it
-    assert!(ruforo::badges::user_has_badge(&db, user.id, newcomer.id)
+    assert!(dumpster::badges::user_has_badge(&db, user.id, newcomer.id)
         .await
         .unwrap());
 
     // Revoke the badge
-    let revoked = ruforo::badges::revoke_badge(&db, user.id, newcomer.id)
+    let revoked = dumpster::badges::revoke_badge(&db, user.id, newcomer.id)
         .await
         .expect("Failed to revoke badge");
 
     assert!(revoked, "Badge should be revoked successfully");
 
     // Verify user no longer has it
-    let still_has = ruforo::badges::user_has_badge(&db, user.id, newcomer.id)
+    let still_has = dumpster::badges::user_has_badge(&db, user.id, newcomer.id)
         .await
         .expect("Failed to check badge after revoke");
 
@@ -261,7 +261,7 @@ async fn test_revoke_nonexistent_badge_returns_false() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user4", "password123")
@@ -277,7 +277,7 @@ async fn test_revoke_nonexistent_badge_returns_false() {
         .expect("Newcomer badge not found");
 
     // Try to revoke badge user doesn't have
-    let revoked = ruforo::badges::revoke_badge(&db, user.id, newcomer.id)
+    let revoked = dumpster::badges::revoke_badge(&db, user.id, newcomer.id)
         .await
         .expect("Failed to revoke badge");
 
@@ -299,7 +299,7 @@ async fn test_get_user_badges() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user5", "password123")
@@ -321,15 +321,15 @@ async fn test_get_user_badges() {
         .expect("Failed to find badge")
         .expect("First-post badge not found");
 
-    ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to award newcomer");
-    ruforo::badges::award_badge(&db, user.id, first_post.id, None)
+    dumpster::badges::award_badge(&db, user.id, first_post.id, None)
         .await
         .expect("Failed to award first-post");
 
     // Get all user badges
-    let user_badges = ruforo::badges::get_user_badges(&db, user.id)
+    let user_badges = dumpster::badges::get_user_badges(&db, user.id)
         .await
         .expect("Failed to get user badges");
 
@@ -359,7 +359,7 @@ async fn test_get_badge_by_slug() {
         .expect("Failed to connect to test database");
 
     // Get existing badge by slug
-    let badge = ruforo::badges::get_badge_by_slug(&db, "veteran")
+    let badge = dumpster::badges::get_badge_by_slug(&db, "veteran")
         .await
         .expect("Failed to query badge");
 
@@ -372,7 +372,7 @@ async fn test_get_badge_by_slug() {
     );
 
     // Try non-existent badge
-    let missing = ruforo::badges::get_badge_by_slug(&db, "nonexistent")
+    let missing = dumpster::badges::get_badge_by_slug(&db, "nonexistent")
         .await
         .expect("Failed to query badge");
 
@@ -388,7 +388,7 @@ async fn test_count_user_badges() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user6", "password123")
@@ -396,7 +396,7 @@ async fn test_count_user_badges() {
         .expect("Failed to create user");
 
     // Initially should have 0 badges
-    let initial_count = ruforo::badges::count_user_badges(&db, user.id)
+    let initial_count = dumpster::badges::count_user_badges(&db, user.id)
         .await
         .expect("Failed to count badges");
     assert_eq!(initial_count, 0, "Initial badge count should be 0");
@@ -409,13 +409,13 @@ async fn test_count_user_badges() {
         .expect("Failed to fetch badges");
 
     for badge in badges_to_award.iter().take(3) {
-        ruforo::badges::award_badge(&db, user.id, badge.id, None)
+        dumpster::badges::award_badge(&db, user.id, badge.id, None)
             .await
             .expect("Failed to award badge");
     }
 
     // Should now have 3 badges
-    let final_count = ruforo::badges::count_user_badges(&db, user.id)
+    let final_count = dumpster::badges::count_user_badges(&db, user.id)
         .await
         .expect("Failed to count badges");
     assert_eq!(final_count, 3, "Should have 3 badges after awarding");
@@ -436,7 +436,7 @@ async fn test_badge_awarded_by_tracking() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create users - admin and regular user
     let admin = create_test_user(&db, "badge_admin", "password123")
@@ -455,12 +455,12 @@ async fn test_badge_awarded_by_tracking() {
         .expect("Newcomer badge not found");
 
     // Award badge with admin as awarding user
-    ruforo::badges::award_badge(&db, user.id, newcomer.id, Some(admin.id))
+    dumpster::badges::award_badge(&db, user.id, newcomer.id, Some(admin.id))
         .await
         .expect("Failed to award badge");
 
     // Get user badges and check awarded_by
-    let user_badges = ruforo::badges::get_user_badges(&db, user.id)
+    let user_badges = dumpster::badges::get_user_badges(&db, user.id)
         .await
         .expect("Failed to get user badges");
 
@@ -483,7 +483,7 @@ async fn test_badge_awarded_at_timestamp() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user7", "password123")
@@ -500,14 +500,14 @@ async fn test_badge_awarded_at_timestamp() {
         .expect("Failed to find badge")
         .expect("Newcomer badge not found");
 
-    ruforo::badges::award_badge(&db, user.id, newcomer.id, None)
+    dumpster::badges::award_badge(&db, user.id, newcomer.id, None)
         .await
         .expect("Failed to award badge");
 
     let after_award = Utc::now();
 
     // Get user badges and check awarded_at
-    let user_badges = ruforo::badges::get_user_badges(&db, user.id)
+    let user_badges = dumpster::badges::get_user_badges(&db, user.id)
         .await
         .expect("Failed to get user badges");
 
@@ -539,7 +539,7 @@ async fn test_user_badges_sorted_by_display_order() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::badges;
+    use dumpster::orm::badges;
 
     // Create a test user
     let user = create_test_user(&db, "badge_user8", "password123")
@@ -558,13 +558,13 @@ async fn test_user_badges_sorted_by_display_order() {
     sorted_badges.sort_by(|a, b| b.display_order.cmp(&a.display_order));
 
     for badge in sorted_badges.iter().take(4) {
-        ruforo::badges::award_badge(&db, user.id, badge.id, None)
+        dumpster::badges::award_badge(&db, user.id, badge.id, None)
             .await
             .expect("Failed to award badge");
     }
 
     // Get user badges - should be sorted by display_order
-    let user_badges = ruforo::badges::get_user_badges(&db, user.id)
+    let user_badges = dumpster::badges::get_user_badges(&db, user.id)
         .await
         .expect("Failed to get user badges");
 
@@ -593,7 +593,7 @@ async fn test_inactive_badges_not_returned() {
         .expect("Failed to connect to test database");
 
     // Get only active badges
-    let active_badges = ruforo::badges::get_all_badges(&db)
+    let active_badges = dumpster::badges::get_all_badges(&db)
         .await
         .expect("Failed to get badges");
 

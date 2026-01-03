@@ -7,7 +7,7 @@ mod common;
 use serial_test::serial;
 
 use common::{database::*, fixtures::*};
-use ruforo::orm::ugc_deletions::DeletionType;
+use dumpster::orm::ugc_deletions::DeletionType;
 use sea_orm::{entity::*, ActiveValue::Set, ColumnTrait, EntityTrait, QueryFilter};
 
 /// Test that DeletionType enum has correct values
@@ -45,7 +45,7 @@ async fn test_normal_deletion() {
         .expect("Failed to create user");
 
     // Create UGC first
-    use ruforo::orm::{ugc, ugc_revisions};
+    use dumpster::orm::{ugc, ugc_revisions};
 
     let ugc_model = ugc::ActiveModel {
         ..Default::default()
@@ -67,7 +67,7 @@ async fn test_normal_deletion() {
     .expect("Should create revision");
 
     // Create deletion record
-    use ruforo::orm::ugc_deletions;
+    use dumpster::orm::ugc_deletions;
 
     let deletion = ugc_deletions::ActiveModel {
         id: Set(ugc_model.id),
@@ -115,7 +115,7 @@ async fn test_permanent_deletion() {
         .await
         .expect("Failed to create user");
 
-    use ruforo::orm::{ugc, ugc_deletions, ugc_revisions};
+    use dumpster::orm::{ugc, ugc_deletions, ugc_revisions};
 
     let ugc_model = ugc::ActiveModel {
         ..Default::default()
@@ -179,7 +179,7 @@ async fn test_legal_hold_deletion() {
         .await
         .expect("Failed to create admin");
 
-    use ruforo::orm::{ugc, ugc_deletions, ugc_revisions};
+    use dumpster::orm::{ugc, ugc_deletions, ugc_revisions};
 
     let ugc_model = ugc::ActiveModel {
         ..Default::default()
@@ -251,7 +251,7 @@ async fn test_deleted_by_tracking() {
         .await
         .expect("Failed to create moderator");
 
-    use ruforo::orm::{ugc, ugc_deletions, ugc_revisions};
+    use dumpster::orm::{ugc, ugc_deletions, ugc_revisions};
 
     let ugc_model = ugc::ActiveModel {
         ..Default::default()
@@ -325,7 +325,7 @@ async fn test_thread_deletion_fields() {
     assert!(thread.deletion_type.is_none());
 
     // Now soft-delete the thread
-    use ruforo::orm::threads;
+    use dumpster::orm::threads;
 
     let now = chrono::Utc::now().naive_utc();
     let mut thread_active: threads::ActiveModel = thread.into();
@@ -361,7 +361,7 @@ async fn test_query_by_deletion_type() {
         .await
         .expect("Failed to create user");
 
-    use ruforo::orm::{ugc, ugc_deletions, ugc_revisions};
+    use dumpster::orm::{ugc, ugc_deletions, ugc_revisions};
 
     // Create multiple UGC entries with different deletion types
     let mut ugc_ids = Vec::new();

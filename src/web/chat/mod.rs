@@ -167,7 +167,7 @@ pub struct ChatTestData {
 /// Chat shim for testing/development
 ///
 /// SECURITY WARNING: This endpoint is for testing and XenForo compatibility only.
-/// It should NOT be registered in production ruforo applications.
+/// It should NOT be registered in production dumpster applications.
 /// Currently only used in the xf_chat binary (see src/bin/xf_chat/main.rs).
 ///
 /// This endpoint does not require authentication and should be disabled in production

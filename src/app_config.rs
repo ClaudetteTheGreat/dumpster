@@ -33,7 +33,7 @@ pub struct SiteConfig {
 impl Default for SiteConfig {
     fn default() -> Self {
         Self {
-            name: "Ruforo".to_string(),
+            name: "Dumpster".to_string(),
             description: "A forum built in Rust".to_string(),
             base_url: "http://localhost:8080".to_string(),
         }
@@ -177,7 +177,7 @@ impl Default for EmailConfig {
             smtp_username: String::new(),
             smtp_password: String::new(),
             from_address: "noreply@localhost".to_string(),
-            from_name: "Ruforo".to_string(),
+            from_name: "Dumpster".to_string(),
         }
     }
 }
@@ -213,8 +213,8 @@ impl Default for StorageConfig {
             local_path: "./uploads".to_string(),
             s3_endpoint: "http://localhost:9000".to_string(),
             s3_region: "us-east-1".to_string(),
-            s3_bucket: "ruforo".to_string(),
-            s3_public_url: "http://localhost:9000/ruforo".to_string(),
+            s3_bucket: "dumpster".to_string(),
+            s3_public_url: "http://localhost:9000/dumpster".to_string(),
             s3_access_key: String::new(),
             s3_secret_key: String::new(),
         }
@@ -363,7 +363,7 @@ mod tests {
     #[test]
     fn test_default_config() {
         let config = AppConfig::default();
-        assert_eq!(config.site.name, "Ruforo");
+        assert_eq!(config.site.name, "Dumpster");
         assert_eq!(config.captcha.failed_login_threshold, 3);
         assert_eq!(config.security.max_failed_logins, 5);
         assert_eq!(config.limits.posts_per_page, 25);
@@ -426,7 +426,7 @@ posts_per_page = 50
     #[test]
     fn test_missing_config_file_uses_defaults() {
         let config = AppConfig::load_from_path("/nonexistent/config.toml").unwrap();
-        assert_eq!(config.site.name, "Ruforo");
+        assert_eq!(config.site.name, "Dumpster");
         assert_eq!(config.captcha.failed_login_threshold, 3);
     }
 }

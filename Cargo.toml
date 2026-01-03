@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "ruforo"
+name = "dumpster"
 version = "0.1.0"
 
 [dependencies]
@@ -85,7 +85,7 @@ debug = true
 inherits = "release"
 
 [[bin]]
-name = "ruforo"
+name = "dumpster"
 path = "src/bin/forum/main.rs"
 
 [[bin]]

@@ -180,7 +180,7 @@ async fn fetch_url_metadata(url: &str, parsed_url: &url::Url) -> UnfurlResponse 
 
     let client = match reqwest::Client::builder()
         .timeout(Duration::from_secs(FETCH_TIMEOUT_SECS))
-        .user_agent("Mozilla/5.0 (compatible; RuforoBot/1.0)")
+        .user_agent("Mozilla/5.0 (compatible; DumpsterBot/1.0)")
         .redirect(reqwest::redirect::Policy::limited(5))
         .build()
     {

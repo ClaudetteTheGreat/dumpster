@@ -16,7 +16,7 @@ async fn test_create_profile_post() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions};
 
     // Create profile owner
     let profile_owner = create_test_user(&db, "profile_owner", "password123")
@@ -90,7 +90,7 @@ async fn test_fetch_profile_posts_ordered_by_date() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions};
 
     // Create profile owner
     let profile_owner = create_test_user(&db, "profile_owner2", "password123")
@@ -173,7 +173,7 @@ async fn test_delete_profile_post() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions};
 
     // Create users
     let profile_owner = create_test_user(&db, "profile_owner3", "password123")
@@ -243,7 +243,7 @@ async fn test_profile_post_author_set_null_on_user_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions, user_names, users};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions, user_names, users};
 
     // Create profile owner
     let profile_owner = create_test_user(&db, "profile_owner4", "password123")
@@ -336,7 +336,7 @@ async fn test_profile_posts_cascade_on_profile_owner_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions, user_names, users};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions, user_names, users};
 
     // Create profile owner (will be deleted)
     let profile_owner = create_test_user(&db, "profile_owner5", "password123")
@@ -419,7 +419,7 @@ async fn test_allow_profile_posts_setting() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::users;
+    use dumpster::orm::users;
 
     // Create user with default allow_profile_posts (should be true)
     let user = create_test_user(&db, "profile_user6", "password123")
@@ -471,7 +471,7 @@ async fn test_profile_post_content_stored_in_ugc() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions};
 
     // Create users
     let profile_owner = create_test_user(&db, "profile_owner7", "password123")
@@ -549,7 +549,7 @@ async fn test_multiple_users_can_post_on_same_profile() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{profile_posts, ugc, ugc_revisions};
+    use dumpster::orm::{profile_posts, ugc, ugc_revisions};
 
     // Create profile owner
     let profile_owner = create_test_user(&db, "profile_owner8", "password123")

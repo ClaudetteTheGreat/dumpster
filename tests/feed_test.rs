@@ -14,12 +14,12 @@ async fn test_latest_threads_feed_returns_rss() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -53,7 +53,7 @@ async fn test_latest_threads_feed_includes_threads() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread
     let user = common::fixtures::create_test_user(&db, "feeduser", "password123")
@@ -68,7 +68,7 @@ async fn test_latest_threads_feed_includes_threads() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -91,7 +91,7 @@ async fn test_forum_feed_returns_rss() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and forum with thread
     let user = common::fixtures::create_test_user(&db, "forumfeeduser", "password123")
@@ -106,7 +106,7 @@ async fn test_forum_feed_returns_rss() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -141,12 +141,12 @@ async fn test_forum_feed_404_for_nonexistent_forum() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -167,7 +167,7 @@ async fn test_feed_items_have_required_elements() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread
     let user = common::fixtures::create_test_user(&db, "rssuser", "password123")
@@ -182,7 +182,7 @@ async fn test_feed_items_have_required_elements() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -215,12 +215,12 @@ async fn test_latest_threads_atom_feed_returns_atom() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -254,7 +254,7 @@ async fn test_latest_threads_atom_feed_includes_threads() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread
     let user = common::fixtures::create_test_user(&db, "atomfeeduser", "password123")
@@ -269,7 +269,7 @@ async fn test_latest_threads_atom_feed_includes_threads() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -292,7 +292,7 @@ async fn test_forum_atom_feed_returns_atom() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and forum with thread
     let user = common::fixtures::create_test_user(&db, "forumatomfeeduser", "password123")
@@ -307,7 +307,7 @@ async fn test_forum_atom_feed_returns_atom() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -342,12 +342,12 @@ async fn test_forum_atom_feed_404_for_nonexistent_forum() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -368,7 +368,7 @@ async fn test_atom_feed_entries_have_required_elements() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread
     let user = common::fixtures::create_test_user(&db, "atomuser", "password123")
@@ -383,7 +383,7 @@ async fn test_atom_feed_entries_have_required_elements() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -417,7 +417,7 @@ async fn test_thread_rss_feed_returns_rss() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread with replies
     let user = common::fixtures::create_test_user(&db, "threadfeeduser", "password123")
@@ -440,7 +440,7 @@ async fn test_thread_rss_feed_returns_rss() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -477,7 +477,7 @@ async fn test_thread_atom_feed_returns_atom() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread with replies
     let user = common::fixtures::create_test_user(&db, "threadatomuser", "password123")
@@ -497,7 +497,7 @@ async fn test_thread_atom_feed_returns_atom() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -533,12 +533,12 @@ async fn test_thread_feed_404_for_nonexistent_thread() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -566,7 +566,7 @@ async fn test_thread_feed_excludes_first_post() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user and thread
     let user = common::fixtures::create_test_user(&db, "threadopuser", "password123")
@@ -591,7 +591,7 @@ async fn test_thread_feed_excludes_first_post() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 
@@ -620,7 +620,7 @@ async fn test_thread_feed_includes_author_name() {
     common::database::cleanup_test_data(&db)
         .await
         .expect("Failed to cleanup test data");
-    ruforo::web::feed::clear_feed_cache();
+    dumpster::web::feed::clear_feed_cache();
 
     // Create a test user with a specific username
     let user = common::fixtures::create_test_user(&db, "ReplyAuthor123", "password123")
@@ -640,7 +640,7 @@ async fn test_thread_feed_includes_author_name() {
     let app = test::init_service(
         App::new()
             .app_data(web::Data::new(db))
-            .configure(ruforo::web::feed::configure),
+            .configure(dumpster::web::feed::configure),
     )
     .await;
 

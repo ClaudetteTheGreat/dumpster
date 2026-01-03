@@ -4,8 +4,8 @@ mod common;
 use serial_test::serial;
 
 use common::{database::*, fixtures::*};
-use ruforo::notifications::{self, NotificationType};
-use ruforo::orm::{notification_preferences, notifications as notification_orm};
+use dumpster::notifications::{self, NotificationType};
+use dumpster::orm::{notification_preferences, notifications as notification_orm};
 use sea_orm::{entity::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
 /// Create test notification preferences for a user
@@ -276,7 +276,7 @@ async fn test_mention_detection() {
     // Test mention detection
     let content = "Hey @mentioned, check this out! Also @nonexistent won't get notified.";
 
-    ruforo::notifications::dispatcher::detect_and_notify_mentions(
+    dumpster::notifications::dispatcher::detect_and_notify_mentions(
         content, 1, // post_id
         thread.id, author.id,
     )
@@ -334,7 +334,7 @@ async fn test_thread_reply_notification() {
         .expect("Failed to create thread");
 
     // Simulate a reply notification
-    ruforo::notifications::dispatcher::notify_thread_reply(thread.id, 2, reply_author.id)
+    dumpster::notifications::dispatcher::notify_thread_reply(thread.id, 2, reply_author.id)
         .await
         .expect("Failed to send reply notification");
 
@@ -387,12 +387,12 @@ async fn test_no_self_notification() {
     // Test self-mention (should not create notification)
     let content = "I'm mentioning myself @testuser";
 
-    ruforo::notifications::dispatcher::detect_and_notify_mentions(content, 1, thread.id, user.id)
+    dumpster::notifications::dispatcher::detect_and_notify_mentions(content, 1, thread.id, user.id)
         .await
         .expect("Failed to detect mentions");
 
     // Test self-reply (should not create notification)
-    ruforo::notifications::dispatcher::notify_thread_reply(thread.id, 2, user.id)
+    dumpster::notifications::dispatcher::notify_thread_reply(thread.id, 2, user.id)
         .await
         .expect("Failed to send reply notification");
 
@@ -550,7 +550,7 @@ async fn test_quote_detection() {
     let content = r#"[quote=quoteduser]This is the quoted text[/quote]
 And here's my response."#;
 
-    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+    dumpster::notifications::dispatcher::detect_and_notify_quotes(
         content, 1, // post_id
         thread.id, author.id,
     )
@@ -616,7 +616,7 @@ async fn test_quote_detection_multiple_quotes() {
 [quote=quotedtwo]Second quote[/quote]
 And my response."#;
 
-    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+    dumpster::notifications::dispatcher::detect_and_notify_quotes(
         content, 1, // post_id
         thread.id, author.id,
     )
@@ -664,7 +664,7 @@ async fn test_quote_detection_no_self_notification() {
     let content = r#"[quote=selfquoter]My own quote[/quote]
 Quoting myself."#;
 
-    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+    dumpster::notifications::dispatcher::detect_and_notify_quotes(
         content, 1, // post_id
         thread.id, user.id,
     )
@@ -717,7 +717,7 @@ async fn test_quote_detection_duplicate_quotes_same_user() {
 [quote=dupquoted]Second quote from same user[/quote]
 My response."#;
 
-    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+    dumpster::notifications::dispatcher::detect_and_notify_quotes(
         content, 1, // post_id
         thread.id, author.id,
     )
@@ -769,7 +769,7 @@ async fn test_quote_detection_case_insensitive() {
     let content = r#"[QUOTE=caseuser]Quoted text[/QUOTE]
 My response."#;
 
-    ruforo::notifications::dispatcher::detect_and_notify_quotes(
+    dumpster::notifications::dispatcher::detect_and_notify_quotes(
         content, 1, // post_id
         thread.id, author.id,
     )

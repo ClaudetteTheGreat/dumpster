@@ -7,7 +7,7 @@ use serial_test::serial;
 #[serial]
 async fn test_is_user_online_with_recent_activity() {
     use chrono::{Duration, Utc};
-    use ruforo::user::{is_user_online, ONLINE_THRESHOLD_MINUTES};
+    use dumpster::user::{is_user_online, ONLINE_THRESHOLD_MINUTES};
 
     // User active within the threshold should be online
     let recent_activity = Some(Utc::now() - Duration::minutes(5));
@@ -30,7 +30,7 @@ async fn test_is_user_online_with_recent_activity() {
 #[serial]
 async fn test_is_user_online_with_old_activity() {
     use chrono::{Duration, Utc};
-    use ruforo::user::{is_user_online, ONLINE_THRESHOLD_MINUTES};
+    use dumpster::user::{is_user_online, ONLINE_THRESHOLD_MINUTES};
 
     // User active beyond the threshold should be offline
     let old_activity = Some(Utc::now() - Duration::minutes(ONLINE_THRESHOLD_MINUTES + 1));
@@ -52,7 +52,7 @@ async fn test_is_user_online_with_old_activity() {
 #[actix_rt::test]
 #[serial]
 async fn test_is_user_online_with_no_activity() {
-    use ruforo::user::is_user_online;
+    use dumpster::user::is_user_online;
 
     // User with no activity record should be offline
     assert!(
@@ -66,7 +66,7 @@ async fn test_is_user_online_with_no_activity() {
 async fn test_show_online_default_value() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::EntityTrait;
 
     let db = setup_test_database().await.unwrap();
@@ -97,7 +97,7 @@ async fn test_show_online_default_value() {
 async fn test_toggle_show_online_setting() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -155,7 +155,7 @@ async fn test_last_activity_at_update() {
     use chrono::Utc;
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -204,8 +204,8 @@ async fn test_count_online_users() {
     use chrono::{Duration, Utc};
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
-    use ruforo::user::ONLINE_THRESHOLD_MINUTES;
+    use dumpster::orm::users;
+    use dumpster::user::ONLINE_THRESHOLD_MINUTES;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -258,7 +258,7 @@ async fn test_count_online_users() {
     active_hidden.update(&db).await.unwrap();
 
     // Count should be 1 (only online user with show_online = true)
-    let count = ruforo::user::count_online_users().await.unwrap();
+    let count = dumpster::user::count_online_users().await.unwrap();
     assert!(
         count >= 1,
         "At least one user should be counted as online (found {})",
@@ -274,7 +274,7 @@ async fn test_get_online_users_list() {
     use chrono::Utc;
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -297,7 +297,7 @@ async fn test_get_online_users_list() {
     active_user.update(&db).await.unwrap();
 
     // Get online users list
-    let online_users = ruforo::user::get_online_users(10).await.unwrap();
+    let online_users = dumpster::user::get_online_users(10).await.unwrap();
 
     // Should contain our user
     let found = online_users.iter().any(|u| u.name == "list_online_user");
@@ -316,7 +316,7 @@ async fn test_hidden_user_not_in_online_list() {
     use chrono::Utc;
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -339,7 +339,7 @@ async fn test_hidden_user_not_in_online_list() {
     active_user.update(&db).await.unwrap();
 
     // Get online users list
-    let online_users = ruforo::user::get_online_users(10).await.unwrap();
+    let online_users = dumpster::user::get_online_users(10).await.unwrap();
 
     // Should NOT contain our hidden user
     let found = online_users.iter().any(|u| u.name == "hidden_online_user");
@@ -354,7 +354,7 @@ async fn test_hidden_user_not_in_online_list() {
 #[actix_rt::test]
 #[serial]
 async fn test_activity_cache_cleanup() {
-    use ruforo::user::cleanup_activity_cache;
+    use dumpster::user::cleanup_activity_cache;
 
     // Just verify the function doesn't panic
     cleanup_activity_cache();
@@ -363,7 +363,7 @@ async fn test_activity_cache_cleanup() {
 #[actix_rt::test]
 #[serial]
 async fn test_online_threshold_constant() {
-    use ruforo::user::ONLINE_THRESHOLD_MINUTES;
+    use dumpster::user::ONLINE_THRESHOLD_MINUTES;
 
     // Verify the threshold is reasonable
     assert!(

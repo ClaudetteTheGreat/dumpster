@@ -5,7 +5,7 @@ use serial_test::serial;
 
 use chrono::Utc;
 use common::{database::*, fixtures::*};
-use ruforo::orm::{password_reset_tokens, users};
+use dumpster::orm::{password_reset_tokens, users};
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
 /// Create a password reset token for a user
@@ -175,7 +175,7 @@ async fn test_password_update_after_reset() {
     // Hash new password
     use argon2::password_hash::{rand_core::OsRng, PasswordHasher, SaltString};
     let salt = SaltString::generate(&mut OsRng);
-    let new_hash = ruforo::session::get_argon2()
+    let new_hash = dumpster::session::get_argon2()
         .hash_password("newpassword123".as_bytes(), &salt)
         .expect("Failed to hash password")
         .to_string();

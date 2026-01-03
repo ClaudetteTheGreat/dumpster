@@ -302,12 +302,12 @@ impl Config {
 
     /// Get site name
     pub fn site_name(&self) -> String {
-        self.get_string_or("site_name", "Ruforo")
+        self.get_string_or("site_name", "Dumpster")
     }
 
     /// Get site title (brand name displayed in navigation)
     pub fn site_title(&self) -> String {
-        self.get_string_or("site_title", "ruforo")
+        self.get_string_or("site_title", "dumpster")
     }
 
     /// Get footer message

@@ -4,7 +4,7 @@ use serial_test::serial;
 
 #[actix_rt::test]
 async fn test_csrf_token_generation() {
-    use ruforo::middleware::csrf::{generate_csrf_token, CSRF_TOKEN_LENGTH};
+    use dumpster::middleware::csrf::{generate_csrf_token, CSRF_TOKEN_LENGTH};
 
     let token1 = generate_csrf_token();
     let token2 = generate_csrf_token();
@@ -49,7 +49,7 @@ async fn test_csrf_login_without_token() {
 async fn test_csrf_login_with_valid_credentials() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::web::login::login;
+    use dumpster::web::login::login;
 
     let db = setup_test_database().await.unwrap();
 
@@ -68,7 +68,7 @@ async fn test_csrf_login_with_valid_credentials() {
 
     assert!(matches!(
         result.result,
-        ruforo::web::login::LoginResultStatus::Success
+        dumpster::web::login::LoginResultStatus::Success
     ));
     assert!(result.user_id.is_some());
 

@@ -5,7 +5,7 @@ pub mod room;
 pub mod session;
 pub mod smilie;
 
-use ruforo::web::chat::{implement, message::Post};
+use dumpster::web::chat::{implement, message::Post};
 
 pub struct XfLayer {
     pub db: sea_orm::DatabaseConnection,

@@ -14,7 +14,7 @@ async fn test_reaction_types_exist() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::reaction_types;
+    use dumpster::orm::reaction_types;
 
     // Query reaction types
     let types = reaction_types::Entity::find()
@@ -51,7 +51,7 @@ async fn test_add_reaction_to_post() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc, ugc_reactions};
+    use dumpster::orm::{ugc, ugc_reactions};
 
     // Create a test user
     let user = create_test_user(&db, "reaction_user1", "password123")
@@ -108,7 +108,7 @@ async fn test_remove_reaction() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc, ugc_reactions};
+    use dumpster::orm::{ugc, ugc_reactions};
 
     // Create a test user
     let user = create_test_user(&db, "reaction_user2", "password123")
@@ -172,7 +172,7 @@ async fn test_multiple_users_can_react() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc, ugc_reactions};
+    use dumpster::orm::{ugc, ugc_reactions};
 
     // Create two test users
     let user1 = create_test_user(&db, "reaction_user3", "password123")
@@ -236,7 +236,7 @@ async fn test_user_can_add_different_reaction_types() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc, ugc_reactions};
+    use dumpster::orm::{ugc, ugc_reactions};
 
     // Create a test user
     let user = create_test_user(&db, "reaction_user5", "password123")
@@ -306,7 +306,7 @@ async fn test_unique_constraint_prevents_duplicate() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc, ugc_reactions};
+    use dumpster::orm::{ugc, ugc_reactions};
 
     // Create a test user
     let user = create_test_user(&db, "reaction_user6", "password123")
@@ -363,7 +363,7 @@ async fn test_reaction_types_have_reputation_values() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::reaction_types;
+    use dumpster::orm::reaction_types;
 
     // Query reaction types
     let types = reaction_types::Entity::find()
@@ -406,7 +406,7 @@ async fn test_reputation_increases_on_positive_reaction() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{forums, posts, threads, ugc, ugc_reactions, users};
+    use dumpster::orm::{forums, posts, threads, ugc, ugc_reactions, users};
 
     // Create a forum for the test
     let forum = forums::ActiveModel {
@@ -506,7 +506,7 @@ async fn test_reputation_decreases_on_negative_reaction() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{forums, posts, threads, ugc, ugc_reactions, users};
+    use dumpster::orm::{forums, posts, threads, ugc, ugc_reactions, users};
 
     // Create a forum for the test
     let forum = forums::ActiveModel {
@@ -561,7 +561,7 @@ async fn test_reputation_decreases_on_negative_reaction() {
 
     // Reactor adds a "disagree" reaction (reputation_value = -1)
     // Find the disagree reaction type id
-    use ruforo::orm::reaction_types;
+    use dumpster::orm::reaction_types;
     let disagree_type = reaction_types::Entity::find()
         .filter(reaction_types::Column::Name.eq("disagree"))
         .one(&db)
@@ -602,7 +602,7 @@ async fn test_reputation_restored_when_reaction_removed() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{forums, posts, threads, ugc, ugc_reactions, users};
+    use dumpster::orm::{forums, posts, threads, ugc, ugc_reactions, users};
 
     // Create forum
     let forum = forums::ActiveModel {
@@ -698,7 +698,7 @@ async fn test_min_posts_to_vote_setting_exists() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::settings;
+    use dumpster::orm::settings;
     use sea_orm::ActiveValue::Set;
 
     use sea_orm::EntityTrait;

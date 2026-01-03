@@ -2,7 +2,7 @@ use crate::xf::permission::get_permissions;
 
 use super::orm::{chat_message, chat_room, permission_cache_content, permission_combination, user};
 use super::session::avatar_uri;
-use ruforo::web::chat::implement;
+use dumpster::web::chat::implement;
 use sea_orm::{entity::*, query::*, DatabaseConnection, FromQueryResult, QueryFilter};
 
 #[derive(FromQueryResult)]
@@ -107,7 +107,7 @@ pub async fn get_room_history(
                     },
                     None => implement::Author {
                         id: 0,
-                        username: ruforo::constants::GUEST_USERNAME.to_owned(),
+                        username: dumpster::constants::GUEST_USERNAME.to_owned(),
                         avatar_url: String::new(),
                     },
                 },

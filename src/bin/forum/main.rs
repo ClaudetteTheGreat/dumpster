@@ -8,9 +8,9 @@ use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use env_logger::Env;
 use rand::{distributions::Alphanumeric, Rng};
-use ruforo::config::create_config;
-use ruforo::db::{get_db_pool, init_db};
-use ruforo::middleware::ClientCtx;
+use dumpster::config::create_config;
+use dumpster::db::{get_db_pool, init_db};
+use dumpster::middleware::ClientCtx;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -28,24 +28,24 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to load configuration from database");
 
     // Initialize rate limits from database settings
-    ruforo::rate_limit::init_rate_limits(&config);
+    dumpster::rate_limit::init_rate_limits(&config);
 
     // Initialize word filters from database
-    ruforo::word_filter::init_filters(get_db_pool())
+    dumpster::word_filter::init_filters(get_db_pool())
         .await
         .expect("Failed to load word filters from database");
 
     // Load themes into cache
-    ruforo::theme::load_themes()
+    dumpster::theme::load_themes()
         .await
         .expect("Failed to load themes from database");
 
-    let permissions = ruforo::permission::new()
+    let permissions = dumpster::permission::new()
         .await
         .expect("Permission System failed to initialize.");
 
     // Initialize global permission data store for cache invalidation
-    ruforo::permission::init_permission_data(permissions.clone());
+    dumpster::permission::init_permission_data(permissions.clone());
 
     let secret_key = match std::env::var("SECRET_KEY") {
         Ok(key) => Key::from(key.as_bytes()),
@@ -60,31 +60,31 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-    let layer = Arc::new(ruforo::web::chat::implement::default::Layer {
+    let layer = Arc::new(dumpster::web::chat::implement::default::Layer {
         db: get_db_pool().to_owned(),
         config: config.clone(),
     });
-    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone(), config.clone())
+    let chat = dumpster::web::chat::server::ChatServer::new(layer.clone(), config.clone())
         .await
         .start();
 
     // Start notification WebSocket server
-    let notification_server = ruforo::web::notifications_ws::NotificationServer::new().start();
-    ruforo::web::notifications_ws::init_notification_server(notification_server.clone());
+    let notification_server = dumpster::web::notifications_ws::NotificationServer::new().start();
+    dumpster::web::notifications_ws::init_notification_server(notification_server.clone());
 
     // Spawn rate limiter cleanup task
     actix_web::rt::spawn(async {
         let mut interval = actix_web::rt::time::interval(Duration::from_secs(300)); // Every 5 minutes
         loop {
             interval.tick().await;
-            ruforo::rate_limit::cleanup_old_entries_public();
-            ruforo::user::cleanup_activity_cache();
+            dumpster::rate_limit::cleanup_old_entries_public();
+            dumpster::user::cleanup_activity_cache();
             log::debug!("Rate limiter and activity cache cleanup completed");
         }
     });
 
     HttpServer::new(move || {
-        let layer_data: Data<Arc<dyn ruforo::web::chat::implement::ChatLayer>> =
+        let layer_data: Data<Arc<dyn dumpster::web::chat::implement::ChatLayer>> =
             Data::new(layer.clone());
 
         // Order of middleware IS IMPORTANT and is in REVERSE EXECUTION ORDER.
@@ -111,11 +111,11 @@ async fn main() -> std::io::Result<()> {
             )
             .wrap(
                 ErrorHandlers::new()
-                    .handler(StatusCode::BAD_REQUEST, ruforo::web::error::render_400)
-                    .handler(StatusCode::NOT_FOUND, ruforo::web::error::render_404)
+                    .handler(StatusCode::BAD_REQUEST, dumpster::web::error::render_400)
+                    .handler(StatusCode::NOT_FOUND, dumpster::web::error::render_404)
                     .handler(
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        ruforo::web::error::render_500,
+                        dumpster::web::error::render_500,
                     ),
             )
             .wrap(ClientCtx::default())
@@ -127,7 +127,7 @@ async fn main() -> std::io::Result<()> {
                     .build(),
             )
             .wrap(Logger::new("%a %{User-Agent}i"))
-            .configure(ruforo::web::configure)
+            .configure(dumpster::web::configure)
     })
     // https://www.restapitutorial.com/lessons/httpmethods.html
     // GET    edit_ (get edit form)
@@ -153,8 +153,8 @@ pub fn init_our_mods() {
     // This should be a list of simple function calls.
     // Each module should work mostly independent of others.
     // This way, we can unit test individual modules without loading the entire application.
-    ruforo::app_config::init();
-    ruforo::global::init();
-    ruforo::session::init();
-    ruforo::filesystem::init();
+    dumpster::app_config::init();
+    dumpster::global::init();
+    dumpster::session::init();
+    dumpster::filesystem::init();
 }

@@ -8,7 +8,7 @@ use serial_test::serial;
 async fn test_update_profile_bio() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -47,7 +47,7 @@ async fn test_update_profile_bio() {
 async fn test_update_profile_location() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -83,7 +83,7 @@ async fn test_update_profile_location() {
 async fn test_update_profile_website_url() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -122,7 +122,7 @@ async fn test_update_profile_website_url() {
 async fn test_update_profile_signature() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();
@@ -259,7 +259,7 @@ async fn test_profile_character_limits() {
 #[actix_rt::test]
 #[serial]
 async fn test_signature_bbcode_rendering() {
-    use ruforo::bbcode::parse;
+    use dumpster::bbcode::parse;
 
     // Test that BBCode in signatures is properly rendered
     let signature = "[b]Bold[/b] and [i]italic[/i] text";
@@ -282,7 +282,7 @@ async fn test_signature_bbcode_rendering() {
 async fn test_profile_fields_default_to_none() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::EntityTrait;
 
     let db = setup_test_database().await.unwrap();
@@ -326,7 +326,7 @@ async fn test_profile_fields_default_to_none() {
 async fn test_update_profile_custom_title() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::create_test_user;
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 
     let db = setup_test_database().await.unwrap();

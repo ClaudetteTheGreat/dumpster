@@ -19,12 +19,12 @@ pub async fn create_test_user(
     username: &str,
     password: &str,
 ) -> Result<TestUser, DbErr> {
-    use ruforo::orm::{user_names, users};
+    use dumpster::orm::{user_names, users};
 
     // Hash the password using Argon2
     // Use the same Argon2 instance that the login function uses
     let salt = SaltString::generate(&mut OsRng);
-    let password_hash = ruforo::session::get_argon2()
+    let password_hash = dumpster::session::get_argon2()
         .hash_password(password.as_bytes(), &salt)
         .map_err(|e| DbErr::Custom(format!("Password hashing failed: {}", e)))?
         .to_string();
@@ -72,11 +72,11 @@ pub async fn create_test_user_with_email(
     username: &str,
     email: &str,
     email_verified: bool,
-) -> Result<ruforo::orm::users::Model, DbErr> {
-    use ruforo::orm::{user_names, users};
+) -> Result<dumpster::orm::users::Model, DbErr> {
+    use dumpster::orm::{user_names, users};
 
     let salt = SaltString::generate(&mut OsRng);
-    let password_hash = ruforo::session::get_argon2()
+    let password_hash = dumpster::session::get_argon2()
         .hash_password("password123".as_bytes(), &salt)
         .map_err(|e| DbErr::Custom(format!("Password hashing failed: {}", e)))?
         .to_string();
@@ -113,7 +113,7 @@ pub async fn create_test_user_with_2fa(
     password: &str,
     totp_secret: &str,
 ) -> Result<TestUser, DbErr> {
-    use ruforo::orm::user_2fa;
+    use dumpster::orm::user_2fa;
 
     let user = create_test_user(db, username, password).await?;
 
@@ -136,11 +136,11 @@ pub async fn create_locked_test_user(
     password: &str,
     minutes_until_unlock: i64,
 ) -> Result<TestUser, DbErr> {
-    use ruforo::orm::{user_names, users};
+    use dumpster::orm::{user_names, users};
 
     // Hash the password using the same Argon2 instance as login
     let salt = SaltString::generate(&mut OsRng);
-    let password_hash = ruforo::session::get_argon2()
+    let password_hash = dumpster::session::get_argon2()
         .hash_password(password.as_bytes(), &salt)
         .map_err(|e| DbErr::Custom(format!("Password hashing failed: {}", e)))?
         .to_string();
@@ -186,7 +186,7 @@ pub async fn create_locked_test_user(
 
 /// Get user's current failed login attempts count
 pub async fn get_failed_attempts(db: &DatabaseConnection, user_id: i32) -> Result<i32, DbErr> {
-    use ruforo::orm::users;
+    use dumpster::orm::users;
 
     let user = users::Entity::find_by_id(user_id)
         .one(db)
@@ -198,7 +198,7 @@ pub async fn get_failed_attempts(db: &DatabaseConnection, user_id: i32) -> Resul
 
 /// Check if user account is currently locked
 pub async fn is_user_locked(db: &DatabaseConnection, user_id: i32) -> Result<bool, DbErr> {
-    use ruforo::orm::users;
+    use dumpster::orm::users;
 
     let user = users::Entity::find_by_id(user_id)
         .one(db)
@@ -221,7 +221,7 @@ pub async fn create_banned_test_user(
     is_permanent: bool,
     minutes_until_unban: Option<i64>,
 ) -> Result<TestUser, DbErr> {
-    use ruforo::orm::user_bans;
+    use dumpster::orm::user_bans;
 
     let user = create_test_user(db, username, password).await?;
 
@@ -248,7 +248,7 @@ pub async fn create_banned_test_user(
 
 /// Check if user is currently banned
 pub async fn is_user_banned(db: &DatabaseConnection, user_id: i32) -> Result<bool, DbErr> {
-    use ruforo::orm::user_bans;
+    use dumpster::orm::user_bans;
     use sea_orm::query::*;
 
     let now = Utc::now().naive_utc();
@@ -274,8 +274,8 @@ pub async fn create_ip_ban(
     is_permanent: bool,
     minutes_until_unban: Option<i64>,
     is_range_ban: bool,
-) -> Result<ruforo::orm::ip_bans::Model, DbErr> {
-    use ruforo::orm::ip_bans;
+) -> Result<dumpster::orm::ip_bans::Model, DbErr> {
+    use dumpster::orm::ip_bans;
     use sea_orm::Statement;
 
     // Calculate expiration
@@ -383,8 +383,8 @@ pub async fn create_word_filter(
     is_regex: bool,
     is_case_sensitive: bool,
     is_whole_word: bool,
-) -> Result<ruforo::orm::word_filters::Model, DbErr> {
-    use ruforo::orm::word_filters::{self, FilterAction};
+) -> Result<dumpster::orm::word_filters::Model, DbErr> {
+    use dumpster::orm::word_filters::{self, FilterAction};
 
     let action_enum = match action {
         "block" => FilterAction::Block,
@@ -413,8 +413,8 @@ pub async fn create_test_forum_and_thread(
     db: &DatabaseConnection,
     user_id: i32,
     thread_title: &str,
-) -> Result<(ruforo::orm::forums::Model, ruforo::orm::threads::Model), DbErr> {
-    use ruforo::orm::{forums, threads};
+) -> Result<(dumpster::orm::forums::Model, dumpster::orm::threads::Model), DbErr> {
+    use dumpster::orm::{forums, threads};
 
     // Create a forum
     let forum = forums::ActiveModel {
@@ -450,8 +450,8 @@ pub async fn create_test_post(
     user_id: i32,
     content: &str,
     position: i32,
-) -> Result<ruforo::orm::posts::Model, DbErr> {
-    use ruforo::orm::{posts, ugc, ugc_revisions};
+) -> Result<dumpster::orm::posts::Model, DbErr> {
+    use dumpster::orm::{posts, ugc, ugc_revisions};
 
     // Create UGC entry
     let ugc_entry = ugc::ActiveModel {
@@ -493,8 +493,8 @@ pub async fn create_test_post(
 pub async fn create_test_chat_room(
     db: &DatabaseConnection,
     title: &str,
-) -> Result<ruforo::orm::chat_rooms::Model, DbErr> {
-    use ruforo::orm::chat_rooms;
+) -> Result<dumpster::orm::chat_rooms::Model, DbErr> {
+    use dumpster::orm::chat_rooms;
 
     let room = chat_rooms::ActiveModel {
         title: Set(title.to_string()),
@@ -514,8 +514,8 @@ pub async fn create_test_chat_message(
     room_id: i32,
     user_id: i32,
     message: &str,
-) -> Result<ruforo::orm::chat_messages::Model, DbErr> {
-    use ruforo::orm::{chat_messages, ugc, ugc_revisions};
+) -> Result<dumpster::orm::chat_messages::Model, DbErr> {
+    use dumpster::orm::{chat_messages, ugc, ugc_revisions};
 
     // Create UGC entry
     let ugc_entry = ugc::ActiveModel {
@@ -573,7 +573,7 @@ pub async fn get_user_default_chat_room(
     db: &DatabaseConnection,
     user_id: i32,
 ) -> Result<Option<i32>, DbErr> {
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::EntityTrait;
 
     let user = users::Entity::find_by_id(user_id).one(db).await?;
@@ -586,7 +586,7 @@ pub async fn set_user_default_chat_room(
     user_id: i32,
     room_id: Option<i32>,
 ) -> Result<(), DbErr> {
-    use ruforo::orm::users;
+    use dumpster::orm::users;
     use sea_orm::EntityTrait;
 
     let user = users::Entity::find_by_id(user_id)

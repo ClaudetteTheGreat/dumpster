@@ -14,7 +14,7 @@ async fn test_report_reasons_exist() {
         .await
         .expect("Failed to connect to test database");
 
-    use ruforo::orm::report_reasons;
+    use dumpster::orm::report_reasons;
 
     // Query report reasons
     let reasons = report_reasons::Entity::find()
@@ -51,7 +51,7 @@ async fn test_create_report() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{posts, reports, ugc};
+    use dumpster::orm::{posts, reports, ugc};
 
     // Create a test user (reporter)
     let reporter = create_test_user(&db, "report_user1", "password123")
@@ -115,7 +115,7 @@ async fn test_report_status_update() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::reports;
+    use dumpster::orm::reports;
 
     // Create a test user (reporter)
     let reporter = create_test_user(&db, "report_user2", "password123")
@@ -172,7 +172,7 @@ async fn test_report_with_other_reason_requires_details() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::reports;
+    use dumpster::orm::reports;
 
     // Create a test user
     let reporter = create_test_user(&db, "report_user3", "password123")
@@ -214,7 +214,7 @@ async fn test_multiple_reports_on_same_content() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::reports;
+    use dumpster::orm::reports;
 
     // Create two test users (reporters)
     let reporter1 = create_test_user(&db, "report_user4", "password123")
@@ -282,7 +282,7 @@ async fn test_report_dismissal() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::reports;
+    use dumpster::orm::reports;
 
     // Create users
     let reporter = create_test_user(&db, "report_user6", "password123")
@@ -336,7 +336,7 @@ async fn test_filter_reports_by_status() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::reports;
+    use dumpster::orm::reports;
 
     // Create a test user
     let reporter = create_test_user(&db, "report_user7", "password123")

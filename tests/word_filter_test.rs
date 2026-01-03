@@ -4,12 +4,12 @@ mod common;
 
 use common::database::setup_test_database;
 use common::fixtures::create_word_filter;
-use ruforo::word_filter::{apply_filters, reload_filters};
+use dumpster::word_filter::{apply_filters, reload_filters};
 use serial_test::serial;
 
 /// Helper to clean up word filters between tests
 async fn cleanup_filters(db: &sea_orm::DatabaseConnection) {
-    use ruforo::orm::word_filters;
+    use dumpster::orm::word_filters;
     use sea_orm::EntityTrait;
 
     let _ = word_filters::Entity::delete_many().exec(db).await;

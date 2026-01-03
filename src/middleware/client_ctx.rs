@@ -352,7 +352,7 @@ impl ClientCtx {
             .config
             .as_ref()
             .map(|c| c.site_title())
-            .unwrap_or_else(|| "ruforo".to_string())
+            .unwrap_or_else(|| "dumpster".to_string())
     }
 
     /// Get footer message from configuration

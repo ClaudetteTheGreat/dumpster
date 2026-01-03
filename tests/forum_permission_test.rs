@@ -4,10 +4,10 @@ mod common;
 use serial_test::serial;
 
 use common::database::*;
-use ruforo::orm::{
+use dumpster::orm::{
     forum_permissions, forums, groups, permission_collections, permission_values, permissions,
 };
-use ruforo::permission::flag::Flag;
+use dumpster::permission::flag::Flag;
 use sea_orm::{entity::*, query::*, ActiveValue::Set, DatabaseConnection, DbErr};
 
 /// Create a test forum with optional parent
@@ -30,7 +30,7 @@ async fn create_forum(
 async fn create_test_group(db: &DatabaseConnection, name: &str) -> Result<groups::Model, DbErr> {
     let group = groups::ActiveModel {
         label: Set(name.to_string()),
-        group_type: Set(ruforo::group::GroupType::Normal),
+        group_type: Set(dumpster::group::GroupType::Normal),
         ..Default::default()
     };
     group.insert(db).await

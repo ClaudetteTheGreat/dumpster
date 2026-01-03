@@ -1,5 +1,5 @@
 use super::orm::smilie;
-use ruforo::web::chat::implement;
+use dumpster::web::chat::implement;
 use sea_orm::entity::prelude::*;
 use sea_orm::{query::*, DatabaseConnection};
 

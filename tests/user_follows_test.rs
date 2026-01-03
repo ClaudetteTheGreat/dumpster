@@ -15,7 +15,7 @@ async fn test_create_follow_relationship() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_follows;
+    use dumpster::orm::user_follows;
 
     // Create two users
     let follower = create_test_user(&db, "follower_user", "password123")
@@ -51,7 +51,7 @@ async fn test_follow_count_trigger_on_insert() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_follows, users};
+    use dumpster::orm::{user_follows, users};
 
     // Create two users
     let follower = create_test_user(&db, "count_follower", "password123")
@@ -112,7 +112,7 @@ async fn test_follow_count_trigger_on_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_follows, users};
+    use dumpster::orm::{user_follows, users};
 
     // Create two users
     let follower = create_test_user(&db, "delete_follower", "password123")
@@ -164,7 +164,7 @@ async fn test_cannot_follow_self() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_follows;
+    use dumpster::orm::user_follows;
 
     // Create a user
     let user = create_test_user(&db, "self_follow_user", "password123")
@@ -194,7 +194,7 @@ async fn test_cannot_follow_twice() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::user_follows;
+    use dumpster::orm::user_follows;
 
     // Create two users
     let follower = create_test_user(&db, "dup_follower", "password123")
@@ -239,7 +239,7 @@ async fn test_follow_cascade_delete_on_follower_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc_revisions, user_follows, user_names, users};
+    use dumpster::orm::{ugc_revisions, user_follows, user_names, users};
 
     // Create two users
     let follower = create_test_user(&db, "cascade_follower", "password123")
@@ -309,7 +309,7 @@ async fn test_multiple_followers() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_follows, users};
+    use dumpster::orm::{user_follows, users};
 
     // Create one popular user and multiple followers
     let popular = create_test_user(&db, "popular_user", "password123")
@@ -376,7 +376,7 @@ async fn test_mutual_follow() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{user_follows, users};
+    use dumpster::orm::{user_follows, users};
 
     // Create two users who will follow each other
     let user1 = create_test_user(&db, "mutual1", "password123")

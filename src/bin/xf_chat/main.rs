@@ -11,7 +11,7 @@ use actix::Actor;
 use actix_web::web::Data;
 use actix_web::{App, HttpServer};
 use env_logger::Env;
-use ruforo::config::create_config;
+use dumpster::config::create_config;
 use sea_orm::{ConnectOptions, Database, DatabaseConnection, DbErr};
 use std::sync::Arc;
 use std::time::Duration;
@@ -64,7 +64,7 @@ async fn main() -> std::io::Result<()> {
     let config = create_config();
 
     let layer = Arc::new(xf::XfLayer { db: mysql.clone() });
-    let chat = ruforo::web::chat::server::ChatServer::new(layer.clone(), config)
+    let chat = dumpster::web::chat::server::ChatServer::new(layer.clone(), config)
         .await
         .start();
 
@@ -73,7 +73,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         // Downcast so we can store in app_data
         // See: https://stackoverflow.com/questions/65645622/how-do-i-pass-a-trait-as-application-data-to-actix-web
-        use ruforo::web::chat::implement::ChatLayer;
+        use dumpster::web::chat::implement::ChatLayer;
         let layer_data: Data<Arc<dyn ChatLayer>> = Data::new(layer.clone());
 
         App::new()
@@ -82,8 +82,8 @@ async fn main() -> std::io::Result<()> {
             //.app_data(Data::new(redis.clone()))
             .app_data(Data::new(mysql.clone()))
             .app_data(chat.clone())
-            .service(ruforo::web::chat::view_xf_chat_socket)
-            .service(ruforo::web::chat::view_chat_shim)
+            .service(dumpster::web::chat::view_xf_chat_socket)
+            .service(dumpster::web::chat::view_chat_shim)
     })
     .backlog(4096)
     .max_connections(65536)

@@ -4,8 +4,8 @@ mod common;
 use serial_test::serial;
 
 use common::{database::*, fixtures::*};
-use ruforo::activities::ActivityCursor;
-use ruforo::orm::activities::{self, ActivityType};
+use dumpster::activities::ActivityCursor;
+use dumpster::orm::activities::{self, ActivityType};
 use sea_orm::{entity::*, ActiveValue::Set, EntityTrait};
 
 #[actix_rt::test]
@@ -335,7 +335,7 @@ async fn test_activity_cascade_delete_on_user_delete() {
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 
-    use ruforo::orm::{ugc_revisions, user_names, users};
+    use dumpster::orm::{ugc_revisions, user_names, users};
     use sea_orm::ColumnTrait;
     use sea_orm::QueryFilter;
 

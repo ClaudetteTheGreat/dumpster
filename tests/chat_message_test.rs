@@ -8,7 +8,7 @@ use serial_test::serial;
 async fn test_create_chat_message() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::{create_test_chat_message, create_test_chat_room, create_test_user};
-    use ruforo::orm::chat_messages;
+    use dumpster::orm::chat_messages;
     use sea_orm::EntityTrait;
 
     let db = setup_test_database().await.unwrap();
@@ -49,7 +49,7 @@ async fn test_chat_message_has_valid_timestamps() {
     use chrono::{Duration, Utc};
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::{create_test_chat_message, create_test_chat_room, create_test_user};
-    use ruforo::orm::chat_messages;
+    use dumpster::orm::chat_messages;
     use sea_orm::EntityTrait;
 
     let db = setup_test_database().await.unwrap();
@@ -91,7 +91,7 @@ async fn test_chat_message_has_valid_timestamps() {
 async fn test_chat_message_content_stored() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::{create_test_chat_message, create_test_chat_room, create_test_user};
-    use ruforo::orm::{chat_messages, ugc_revisions};
+    use dumpster::orm::{chat_messages, ugc_revisions};
     use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
     let db = setup_test_database().await.unwrap();
@@ -116,7 +116,7 @@ async fn test_chat_message_content_stored() {
 
     // Get the UGC revision to check content
     let revision = ugc_revisions::Entity::find()
-        .filter(ruforo::orm::ugc_revisions::Column::UgcId.eq(fetched.ugc_id))
+        .filter(dumpster::orm::ugc_revisions::Column::UgcId.eq(fetched.ugc_id))
         .one(&db)
         .await
         .unwrap()
@@ -132,7 +132,7 @@ async fn test_chat_message_content_stored() {
 async fn test_chat_message_user_ownership() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::{create_test_chat_message, create_test_chat_room, create_test_user};
-    use ruforo::orm::chat_messages;
+    use dumpster::orm::chat_messages;
     use sea_orm::EntityTrait;
 
     let db = setup_test_database().await.unwrap();

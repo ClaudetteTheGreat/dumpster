@@ -1,4 +1,4 @@
-# Clippy configuration for ruforo project
+# Clippy configuration for dumpster project
 # See https://doc.rust-lang.org/clippy/configuration.html
 
 # Allow slightly more function arguments for complex database operations

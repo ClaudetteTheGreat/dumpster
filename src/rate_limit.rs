@@ -513,7 +513,7 @@ pub fn clear_failed_logins(ip: &str) {
 ///     let mut interval = actix_rt::time::interval(Duration::from_secs(300));
 ///     loop {
 ///         interval.tick().await;
-///         ruforo::rate_limit::RATE_LIMITER.cleanup_old_entries();
+///         dumpster::rate_limit::RATE_LIMITER.cleanup_old_entries();
 ///         log::debug!("Rate limiter cleanup completed");
 ///     }
 /// });
