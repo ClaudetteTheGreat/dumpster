@@ -476,7 +476,7 @@ const marks = {
     },
     inclusive: false,
     parseDOM: [{
-      tag: 'a[href]',
+      tag: 'a[href]:not(.bbcode-thumb)',
       getAttrs(dom) {
         return {
           href: dom.getAttribute('href'),
