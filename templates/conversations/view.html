@@ -419,7 +419,7 @@
     }
 </style>
 
-<script>
+<script nonce="{{ client.get_nonce() }}">
 document.addEventListener('DOMContentLoaded', function() {
     // Edit message button handler
     document.querySelectorAll('.edit-message-btn').forEach(function(btn) {
