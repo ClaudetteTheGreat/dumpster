@@ -141,6 +141,8 @@
                             data-username="{{ msg.author_name }}"
                             data-content="{{ msg.content }}"
                             title="Add to quotes">+Quote</button>
+                    </div>
+                    <div class="message-footer--right">
                         {% if msg.user_id == client.get_id() %}
                         <button type="button" class="edit-message-btn" data-message-id="{{ msg.id }}">Edit</button>
                         {% endif %}
@@ -150,8 +152,6 @@
                             <button type="submit" class="delete-message-btn">Delete</button>
                         </form>
                         {% endif %}
-                    </div>
-                    <div class="message-footer--right">
                         <div class="reactions-container" data-ugc-id="{{ msg.ugc_id }}" data-csrf="{{ client.get_csrf_token() }}">
                             <div class="reactions-display"></div>
                             {% if client.is_user() && client.get_id() != msg.user_id %}
