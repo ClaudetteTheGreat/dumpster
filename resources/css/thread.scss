@@ -584,7 +584,8 @@
     position: relative;
 }
 
-.reaction-picker-toggle {
+// When reaction-picker-toggle is NOT in actionBar, use circle style
+.reaction-picker-toggle:not(.actionBar-action) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -604,6 +605,11 @@
         border-color: var(--reaction-hover-border);
         color: var(--btn-secondary-hover-text);
     }
+}
+
+// When in actionBar, inherit actionBar-action styling
+.actionBar-action.reaction-picker-toggle {
+    // Uses actionBar-action styles - no overrides needed
 }
 
 .reaction-picker-dropdown {
