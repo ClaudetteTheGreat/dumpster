@@ -3,7 +3,7 @@
 /// This module provides search capabilities for threads and posts.
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
-use actix_web::{get, web, Error, Responder};
+use actix_web::{error, get, web, Error, HttpRequest, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use sea_orm::{DatabaseConnection, FromQueryResult};
 use serde::Deserialize;
@@ -70,9 +70,29 @@ pub async fn search_form(client: ClientCtx) -> impl Responder {
 /// GET /search?q=query - Perform search and show results
 #[get("/search/results")]
 pub async fn search_results(
+    req: HttpRequest,
     client: ClientCtx,
     query: web::Query<SearchQuery>,
 ) -> Result<impl Responder, Error> {
+    // Get identifier for rate limiting (prefer user_id, fallback to IP)
+    let rate_limit_id = client
+        .get_id()
+        .map(|id: i32| id.to_string())
+        .unwrap_or_else(|| {
+            crate::ip::extract_client_ip(&req)
+                .map(|ip| ip.to_string())
+                .unwrap_or_else(|| "unknown".to_string())
+        });
+
+    // Rate limiting - prevent search abuse
+    if let Err(e) = crate::rate_limit::check_search_rate_limit(&rate_limit_id) {
+        log::warn!("Search rate limit exceeded for: {}", rate_limit_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many search requests. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     let search_query = match &query.q {
         Some(q) if !q.trim().is_empty() => q.trim(),
         _ => {

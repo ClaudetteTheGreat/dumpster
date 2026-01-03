@@ -12,6 +12,7 @@ actix-utils = "3"
 actix-web = "4.5"
 actix-web-actors = "4.3"
 anyhow = "^1"
+arc-swap = "1.6"
 argon2 = "0.4.1"
 askama = { version = "^0.11", default-features = false, features = [
     "with-actix-web",

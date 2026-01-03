@@ -4,7 +4,7 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{password_reset_tokens, users};
-use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use actix_web::{error, get, post, web, Error, HttpRequest, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
@@ -80,12 +80,27 @@ pub async fn request_reset_form(client: ClientCtx) -> impl Responder {
 /// POST /password-reset - Process password reset request
 #[post("/password-reset")]
 pub async fn request_reset(
+    req: HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
     form: web::Form<PasswordResetRequestForm>,
 ) -> Result<impl Responder, Error> {
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Get client IP for rate limiting
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Rate limiting - prevent abuse
+    if let Err(e) = crate::rate_limit::check_password_reset_rate_limit(&ip) {
+        log::warn!("Password reset rate limit exceeded for IP: {}", ip);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many password reset requests. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
 
     // Validate form
     form.validate().map_err(|e| {

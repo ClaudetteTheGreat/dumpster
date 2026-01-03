@@ -5,7 +5,7 @@
 
 use crate::db::get_db_pool;
 use crate::orm::unfurl_cache;
-use actix_web::{error, get, web, Error, HttpResponse};
+use actix_web::{error, get, web, Error, HttpRequest, HttpResponse};
 use chrono::Utc;
 use sea_orm::{entity::*, ColumnTrait, EntityTrait, QueryFilter};
 use serde::{Deserialize, Serialize};
@@ -69,7 +69,24 @@ const MAX_BODY_SIZE: usize = 1024 * 1024;
 
 /// Get unfurl metadata for a URL
 #[get("/api/unfurl")]
-async fn get_unfurl(query: web::Query<UnfurlQuery>) -> Result<HttpResponse, Error> {
+async fn get_unfurl(
+    req: HttpRequest,
+    query: web::Query<UnfurlQuery>,
+) -> Result<HttpResponse, Error> {
+    // Get client IP for rate limiting
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Rate limiting - uses API rate limit
+    if let Err(e) = crate::rate_limit::check_api_rate_limit(&ip) {
+        log::warn!("Unfurl rate limit exceeded for IP: {}", ip);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many requests. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     let url = &query.url;
 
     // Validate URL

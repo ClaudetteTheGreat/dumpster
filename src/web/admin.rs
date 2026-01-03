@@ -1318,6 +1318,11 @@ async fn update_setting(
             error::ErrorInternalServerError("Failed to update setting")
         })?;
 
+    // Hot reload for specific setting categories
+    if form.key.starts_with("rate_limit.") {
+        crate::rate_limit::reload_rate_limits(&config);
+    }
+
     log::info!("Setting '{}' updated by user {}", form.key, user_id);
 
     Ok(HttpResponse::SeeOther()

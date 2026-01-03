@@ -6,7 +6,7 @@ use crate::orm::{
 };
 use crate::ugc::{create_ugc, NewUgcPartial};
 use crate::user::Profile as UserProfile;
-use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
+use actix_web::{error, get, post, web, Error, HttpRequest, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::{DateTime, Utc};
 use sea_orm::prelude::DateTimeWithTimeZone;
@@ -304,12 +304,31 @@ pub struct UsernameSearchResult {
 /// Search usernames by prefix for @mention autocomplete
 #[get("/api/users/search")]
 pub async fn search_usernames(
+    req: HttpRequest,
     client: ClientCtx,
     query: web::Query<UsernameSearchQuery>,
 ) -> Result<HttpResponse, Error> {
     // Require authentication to prevent enumeration
     if !client.is_user() {
         return Err(error::ErrorUnauthorized("Must be logged in"));
+    }
+
+    // Rate limiting - use user_id or IP
+    let rate_limit_id = client
+        .get_id()
+        .map(|id: i32| id.to_string())
+        .unwrap_or_else(|| {
+            crate::ip::extract_client_ip(&req)
+                .map(|ip| ip.to_string())
+                .unwrap_or_else(|| "unknown".to_string())
+        });
+
+    if let Err(e) = crate::rate_limit::check_api_rate_limit(&rate_limit_id) {
+        log::warn!("User search rate limit exceeded for: {}", rate_limit_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many requests. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
     }
 
     let search_term = query.q.trim();
@@ -369,7 +388,7 @@ pub struct NewProfilePostForm {
 pub async fn create_profile_post(
     client: ClientCtx,
     session: actix_session::Session,
-    req: actix_web::HttpRequest,
+    req: HttpRequest,
     path: web::Path<(i32,)>,
     form: web::Form<NewProfilePostForm>,
 ) -> Result<impl Responder, Error> {
@@ -380,6 +399,15 @@ pub async fn create_profile_post(
     let author_id = client
         .get_id()
         .ok_or_else(|| error::ErrorUnauthorized("Must be logged in to post on profiles"))?;
+
+    // Rate limiting - uses post_creation rate limit (covers posts, profile posts, messages)
+    if let Err(e) = crate::rate_limit::check_post_rate_limit(author_id) {
+        log::warn!("Profile post rate limit exceeded for user: {}", author_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many posts. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
 
     let profile_user_id = path.into_inner().0;
     let db = get_db_pool();

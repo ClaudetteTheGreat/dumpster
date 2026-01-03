@@ -89,6 +89,15 @@ async fn submit_report(
     // Validate CSRF
     crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
 
+    // Rate limiting - prevent report spam
+    if let Err(e) = crate::rate_limit::check_report_rate_limit(reporter_id) {
+        log::warn!("Report rate limit exceeded for user: {}", reporter_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many reports. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     let db = get_db_pool();
 
     // Validate content type

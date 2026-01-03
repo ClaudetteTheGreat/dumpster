@@ -185,6 +185,15 @@ async fn toggle_reaction(
     // Validate CSRF
     crate::middleware::csrf::validate_csrf_token(&session, &form.csrf_token)?;
 
+    // Rate limiting - prevent reaction spam
+    if let Err(e) = crate::rate_limit::check_reaction_rate_limit(user_id) {
+        log::warn!("Reaction rate limit exceeded for user: {}", user_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many reactions. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     let (ugc_id, reaction_type_id) = path.into_inner();
     let db = get_db_pool();
 

@@ -4,6 +4,8 @@
 /// This is suitable for single-instance deployments. For multi-instance
 /// deployments, consider using Redis as a backing store.
 ///
+/// Rate limits are configurable via database settings and support hot reload.
+///
 /// # Example Usage
 ///
 /// ```rust,ignore
@@ -16,13 +18,200 @@
 ///     ));
 /// }
 /// ```
+use arc_swap::ArcSwap;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use crate::config::Config;
+
 /// Global rate limiter instance
 pub static RATE_LIMITER: Lazy<Arc<RateLimiter>> = Lazy::new(|| Arc::new(RateLimiter::new()));
+
+/// Global rate limit configuration (hot-reloadable)
+static RATE_LIMIT_CONFIG: Lazy<ArcSwap<RateLimitConfig>> =
+    Lazy::new(|| ArcSwap::from_pointee(RateLimitConfig::default()));
+
+/// Rate limit configuration loaded from database settings
+#[derive(Debug, Clone)]
+pub struct RateLimitConfig {
+    // Authentication (individual - critical)
+    pub login_max: usize,
+    pub login_window: Duration,
+    pub two_factor_max: usize,
+    pub two_factor_window: Duration,
+    pub password_reset_max: usize,
+    pub password_reset_window: Duration,
+    pub email_verification_max: usize,
+    pub email_verification_window: Duration,
+
+    // Account creation
+    pub registration_max: usize,
+    pub registration_window: Duration,
+
+    // Content creation (grouped)
+    pub post_creation_max: usize,
+    pub post_creation_window: Duration,
+    pub thread_creation_max: usize,
+    pub thread_creation_window: Duration,
+
+    // Search & API (grouped)
+    pub search_max: usize,
+    pub search_window: Duration,
+    pub api_max: usize,
+    pub api_window: Duration,
+
+    // File uploads
+    pub file_upload_max: usize,
+    pub file_upload_window: Duration,
+
+    // Reports
+    pub report_max: usize,
+    pub report_window: Duration,
+
+    // Reactions
+    pub reaction_max: usize,
+    pub reaction_window: Duration,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            // Authentication (individual - critical)
+            login_max: 5,
+            login_window: Duration::from_secs(300), // 5 minutes
+            two_factor_max: 5,
+            two_factor_window: Duration::from_secs(300), // 5 minutes
+            password_reset_max: 3,
+            password_reset_window: Duration::from_secs(3600), // 1 hour
+            email_verification_max: 3,
+            email_verification_window: Duration::from_secs(3600), // 1 hour
+
+            // Account creation
+            registration_max: 3,
+            registration_window: Duration::from_secs(3600), // 1 hour
+
+            // Content creation (grouped)
+            post_creation_max: 10,
+            post_creation_window: Duration::from_secs(60), // 1 minute
+            thread_creation_max: 5,
+            thread_creation_window: Duration::from_secs(300), // 5 minutes
+
+            // Search & API (grouped)
+            search_max: 30,
+            search_window: Duration::from_secs(60), // 1 minute
+            api_max: 60,
+            api_window: Duration::from_secs(60), // 1 minute
+
+            // File uploads
+            file_upload_max: 20,
+            file_upload_window: Duration::from_secs(60), // 1 minute
+
+            // Reports
+            report_max: 5,
+            report_window: Duration::from_secs(300), // 5 minutes
+
+            // Reactions
+            reaction_max: 30,
+            reaction_window: Duration::from_secs(60), // 1 minute
+        }
+    }
+}
+
+impl RateLimitConfig {
+    /// Load rate limit configuration from the Config settings
+    pub fn from_config(config: &Config) -> Self {
+        Self {
+            // Authentication
+            login_max: config.get_int_or("rate_limit.login.max_requests", 5) as usize,
+            login_window: Duration::from_secs(
+                config.get_int_or("rate_limit.login.window_seconds", 300) as u64,
+            ),
+            two_factor_max: config.get_int_or("rate_limit.two_factor.max_requests", 5) as usize,
+            two_factor_window: Duration::from_secs(
+                config.get_int_or("rate_limit.two_factor.window_seconds", 300) as u64,
+            ),
+            password_reset_max: config.get_int_or("rate_limit.password_reset.max_requests", 3)
+                as usize,
+            password_reset_window: Duration::from_secs(
+                config.get_int_or("rate_limit.password_reset.window_seconds", 3600) as u64,
+            ),
+            email_verification_max: config
+                .get_int_or("rate_limit.email_verification.max_requests", 3)
+                as usize,
+            email_verification_window: Duration::from_secs(
+                config.get_int_or("rate_limit.email_verification.window_seconds", 3600) as u64,
+            ),
+
+            // Account creation
+            registration_max: config.get_int_or("rate_limit.registration.max_requests", 3)
+                as usize,
+            registration_window: Duration::from_secs(
+                config.get_int_or("rate_limit.registration.window_seconds", 3600) as u64,
+            ),
+
+            // Content creation
+            post_creation_max: config.get_int_or("rate_limit.post_creation.max_requests", 10)
+                as usize,
+            post_creation_window: Duration::from_secs(
+                config.get_int_or("rate_limit.post_creation.window_seconds", 60) as u64,
+            ),
+            thread_creation_max: config.get_int_or("rate_limit.thread_creation.max_requests", 5)
+                as usize,
+            thread_creation_window: Duration::from_secs(
+                config.get_int_or("rate_limit.thread_creation.window_seconds", 300) as u64,
+            ),
+
+            // Search & API
+            search_max: config.get_int_or("rate_limit.search.max_requests", 30) as usize,
+            search_window: Duration::from_secs(
+                config.get_int_or("rate_limit.search.window_seconds", 60) as u64,
+            ),
+            api_max: config.get_int_or("rate_limit.api.max_requests", 60) as usize,
+            api_window: Duration::from_secs(
+                config.get_int_or("rate_limit.api.window_seconds", 60) as u64,
+            ),
+
+            // File uploads
+            file_upload_max: config.get_int_or("rate_limit.file_upload.max_requests", 20) as usize,
+            file_upload_window: Duration::from_secs(
+                config.get_int_or("rate_limit.file_upload.window_seconds", 60) as u64,
+            ),
+
+            // Reports
+            report_max: config.get_int_or("rate_limit.report.max_requests", 5) as usize,
+            report_window: Duration::from_secs(
+                config.get_int_or("rate_limit.report.window_seconds", 300) as u64,
+            ),
+
+            // Reactions
+            reaction_max: config.get_int_or("rate_limit.reaction.max_requests", 30) as usize,
+            reaction_window: Duration::from_secs(
+                config.get_int_or("rate_limit.reaction.window_seconds", 60) as u64,
+            ),
+        }
+    }
+}
+
+/// Initialize rate limits from config (call at startup after loading settings)
+pub fn init_rate_limits(config: &Config) {
+    let rate_config = RateLimitConfig::from_config(config);
+    RATE_LIMIT_CONFIG.store(Arc::new(rate_config));
+    log::info!("Rate limit configuration initialized from database settings");
+}
+
+/// Reload rate limits from config (call when rate limit settings are changed)
+pub fn reload_rate_limits(config: &Config) {
+    let rate_config = RateLimitConfig::from_config(config);
+    RATE_LIMIT_CONFIG.store(Arc::new(rate_config));
+    log::info!("Rate limit configuration reloaded");
+}
+
+/// Get the current rate limit configuration
+pub fn get_rate_limit_config() -> Arc<RateLimitConfig> {
+    RATE_LIMIT_CONFIG.load_full()
+}
 
 /// Rate limiter using in-memory storage
 pub struct RateLimiter {
@@ -141,29 +330,145 @@ impl Default for RateLimiter {
 
 /// Check rate limit for login attempts
 ///
-/// Limit: 5 attempts per 5 minutes per IP+username combination
-///
-/// This is in addition to account lockout - rate limiting prevents
-/// trying multiple different passwords rapidly, while account lockout
-/// prevents trying the same account repeatedly.
+/// Uses configurable limit per IP+username combination
 pub fn check_login_rate_limit(ip: &str, username: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
     RATE_LIMITER.check_rate_limit(
         "login",
         &format!("{}:{}", ip, username),
-        5,
-        Duration::from_secs(300), // 5 minutes
+        config.login_max,
+        config.login_window,
+    )
+}
+
+/// Check rate limit for two-factor authentication attempts
+///
+/// Uses configurable limit per IP address
+pub fn check_two_factor_rate_limit(ip: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit("two_factor", ip, config.two_factor_max, config.two_factor_window)
+}
+
+/// Check rate limit for password reset requests
+///
+/// Uses configurable limit per IP address
+pub fn check_password_reset_rate_limit(ip: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "password_reset",
+        ip,
+        config.password_reset_max,
+        config.password_reset_window,
+    )
+}
+
+/// Check rate limit for email verification resend requests
+///
+/// Uses configurable limit per IP address
+pub fn check_email_verification_rate_limit(ip: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "email_verification",
+        ip,
+        config.email_verification_max,
+        config.email_verification_window,
     )
 }
 
 /// Check rate limit for user registration
 ///
-/// Limit: 3 registrations per hour per IP address
+/// Uses configurable limit per IP address
 pub fn check_registration_rate_limit(ip: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
     RATE_LIMITER.check_rate_limit(
         "register",
         ip,
-        3,
-        Duration::from_secs(3600), // 1 hour
+        config.registration_max,
+        config.registration_window,
+    )
+}
+
+/// Check rate limit for post creation
+///
+/// Uses configurable limit per user. Applies to:
+/// - Forum posts
+/// - Profile posts
+/// - Conversation messages
+pub fn check_post_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "post",
+        &user_id.to_string(),
+        config.post_creation_max,
+        config.post_creation_window,
+    )
+}
+
+/// Check rate limit for thread creation
+///
+/// Uses configurable limit per user
+pub fn check_thread_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "thread",
+        &user_id.to_string(),
+        config.thread_creation_max,
+        config.thread_creation_window,
+    )
+}
+
+/// Check rate limit for search queries
+///
+/// Uses configurable limit per IP or user
+pub fn check_search_rate_limit(identifier: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit("search", identifier, config.search_max, config.search_window)
+}
+
+/// Check rate limit for general API requests
+///
+/// Applies to: user search, URL unfurl, etc.
+pub fn check_api_rate_limit(identifier: &str) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit("api", identifier, config.api_max, config.api_window)
+}
+
+/// Check rate limit for file uploads
+///
+/// Uses configurable limit per user
+pub fn check_file_upload_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "file_upload",
+        &user_id.to_string(),
+        config.file_upload_max,
+        config.file_upload_window,
+    )
+}
+
+/// Check rate limit for report submissions
+///
+/// Uses configurable limit per user
+pub fn check_report_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "report",
+        &user_id.to_string(),
+        config.report_max,
+        config.report_window,
+    )
+}
+
+/// Check rate limit for reaction toggles
+///
+/// Uses configurable limit per user
+pub fn check_reaction_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
+    let config = get_rate_limit_config();
+    RATE_LIMITER.check_rate_limit(
+        "reaction",
+        &user_id.to_string(),
+        config.reaction_max,
+        config.reaction_window,
     )
 }
 
@@ -194,30 +499,6 @@ pub fn get_failed_login_count(ip: &str) -> u32 {
 /// Called on successful login to reset the CAPTCHA requirement
 pub fn clear_failed_logins(ip: &str) {
     RATE_LIMITER.clear_requests("login_failures", ip);
-}
-
-/// Check rate limit for post creation
-///
-/// Limit: 10 posts per minute per user
-pub fn check_post_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
-    RATE_LIMITER.check_rate_limit(
-        "post",
-        &user_id.to_string(),
-        10,
-        Duration::from_secs(60), // 1 minute
-    )
-}
-
-/// Check rate limit for thread creation
-///
-/// Limit: 5 threads per 5 minutes per user
-pub fn check_thread_rate_limit(user_id: i32) -> Result<(), RateLimitError> {
-    RATE_LIMITER.check_rate_limit(
-        "thread",
-        &user_id.to_string(),
-        5,
-        Duration::from_secs(300), // 5 minutes
-    )
 }
 
 /// Start background cleanup task
@@ -318,5 +599,19 @@ mod tests {
         // Clean up - entries should remain since they have recent requests
         limiter.cleanup_old_entries();
         assert_eq!(limiter.tracked_keys_count(), 2);
+    }
+
+    #[test]
+    fn test_default_rate_limit_config() {
+        let config = RateLimitConfig::default();
+
+        // Verify defaults match migration values
+        assert_eq!(config.login_max, 5);
+        assert_eq!(config.login_window, Duration::from_secs(300));
+        assert_eq!(config.registration_max, 3);
+        assert_eq!(config.post_creation_max, 10);
+        assert_eq!(config.thread_creation_max, 5);
+        assert_eq!(config.search_max, 30);
+        assert_eq!(config.file_upload_max, 20);
     }
 }

@@ -50,6 +50,17 @@ async fn update_avatar(
         ));
     }
 
+    let user_id = client.get_id().unwrap(); // Safe after is_user() check
+
+    // Rate limiting - prevent upload spam
+    if let Err(e) = crate::rate_limit::check_file_upload_rate_limit(user_id) {
+        log::warn!("Avatar upload rate limit exceeded for user: {}", user_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many uploads. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     let mut csrf_token: Option<String> = None;
     let mut avatar_processed = false;
 

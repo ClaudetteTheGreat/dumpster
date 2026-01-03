@@ -186,6 +186,15 @@ pub async fn create_conversation(
 ) -> Result<impl Responder, Error> {
     let user_id = client.require_login()?;
 
+    // Rate limiting - uses post_creation limit (covers posts, profile posts, messages)
+    if let Err(e) = crate::rate_limit::check_post_rate_limit(user_id) {
+        log::warn!("Conversation creation rate limit exceeded for user: {}", user_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many messages. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
+
     // Parse recipient usernames
     let usernames: Vec<&str> = form
         .recipient_usernames
@@ -286,6 +295,15 @@ pub async fn send_message_handler(
 
     let user_id = client.require_login()?;
     let conv_id = *conversation_id;
+
+    // Rate limiting - uses post_creation limit (covers posts, profile posts, messages)
+    if let Err(e) = crate::rate_limit::check_post_rate_limit(user_id) {
+        log::warn!("Message send rate limit exceeded for user: {}", user_id);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many messages. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
 
     // Parse multipart form data
     let mut content = String::new();

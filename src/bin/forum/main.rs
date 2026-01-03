@@ -27,6 +27,9 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Failed to load configuration from database");
 
+    // Initialize rate limits from database settings
+    ruforo::rate_limit::init_rate_limits(&config);
+
     // Initialize word filters from database
     ruforo::word_filter::init_filters(get_db_pool())
         .await

@@ -4,7 +4,7 @@
 use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{email_verification_tokens, users};
-use actix_web::{error, get, post, web, Error, Responder};
+use actix_web::{error, get, post, web, Error, HttpRequest, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::{Duration, Utc};
 use rand::Rng;
@@ -132,12 +132,27 @@ pub async fn resend_verification_form(client: ClientCtx) -> impl Responder {
 /// POST /verify-email/resend - Resend verification email
 #[post("/verify-email/resend")]
 pub async fn resend_verification(
+    req: HttpRequest,
     client: ClientCtx,
     cookies: actix_session::Session,
     form: web::Form<ResendVerificationForm>,
 ) -> Result<impl Responder, Error> {
     // Validate CSRF token
     crate::middleware::csrf::validate_csrf_token(&cookies, &form.csrf_token)?;
+
+    // Get client IP for rate limiting
+    let ip = crate::ip::extract_client_ip(&req)
+        .map(|ip| ip.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Rate limiting - prevent abuse
+    if let Err(e) = crate::rate_limit::check_email_verification_rate_limit(&ip) {
+        log::warn!("Email verification rate limit exceeded for IP: {}", ip);
+        return Err(error::ErrorTooManyRequests(format!(
+            "Too many verification requests. Please try again in {} seconds.",
+            e.retry_after_seconds
+        )));
+    }
 
     let email = form.email.trim().to_lowercase();
     let db = get_db_pool();
