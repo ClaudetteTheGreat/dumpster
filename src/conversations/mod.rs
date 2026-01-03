@@ -367,7 +367,17 @@ pub async fn get_conversation_messages(
                             p.signature,
                         )
                     } else {
-                        ("Unknown".to_string(), None, None, None, None, None, 0, None, None)
+                        (
+                            "Unknown".to_string(),
+                            None,
+                            None,
+                            None,
+                            None,
+                            None,
+                            0,
+                            None,
+                            None,
+                        )
                     };
 
                     displays.push(MessageDisplay {
@@ -549,11 +559,7 @@ pub async fn get_archived_conversations(
 }
 
 /// Update a message's content (only by the message author)
-pub async fn update_message(
-    message_id: i32,
-    user_id: i32,
-    new_content: &str,
-) -> Result<(), DbErr> {
+pub async fn update_message(message_id: i32, user_id: i32, new_content: &str) -> Result<(), DbErr> {
     let db = get_db_pool();
 
     // Get the message to verify ownership
@@ -564,7 +570,9 @@ pub async fn update_message(
 
     // Verify the user is the message author
     if message.user_id != Some(user_id) {
-        return Err(DbErr::Custom("You can only edit your own messages".to_string()));
+        return Err(DbErr::Custom(
+            "You can only edit your own messages".to_string(),
+        ));
     }
 
     // Get the UGC and update it

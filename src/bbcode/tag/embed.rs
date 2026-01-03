@@ -567,20 +567,22 @@ impl super::Tag {
                 let youtube_url = format!("https://www.youtube.com/watch?v={}", id);
                 return format!(
                     "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
-                    youtube_url,
-                    youtube_url
+                    youtube_url, youtube_url
                 );
             }
         }
 
         // Treat as raw video ID
-        if !trimmed.is_empty() && trimmed.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+        if !trimmed.is_empty()
+            && trimmed
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        {
             el.clear_contents();
             let youtube_url = format!("https://www.youtube.com/watch?v={}", trimmed);
             return format!(
                 "<a class=\"bbCode tagUrl\" rel=\"nofollow\" href=\"{}\">{}</a>",
-                youtube_url,
-                youtube_url
+                youtube_url, youtube_url
             );
         }
 

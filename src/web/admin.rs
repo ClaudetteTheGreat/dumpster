@@ -4263,10 +4263,8 @@ async fn view_permission_hierarchy(client: ClientCtx) -> Result<impl Responder, 
         })?;
 
     // Build parent map for depth calculation
-    let parent_map: std::collections::HashMap<i32, Option<i32>> = all_forums
-        .iter()
-        .map(|f| (f.id, f.parent_id))
-        .collect();
+    let parent_map: std::collections::HashMap<i32, Option<i32>> =
+        all_forums.iter().map(|f| (f.id, f.parent_id)).collect();
 
     fn get_depth(forum_id: i32, parent_map: &std::collections::HashMap<i32, Option<i32>>) -> i32 {
         let mut depth = 0;
@@ -4334,10 +4332,7 @@ async fn get_user_permissions(
 ) -> Result<impl Responder, Error> {
     client.require_permission("admin.settings")?;
 
-    let username = query
-        .get("username")
-        .map(|s| s.trim())
-        .unwrap_or("");
+    let username = query.get("username").map(|s| s.trim()).unwrap_or("");
 
     if username.is_empty() {
         return Ok(web::Json(serde_json::json!({"error": "Username required"})));
@@ -4416,10 +4411,8 @@ async fn get_user_permissions(
         .collect();
 
     // Build parent map for inheritance
-    let parent_map: std::collections::HashMap<i32, Option<i32>> = forums
-        .iter()
-        .map(|f| (f.id, f.parent_id))
-        .collect();
+    let parent_map: std::collections::HashMap<i32, Option<i32>> =
+        forums.iter().map(|f| (f.id, f.parent_id)).collect();
 
     // Check if a forum inherits mod status from parent
     fn inherits_mod(
@@ -4438,10 +4431,7 @@ async fn get_user_permissions(
     }
 
     // Build forum tree with depths
-    fn get_depth(
-        forum_id: i32,
-        parent_map: &std::collections::HashMap<i32, Option<i32>>,
-    ) -> i32 {
+    fn get_depth(forum_id: i32, parent_map: &std::collections::HashMap<i32, Option<i32>>) -> i32 {
         let mut depth = 0;
         let mut current = parent_map.get(&forum_id).copied().flatten();
         while current.is_some() {
@@ -4468,7 +4458,8 @@ async fn get_user_permissions(
 
     // Get effective permissions
     let group_ids: Vec<i32> = user_groups_info.iter().map(|g| g.id).collect();
-    let (permissions, sources) = compute_effective_permissions(db, &group_ids, Some(user_id)).await?;
+    let (permissions, sources) =
+        compute_effective_permissions(db, &group_ids, Some(user_id)).await?;
 
     Ok(web::Json(serde_json::json!(UserPermissionHierarchy {
         username: user_name.name,
@@ -4609,23 +4600,24 @@ async fn search_users_autocomplete(
         name: String,
     }
 
-    let users: Vec<UserSuggestion> = UserSuggestion::find_by_statement(Statement::from_sql_and_values(
-        DbBackend::Postgres,
-        r#"
+    let users: Vec<UserSuggestion> =
+        UserSuggestion::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            r#"
             SELECT user_id, name
             FROM user_names
             WHERE LOWER(name) LIKE LOWER($1 || '%')
             ORDER BY name
             LIMIT 10
         "#,
-        [q.into()],
-    ))
-    .all(db)
-    .await
-    .map_err(|e| {
-        log::error!("Failed to search users: {}", e);
-        error::ErrorInternalServerError("Database error")
-    })?;
+            [q.into()],
+        ))
+        .all(db)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to search users: {}", e);
+            error::ErrorInternalServerError("Database error")
+        })?;
 
     Ok(web::Json(serde_json::json!({"users": users})))
 }
@@ -4769,7 +4761,10 @@ async fn get_forum_permissions(
         if seen_user_ids.insert(m.user_id) {
             moderators.push(ForumModeratorInfo {
                 user_id: m.user_id,
-                username: mod_usernames.get(&m.user_id).cloned().unwrap_or_else(|| format!("User #{}", m.user_id)),
+                username: mod_usernames
+                    .get(&m.user_id)
+                    .cloned()
+                    .unwrap_or_else(|| format!("User #{}", m.user_id)),
                 source: "direct".to_string(),
                 source_forum: None,
             });
@@ -4782,7 +4777,10 @@ async fn get_forum_permissions(
             if seen_user_ids.insert(m.user_id) {
                 moderators.push(ForumModeratorInfo {
                     user_id: m.user_id,
-                    username: mod_usernames.get(&m.user_id).cloned().unwrap_or_else(|| format!("User #{}", m.user_id)),
+                    username: mod_usernames
+                        .get(&m.user_id)
+                        .cloned()
+                        .unwrap_or_else(|| format!("User #{}", m.user_id)),
                     source: "inherited".to_string(),
                     source_forum: Some(parent_name.clone()),
                 });
@@ -4831,7 +4829,10 @@ async fn get_forum_permissions(
         if seen_user_ids.insert(user_id) {
             moderators.push(ForumModeratorInfo {
                 user_id,
-                username: global_mod_usernames.get(&user_id).cloned().unwrap_or_else(|| format!("User #{}", user_id)),
+                username: global_mod_usernames
+                    .get(&user_id)
+                    .cloned()
+                    .unwrap_or_else(|| format!("User #{}", user_id)),
                 source: "global".to_string(),
                 source_forum: None,
             });
@@ -4869,7 +4870,8 @@ async fn get_forum_permissions(
         })?;
 
     // Map collection_id -> forum_permission link for this forum
-    let forum_collection_ids: Vec<i32> = forum_perm_links.iter().map(|fp| fp.collection_id).collect();
+    let forum_collection_ids: Vec<i32> =
+        forum_perm_links.iter().map(|fp| fp.collection_id).collect();
 
     // Get all permission collections (both global and forum-specific)
     let all_collections = permission_collections::Entity::find()
@@ -4925,8 +4927,10 @@ async fn get_forum_permissions(
         let global_cid = global_collection_map.get(&group.id);
         let forum_cid = forum_collection_map.get(&group.id);
 
-        let mut permissions: std::collections::HashMap<String, std::collections::HashMap<String, String>> =
-            std::collections::HashMap::new();
+        let mut permissions: std::collections::HashMap<
+            String,
+            std::collections::HashMap<String, String>,
+        > = std::collections::HashMap::new();
 
         for (perm, category) in &all_perms {
             let category_name = category
@@ -5017,24 +5021,22 @@ async fn compute_effective_permissions(
     let collection_ids: Vec<i32> = collections.iter().map(|c| c.id).collect();
 
     // Map collection_id to group label for source tracking
-    let all_groups = groups::Entity::find()
-        .all(db)
-        .await
-        .map_err(|e| {
-            log::error!("Failed to fetch groups: {}", e);
-            error::ErrorInternalServerError("Database error")
-        })?;
+    let all_groups = groups::Entity::find().all(db).await.map_err(|e| {
+        log::error!("Failed to fetch groups: {}", e);
+        error::ErrorInternalServerError("Database error")
+    })?;
 
-    let group_labels: std::collections::HashMap<i32, String> = all_groups
-        .iter()
-        .map(|g| (g.id, g.label.clone()))
-        .collect();
+    let group_labels: std::collections::HashMap<i32, String> =
+        all_groups.iter().map(|g| (g.id, g.label.clone())).collect();
 
     let collection_sources: std::collections::HashMap<i32, String> = collections
         .iter()
         .map(|c| {
             let source = if let Some(gid) = c.group_id {
-                group_labels.get(&gid).cloned().unwrap_or_else(|| "Unknown".to_string())
+                group_labels
+                    .get(&gid)
+                    .cloned()
+                    .unwrap_or_else(|| "Unknown".to_string())
             } else if c.user_id.is_some() {
                 "User-specific".to_string()
             } else {
@@ -5055,7 +5057,8 @@ async fn compute_effective_permissions(
 
     // Build effective permission map
     // Permission resolution: Never > Yes > No
-    let mut effective: std::collections::HashMap<i32, (Flag, i32)> = std::collections::HashMap::new(); // perm_id -> (flag, collection_id)
+    let mut effective: std::collections::HashMap<i32, (Flag, i32)> =
+        std::collections::HashMap::new(); // perm_id -> (flag, collection_id)
 
     for pv in perm_values {
         let existing = effective.get(&pv.permission_id);
@@ -5087,7 +5090,9 @@ async fn compute_effective_permissions(
     let mut sources: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
     for (perm, category) in all_perms {
-        let category_label = category.map(|c| c.label).unwrap_or_else(|| "Other".to_string());
+        let category_label = category
+            .map(|c| c.label)
+            .unwrap_or_else(|| "Other".to_string());
         let perm_label = perm.label.clone();
 
         let (value_str, source) = if let Some((flag, coll_id)) = effective.get(&perm.id) {
@@ -7121,7 +7126,10 @@ async fn view_forum_moderators(
 
     // Redirect to the permissions page which now includes moderators section
     Ok(HttpResponse::SeeOther()
-        .append_header(("Location", format!("/admin/forums/{}/permissions", forum_id)))
+        .append_header((
+            "Location",
+            format!("/admin/forums/{}/permissions", forum_id),
+        ))
         .finish())
 }
 
@@ -7213,7 +7221,10 @@ async fn add_forum_moderator(
             return Ok(HttpResponse::SeeOther()
                 .append_header((
                     "Location",
-                    format!("/admin/forums/{}/permissions?mod_error=user_not_found", forum_id),
+                    format!(
+                        "/admin/forums/{}/permissions?mod_error=user_not_found",
+                        forum_id
+                    ),
                 ))
                 .finish());
         }
@@ -7234,7 +7245,10 @@ async fn add_forum_moderator(
         return Ok(HttpResponse::SeeOther()
             .append_header((
                 "Location",
-                format!("/admin/forums/{}/permissions?mod_error=already_moderator", forum_id),
+                format!(
+                    "/admin/forums/{}/permissions?mod_error=already_moderator",
+                    forum_id
+                ),
             ))
             .finish());
     }
@@ -8179,7 +8193,10 @@ async fn create_theme(
         .ok_or_else(|| error::ErrorBadRequest("Slug is required"))?;
 
     // Validate slug format (lowercase letters, numbers, hyphens only)
-    if !slug.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+    if !slug
+        .chars()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    {
         return Err(error::ErrorBadRequest(
             "Slug must contain only lowercase letters, numbers, and hyphens",
         ));
@@ -8213,10 +8230,7 @@ async fn create_theme(
         .and_then(|s| s.parse().ok())
         .unwrap_or(10);
 
-    let css_variables = form
-        .get("css_variables")
-        .filter(|s| !s.is_empty())
-        .cloned();
+    let css_variables = form.get("css_variables").filter(|s| !s.is_empty()).cloned();
     let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
 
     // Parse parent_id (empty string means no parent)
@@ -8260,10 +8274,7 @@ async fn create_theme(
 
 /// GET /admin/themes/{id}/edit - Show form to edit theme
 #[get("/admin/themes/{id}/edit")]
-async fn view_edit_theme(
-    client: ClientCtx,
-    path: web::Path<i32>,
-) -> Result<impl Responder, Error> {
+async fn view_edit_theme(client: ClientCtx, path: web::Path<i32>) -> Result<impl Responder, Error> {
     client.require_permission("admin.settings")?;
 
     let db = get_db_pool();
@@ -8333,10 +8344,7 @@ async fn update_theme(
         .and_then(|s| s.parse().ok())
         .unwrap_or(existing.display_order);
 
-    let css_variables = form
-        .get("css_variables")
-        .filter(|s| !s.is_empty())
-        .cloned();
+    let css_variables = form.get("css_variables").filter(|s| !s.is_empty()).cloned();
     let css_custom = form.get("css_custom").filter(|s| !s.is_empty()).cloned();
 
     // Parse parent_id (empty string means no parent)

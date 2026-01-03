@@ -10,7 +10,9 @@ use argon2::{
 };
 use askama_actix::TemplateToResponse;
 use chrono::Utc;
-use sea_orm::{entity::*, ConnectionTrait, DbErr, InsertResult, QueryFilter, Statement, TransactionTrait};
+use sea_orm::{
+    entity::*, ConnectionTrait, DbErr, InsertResult, QueryFilter, Statement, TransactionTrait,
+};
 use serde::Deserialize;
 use validator::Validate;
 
@@ -227,12 +229,19 @@ pub async fn create_user_post(
     let result = match insert_new_user(username, &password_hash, &email).await {
         Ok(result) => result,
         Err(CreateUserError::UsernameExists) => {
-            log::info!("Registration failed - username already exists: {}", username);
-            return Err(error::ErrorConflict("Username already exists (usernames are case-insensitive)"));
+            log::info!(
+                "Registration failed - username already exists: {}",
+                username
+            );
+            return Err(error::ErrorConflict(
+                "Username already exists (usernames are case-insensitive)",
+            ));
         }
         Err(CreateUserError::EmailExists) => {
             log::info!("Registration failed - email already exists: {}", email);
-            return Err(error::ErrorConflict("An account with this email address already exists"));
+            return Err(error::ErrorConflict(
+                "An account with this email address already exists",
+            ));
         }
         Err(CreateUserError::Database(e)) => {
             log::error!("Failed to create user: {}", e);

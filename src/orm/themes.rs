@@ -35,11 +35,7 @@ pub enum Relation {
         to = "super::users::Column::Id"
     )]
     Creator,
-    #[sea_orm(
-        belongs_to = "Entity",
-        from = "Column::ParentId",
-        to = "Column::Id"
-    )]
+    #[sea_orm(belongs_to = "Entity", from = "Column::ParentId", to = "Column::Id")]
     Parent,
 }
 
@@ -118,8 +114,14 @@ impl Model {
 
     /// Check if this theme has any custom CSS (not including parent)
     pub fn has_custom_css(&self) -> bool {
-        let has_vars = self.css_variables.as_ref().map_or(false, |v| !v.trim().is_empty());
-        let has_custom = self.css_custom.as_ref().map_or(false, |c| !c.trim().is_empty());
+        let has_vars = self
+            .css_variables
+            .as_ref()
+            .map_or(false, |v| !v.trim().is_empty());
+        let has_custom = self
+            .css_custom
+            .as_ref()
+            .map_or(false, |c| !c.trim().is_empty());
         has_vars || has_custom
     }
 

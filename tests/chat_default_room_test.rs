@@ -18,9 +18,7 @@ async fn test_user_default_room_none_uses_site_default() {
     let user = create_test_user(&db, "default_room_test_user", "password123")
         .await
         .unwrap();
-    let room = create_test_chat_room(&db, "Test Room")
-        .await
-        .unwrap();
+    let room = create_test_chat_room(&db, "Test Room").await.unwrap();
 
     // Set site default to this room
     set_test_setting(&db, "chat_default_room", &room.id.to_string())
@@ -42,8 +40,8 @@ async fn test_user_default_room_none_uses_site_default() {
 async fn test_user_default_room_overrides_site_default() {
     use common::database::{cleanup_test_data, setup_test_database};
     use common::fixtures::{
-        create_test_chat_room, create_test_user, get_user_default_chat_room,
-        set_test_setting, set_user_default_chat_room,
+        create_test_chat_room, create_test_user, get_user_default_chat_room, set_test_setting,
+        set_user_default_chat_room,
     };
 
     let db = setup_test_database().await.unwrap();
@@ -68,7 +66,11 @@ async fn test_user_default_room_overrides_site_default() {
 
     // Verify user preference is set
     let user_pref = get_user_default_chat_room(&db, user.id).await.unwrap();
-    assert_eq!(user_pref, Some(room2.id), "User preference should be room 2");
+    assert_eq!(
+        user_pref,
+        Some(room2.id),
+        "User preference should be room 2"
+    );
 
     cleanup_test_data(&db).await.unwrap();
 }
@@ -131,7 +133,9 @@ async fn test_clear_user_default_room() {
     assert_eq!(pref, Some(room.id));
 
     // Clear preference (set to None)
-    set_user_default_chat_room(&db, user.id, None).await.unwrap();
+    set_user_default_chat_room(&db, user.id, None)
+        .await
+        .unwrap();
 
     // Verify it was cleared
     let pref = get_user_default_chat_room(&db, user.id).await.unwrap();

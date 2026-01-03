@@ -121,9 +121,7 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
 
     // Load forum moderators
     use crate::orm::forum_moderators;
-    let forum_mod_rows = forum_moderators::Entity::find()
-        .all(get_db_pool())
-        .await?;
+    let forum_mod_rows = forum_moderators::Entity::find().all(get_db_pool()).await?;
 
     let mut forum_moderators_map: HashMap<i32, HashSet<i32>> = HashMap::new();
     for fm in forum_mod_rows {
@@ -267,8 +265,7 @@ impl PermissionData {
                         }
                     }
                     // Move to parent forum
-                    check_forum_id =
-                        global_perm_data.forum_parents.get(&fid).copied().flatten();
+                    check_forum_id = global_perm_data.forum_parents.get(&fid).copied().flatten();
                 }
             }
         }
@@ -459,9 +456,7 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
 
     // Load forum moderators
     use crate::orm::forum_moderators;
-    let forum_mod_rows = forum_moderators::Entity::find()
-        .all(get_db_pool())
-        .await?;
+    let forum_mod_rows = forum_moderators::Entity::find().all(get_db_pool()).await?;
 
     let mut forum_moderators_map: HashMap<i32, HashSet<i32>> = HashMap::new();
     for fm in forum_mod_rows {

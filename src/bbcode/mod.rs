@@ -193,7 +193,10 @@ mod tests {
         );
 
         // Invalid URL
-        assert_eq!("[thumb]not a link[/thumb]", parse("[thumb]not a link[/thumb]"));
+        assert_eq!(
+            "[thumb]not a link[/thumb]",
+            parse("[thumb]not a link[/thumb]")
+        );
 
         // Path traversal should be rejected
         assert_eq!(

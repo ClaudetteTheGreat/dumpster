@@ -31,7 +31,10 @@ async fn test_login_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(found_lowercase.is_some(), "Should find user with lowercase search");
+    assert!(
+        found_lowercase.is_some(),
+        "Should find user with lowercase search"
+    );
 
     // Verify we can find the user with uppercase
     let found_uppercase = db
@@ -43,7 +46,10 @@ async fn test_login_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(found_uppercase.is_some(), "Should find user with uppercase search");
+    assert!(
+        found_uppercase.is_some(),
+        "Should find user with uppercase search"
+    );
 
     // Verify we can find the user with original case
     let found_original = db
@@ -55,7 +61,10 @@ async fn test_login_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(found_original.is_some(), "Should find user with original case search");
+    assert!(
+        found_original.is_some(),
+        "Should find user with original case search"
+    );
 
     // Verify all queries return the same user_id
     let id1: i32 = found_lowercase.unwrap().try_get("", "user_id").unwrap();
@@ -148,7 +157,10 @@ async fn test_user_search_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(search_alice.is_some(), "Should find Alice with lowercase search 'ali'");
+    assert!(
+        search_alice.is_some(),
+        "Should find Alice with lowercase search 'ali'"
+    );
 
     let search_bob = db
         .query_one(Statement::from_sql_and_values(
@@ -159,7 +171,10 @@ async fn test_user_search_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(search_bob.is_some(), "Should find BOB with lowercase search 'bob'");
+    assert!(
+        search_bob.is_some(),
+        "Should find BOB with lowercase search 'bob'"
+    );
 
     let search_charlie = db
         .query_one(Statement::from_sql_and_values(
@@ -170,7 +185,10 @@ async fn test_user_search_case_insensitive() {
         .await
         .expect("Query failed");
 
-    assert!(search_charlie.is_some(), "Should find charlie with uppercase search 'CHAR'");
+    assert!(
+        search_charlie.is_some(),
+        "Should find charlie with uppercase search 'CHAR'"
+    );
 
     cleanup_test_data(&db).await.expect("Failed to cleanup");
 }

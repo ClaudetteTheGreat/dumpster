@@ -36,7 +36,10 @@ impl super::Tag {
             String::from("Spoiler")
         };
 
-        format!("<span class=\"blur-spoiler\" data-spoiler-title=\"{}\">", title)
+        format!(
+            "<span class=\"blur-spoiler\" data-spoiler-title=\"{}\">",
+            title
+        )
     }
 
     pub fn close_inline_spoiler_tag() -> String {

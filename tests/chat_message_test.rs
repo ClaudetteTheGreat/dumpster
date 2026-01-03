@@ -159,8 +159,16 @@ async fn test_chat_message_user_ownership() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(fetched.user_id, Some(user1.id), "Message should belong to user 1");
-    assert_ne!(fetched.user_id, Some(user2.id), "Message should not belong to user 2");
+    assert_eq!(
+        fetched.user_id,
+        Some(user1.id),
+        "Message should belong to user 1"
+    );
+    assert_ne!(
+        fetched.user_id,
+        Some(user2.id),
+        "Message should not belong to user 2"
+    );
 
     cleanup_test_data(&db).await.unwrap();
 }

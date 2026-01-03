@@ -181,7 +181,11 @@ pub fn get_available_parents(exclude_id: Option<i32>) -> Vec<themes::Model> {
 }
 
 /// Check if a theme is a descendant of another theme (to prevent cycles)
-fn is_descendant_of(theme: &themes::Model, ancestor_id: i32, cache: &HashMap<i32, themes::Model>) -> bool {
+fn is_descendant_of(
+    theme: &themes::Model,
+    ancestor_id: i32,
+    cache: &HashMap<i32, themes::Model>,
+) -> bool {
     let mut current = theme.parent_id;
     let mut depth = 0;
     const MAX_DEPTH: usize = 10;

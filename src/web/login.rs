@@ -8,7 +8,7 @@ use argon2::password_hash::{PasswordHash, PasswordVerifier};
 use askama::Template;
 use askama_actix::TemplateToResponse;
 use google_authenticator::GoogleAuthenticator;
-use sea_orm::{entity::*, query::*, DbErr, QueryFilter, ConnectionTrait, Statement};
+use sea_orm::{entity::*, query::*, ConnectionTrait, DbErr, QueryFilter, Statement};
 use serde::Deserialize;
 use validator::Validate;
 

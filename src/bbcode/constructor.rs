@@ -33,7 +33,7 @@ impl Constructor {
     /// Check if an image URL's domain is allowed based on the whitelist
     fn is_image_domain_allowed(&self, url: &str) -> bool {
         match &self.image_domain_whitelist {
-            None => true, // No whitelist = allow all
+            None => true,                                    // No whitelist = allow all
             Some(whitelist) if whitelist.is_empty() => true, // Empty whitelist = allow all
             Some(whitelist) => {
                 // Parse the URL and check the domain
