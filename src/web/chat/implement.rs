@@ -463,7 +463,11 @@ pub mod default {
                         Some(user) => super::Author {
                             id: user.id as u32,
                             username: user.name,
-                            avatar_url: String::new(),
+                            avatar_url: user
+                                .avatar_filename
+                                .as_ref()
+                                .map(|f| crate::filesystem::get_file_url_by_filename(f, f))
+                                .unwrap_or_default(),
                         },
                         None => super::Author {
                             id: 0,
@@ -488,7 +492,11 @@ pub mod default {
                 Session {
                     id,
                     username: user.name,
-                    avatar_url: "".to_owned(),
+                    avatar_url: user
+                        .avatar_filename
+                        .as_ref()
+                        .map(|f| crate::filesystem::get_file_url_by_filename(f, f))
+                        .unwrap_or_default(),
                     ignored_users: Vec::new(),
                     is_staff: false,
                 }
