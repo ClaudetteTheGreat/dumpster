@@ -3,14 +3,13 @@ use crate::db::get_db_pool;
 use crate::middleware::ClientCtx;
 use crate::orm::{posts, ugc_deletions, ugc_revisions};
 use crate::ugc::{create_ugc_revision, NewUgcPartial};
-use crate::user::Profile as UserProfile;
+use crate::user::{Profile as UserProfile, UserProfileLite};
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
 use chrono::prelude::Utc;
 use sea_orm::{entity::*, query::*, sea_query::Expr};
 use sea_orm::{DatabaseConnection, DbErr, FromQueryResult, QueryFilter};
 use serde::Deserialize;
-use std::collections::HashSet;
 
 pub(super) fn configure(conf: &mut actix_web::web::ServiceConfig) {
     conf.service(delete_post)
@@ -43,7 +42,7 @@ pub struct DeletePostFormData {
     pub deletion_type: Option<String>,
 }
 
-/// A fully joined struct representing the post model and its relational d&ata.
+/// A fully joined struct representing the post model and its relational data.
 #[derive(Debug, FromQueryResult)]
 pub struct PostForTemplate {
     pub id: i32,
@@ -65,6 +64,77 @@ pub struct PostForTemplate {
 }
 
 impl PostForTemplate {}
+
+/// Combined post + author in a single flat struct for ONE-query loading.
+/// Eliminates the second query for users, saving ~8-9ms of SeaORM overhead.
+#[derive(Debug, FromQueryResult)]
+pub struct PostWithAuthor {
+    // Post fields
+    pub id: i32,
+    pub thread_id: i32,
+    pub ugc_id: i32,
+    pub user_id: Option<i32>,
+    pub position: i32,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+    pub ugc_revision_id: Option<i32>,
+    pub content: Option<String>,
+    pub ip_id: Option<i32>,
+    pub deleted_by: Option<i32>,
+    pub deleted_at: Option<chrono::NaiveDateTime>,
+    pub deleted_reason: Option<String>,
+    pub deletion_type: Option<String>,
+    // Author fields (from user join)
+    pub author_name: Option<String>,
+    pub author_created_at: Option<chrono::NaiveDateTime>,
+    pub author_avatar_filename: Option<String>,
+    pub author_avatar_height: Option<i32>,
+    pub author_avatar_width: Option<i32>,
+    pub author_post_count: Option<i32>,
+    pub author_custom_title: Option<String>,
+    pub author_reputation_score: Option<i32>,
+    pub author_signature: Option<String>,
+}
+
+impl PostWithAuthor {
+    /// Split into PostForTemplate and optional UserProfileLite
+    pub fn into_parts(self) -> (PostForTemplate, Option<UserProfileLite>) {
+        let post = PostForTemplate {
+            id: self.id,
+            thread_id: self.thread_id,
+            ugc_id: self.ugc_id,
+            user_id: self.user_id,
+            position: self.position,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            ugc_revision_id: self.ugc_revision_id,
+            content: self.content,
+            ip_id: self.ip_id,
+            deleted_by: self.deleted_by,
+            deleted_at: self.deleted_at,
+            deleted_reason: self.deleted_reason,
+            deletion_type: self.deletion_type,
+        };
+
+        let user = self.user_id.and_then(|uid| {
+            // Only create user if we have author data
+            self.author_name.map(|name| UserProfileLite {
+                id: uid,
+                name,
+                created_at: self.author_created_at.unwrap_or_default(),
+                avatar_filename: self.author_avatar_filename,
+                avatar_height: self.author_avatar_height,
+                avatar_width: self.author_avatar_width,
+                post_count: self.author_post_count.unwrap_or(0),
+                custom_title: self.author_custom_title,
+                reputation_score: self.author_reputation_score.unwrap_or(0),
+                signature: self.author_signature,
+            })
+        });
+
+        (post, user)
+    }
+}
 
 #[derive(Template)]
 #[template(path = "post_delete.html")]
@@ -674,92 +744,101 @@ pub async fn get_post_and_author_for_template(
     .await
 }
 
-/// Batch-optimized: loads posts first, then batch-loads unique user profiles.
-/// Reduces N+1 queries (N user joins) to 2 queries (posts + users IN query).
+/// Single-query loading of posts with authors.
+/// Fetches posts + ugc + deletion info + user data in ONE query.
+/// Eliminates separate users query, saving ~8-9ms of SeaORM overhead.
 pub async fn get_replies_and_author_for_template(
     db: &DatabaseConnection,
-    id: i32,
+    thread_id: i32,
     page: i32,
     posts_per_page: i32,
     show_pending: bool,
     current_user_id: Option<i32>,
-) -> Result<Vec<(PostForTemplate, Option<UserProfile>)>, DbErr> {
+) -> Result<Vec<(PostForTemplate, Option<UserProfileLite>)>, DbErr> {
+    use sea_orm::{DbBackend, Statement};
     use std::time::Instant;
 
-    // Step 1: Load posts WITHOUT user joins
-    let posts_query_start = Instant::now();
-    let mut query = posts::Entity::find()
-        .left_join(ugc_revisions::Entity)
-        .column_as(ugc_revisions::Column::Id, "ugc_revision_id")
-        .column_as(ugc_revisions::Column::Content, "content")
-        .column_as(ugc_revisions::Column::IpId, "ip_id")
-        .column_as(ugc_revisions::Column::CreatedAt, "updated_at")
-        .left_join(ugc_deletions::Entity)
-        .column_as(ugc_deletions::Column::UserId, "deleted_by")
-        .column_as(ugc_deletions::Column::DeletedAt, "deleted_at")
-        .column_as(ugc_deletions::Column::Reason, "deleted_reason")
-        .column_as(
-            Expr::cust("ugc_deletions.deletion_type::TEXT"),
-            "deletion_type",
+    let query_start = Instant::now();
+
+    // Build WHERE clause for moderation status
+    let moderation_clause = if show_pending {
+        String::new()
+    } else if let Some(user_id) = current_user_id {
+        format!(
+            " AND (p.moderation_status = 'approved' OR (p.user_id = {} AND p.moderation_status = 'pending'))",
+            user_id
         )
-        .filter(posts::Column::ThreadId.eq(id))
-        .filter(
-            posts::Column::Position.between((page - 1) * posts_per_page + 1, page * posts_per_page),
-        );
+    } else {
+        " AND p.moderation_status = 'approved'".to_string()
+    };
 
-    // Filter out pending/rejected posts unless user is a moderator or the post author
-    if !show_pending {
-        if let Some(user_id) = current_user_id {
-            query = query.filter(
-                Condition::any()
-                    .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved))
-                    .add(
-                        Condition::all()
-                            .add(posts::Column::UserId.eq(user_id))
-                            .add(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Pending)),
-                    ),
-            );
-        } else {
-            query = query.filter(posts::Column::ModerationStatus.eq(posts::ModerationStatus::Approved));
-        }
-    }
+    let start_pos = (page - 1) * posts_per_page + 1;
+    let end_pos = page * posts_per_page;
 
-    let posts: Vec<PostForTemplate> = query
-        .order_by_asc(posts::Column::Position)
-        .order_by_asc(posts::Column::CreatedAt)
-        .into_model()
+    // Single query: posts + ugc + deletion + user (with name, avatar, stats)
+    let sql = format!(
+        r#"
+        SELECT
+            p.id,
+            p.thread_id,
+            p.ugc_id,
+            p.user_id,
+            p.position,
+            p.created_at,
+            COALESCE(ugc_rev.created_at, p.created_at) as updated_at,
+            ugc_rev.id as ugc_revision_id,
+            ugc_rev.content,
+            ugc_rev.ip_id,
+            ugc_del.user_id as deleted_by,
+            ugc_del.deleted_at,
+            ugc_del.reason as deleted_reason,
+            ugc_del.deletion_type::TEXT as deletion_type,
+            un.name as author_name,
+            u.created_at as author_created_at,
+            a.filename as author_avatar_filename,
+            a.file_height as author_avatar_height,
+            a.file_width as author_avatar_width,
+            u.post_count as author_post_count,
+            u.custom_title as author_custom_title,
+            u.reputation_score as author_reputation_score,
+            u.signature as author_signature
+        FROM posts p
+        LEFT JOIN ugc_revisions ugc_rev ON ugc_rev.ugc_id = p.ugc_id
+        LEFT JOIN ugc_deletions ugc_del ON ugc_del.id = p.ugc_id
+        LEFT JOIN users u ON u.id = p.user_id
+        LEFT JOIN user_names un ON un.user_id = u.id
+        LEFT JOIN user_avatars ua ON ua.user_id = u.id
+        LEFT JOIN attachments a ON a.id = ua.attachment_id
+        WHERE p.thread_id = $1
+          AND p.position BETWEEN $2 AND $3
+          {}
+        ORDER BY p.position ASC, p.created_at ASC
+        "#,
+        moderation_clause
+    );
+
+    let posts_with_authors: Vec<PostWithAuthor> =
+        PostWithAuthor::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            &sql,
+            [thread_id.into(), start_pos.into(), end_pos.into()],
+        ))
         .all(db)
         .await?;
-    let posts_query_us = posts_query_start.elapsed().as_micros() as u64;
 
-    // Step 2: Collect unique user IDs from posts
-    let user_ids: Vec<i32> = posts
-        .iter()
-        .filter_map(|p| p.user_id)
-        .collect::<HashSet<_>>()
+    let query_us = query_start.elapsed().as_micros() as u64;
+    let post_count = posts_with_authors.len();
+
+    // Split into (PostForTemplate, Option<UserProfileLite>) pairs
+    let result: Vec<(PostForTemplate, Option<UserProfileLite>)> = posts_with_authors
         .into_iter()
-        .collect();
-
-    // Step 3: Batch load user profiles with single IN query
-    let users_query_start = Instant::now();
-    let users = UserProfile::get_by_ids(db, &user_ids).await?;
-    let users_query_us = users_query_start.elapsed().as_micros() as u64;
-
-    // Step 4: Join results in memory
-    let result: Vec<(PostForTemplate, Option<UserProfile>)> = posts
-        .into_iter()
-        .map(|post| {
-            let user = post.user_id.and_then(|uid| users.get(&uid).cloned());
-            (post, user)
-        })
+        .map(|pwa| pwa.into_parts())
         .collect();
 
     log::info!(
-        "Posts query breakdown: posts_query={}μs ({} posts), users_query={}μs ({} unique users)",
-        posts_query_us,
-        result.len(),
-        users_query_us,
-        user_ids.len()
+        "Posts query: single_query={}μs ({} posts with authors)",
+        query_us,
+        post_count
     );
 
     Ok(result)

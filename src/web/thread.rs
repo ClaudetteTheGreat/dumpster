@@ -10,7 +10,7 @@ use crate::orm::{
     users,
 };
 use crate::template::{Paginator, PaginatorToHtml};
-use crate::user::Profile as UserProfile;
+use crate::user::UserProfileLite;
 use actix_multipart::Multipart;
 use actix_web::{error, get, post, web, Error, HttpResponse, Responder};
 use askama_actix::{Template, TemplateToResponse};
@@ -169,7 +169,7 @@ pub struct ThreadTemplate<'a> {
     pub forum: crate::orm::forums::Model,
     pub thread: crate::orm::threads::Model,
     pub paginator: Paginator,
-    pub posts: &'a Vec<(PostForTemplate, Option<UserProfile>)>,
+    pub posts: &'a Vec<(PostForTemplate, Option<UserProfileLite>)>,
     pub attachments: &'a HashMap<i32, Vec<AttachmentForTemplate>>,
     pub is_watching: bool,
     pub email_on_reply: bool,

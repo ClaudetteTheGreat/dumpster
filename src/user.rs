@@ -280,6 +280,108 @@ impl Profile {
     }
 }
 
+/// Lightweight user profile for post display.
+/// Contains only fields needed for rendering post authors in thread view.
+/// Reduces data transfer, memory, and deserialization overhead vs full Profile.
+#[derive(Clone, Debug, FromQueryResult)]
+pub struct UserProfileLite {
+    pub id: i32,
+    pub name: String,
+    pub created_at: chrono::NaiveDateTime,
+    pub avatar_filename: Option<String>,
+    pub avatar_height: Option<i32>,
+    pub avatar_width: Option<i32>,
+    pub post_count: i32,
+    pub custom_title: Option<String>,
+    pub reputation_score: i32,
+    pub signature: Option<String>,
+}
+
+impl UserProfileLite {
+    /// Batch load lightweight user profiles by IDs.
+    /// Optimized query: only 10 columns vs 22 in full Profile.
+    pub async fn get_by_ids(
+        db: &DatabaseConnection,
+        ids: &[i32],
+    ) -> Result<HashMap<i32, Self>, sea_orm::DbErr> {
+        use sea_orm::{DbBackend, Statement};
+
+        if ids.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        // Build placeholders for IN clause: $1, $2, $3, ...
+        let placeholders: Vec<String> = (1..=ids.len()).map(|i| format!("${}", i)).collect();
+        let placeholders_str = placeholders.join(", ");
+
+        // Minimal query: only fields needed for post author display
+        let sql = format!(
+            r#"
+            SELECT
+                u.id,
+                un.name,
+                u.created_at,
+                a.filename as avatar_filename,
+                a.file_height as avatar_height,
+                a.file_width as avatar_width,
+                u.post_count,
+                u.custom_title,
+                u.reputation_score,
+                u.signature
+            FROM users u
+            LEFT JOIN user_names un ON un.user_id = u.id
+            LEFT JOIN user_avatars ua ON ua.user_id = u.id
+            LEFT JOIN attachments a ON a.id = ua.attachment_id
+            WHERE u.id IN ({})
+        "#,
+            placeholders_str
+        );
+
+        let values: Vec<sea_orm::Value> = ids.iter().map(|&id| id.into()).collect();
+
+        let profiles = Self::find_by_statement(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            &sql,
+            values,
+        ))
+        .all(db)
+        .await?;
+
+        Ok(profiles.into_iter().map(|p| (p.id, p)).collect())
+    }
+
+    /// Provides semantically correct HTML for an avatar.
+    pub fn get_avatar_html(&self, size: AttachmentSize) -> String {
+        if let (Some(filename), Some(width), Some(height)) = (
+            self.avatar_filename.as_ref(),
+            self.avatar_width,
+            self.avatar_height,
+        ) {
+            crate::attachment::get_avatar_html(filename, (width, height), size)
+        } else {
+            "".to_owned()
+        }
+    }
+
+    /// Provides a URL token for this resource.
+    pub fn get_url_token(&self) -> UrlToken<'static> {
+        UrlToken {
+            id: Some(self.id),
+            name: self.name.to_owned(),
+            base_url: RESOURCE_URL,
+            class: "username",
+        }
+    }
+
+    /// Renders the user's signature as HTML using BBCode parser.
+    pub fn get_signature_html(&self) -> Option<String> {
+        self.signature
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .map(|sig| crate::bbcode::parse(sig))
+    }
+}
+
 pub async fn get_user_id_from_name(db: &DatabaseConnection, name: &str) -> Option<i32> {
     user_names::Entity::find()
         .filter(user_names::Column::Name.eq(name))
