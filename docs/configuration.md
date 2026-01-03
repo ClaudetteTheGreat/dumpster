@@ -223,7 +223,7 @@ Site-wide settings can be configured at `/admin/settings`:
 - **posts_per_page** - Default posts per page
 - **threads_per_page** - Threads per page in forum list
 - **enforce_thumbnails** - Force inserted images to use thumbnail format (default: false)
-- **thumbnail_max_size** - Maximum thumbnail size in pixels (default: 150)
+- **thumbnail_max_size** - Maximum thumbnail size in pixels, maintains aspect ratio (default: 150)
 
 ### Security Settings
 - **registration_enabled** - Allow new user registrations
