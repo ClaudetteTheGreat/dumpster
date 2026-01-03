@@ -607,6 +607,17 @@
         color: #ffc107;
     }
 
+    /* Dark mode action buttons - ensure text is white */
+    html.dark .action-button,
+    [data-theme="dark"] .action-button {
+        color: white;
+    }
+
+    html.dark .action-button--secondary,
+    [data-theme="dark"] .action-button--secondary {
+        color: white;
+    }
+
     @media (prefers-color-scheme: dark) {
         html:not([data-theme="light"]) .thread-header {
             background: #2a2a2a;
@@ -624,6 +635,11 @@
 
         html:not([data-theme="light"]) .moderation-tools h3 {
             color: #ffc107;
+        }
+
+        html:not([data-theme="light"]) .action-button,
+        html:not([data-theme="light"]) .action-button--secondary {
+            color: white;
         }
     }
 
