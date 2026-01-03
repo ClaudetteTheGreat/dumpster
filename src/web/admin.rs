@@ -5110,7 +5110,7 @@ async fn compute_effective_permissions(
 
         result
             .entry(category_label)
-            .or_insert_with(std::collections::HashMap::new)
+            .or_default()
             .insert(perm_label.clone(), value_str);
 
         if !source.is_empty() {
@@ -6941,7 +6941,7 @@ async fn save_forum_permissions(
         };
         group_permissions
             .entry(group_id)
-            .or_insert_with(std::collections::HashMap::new)
+            .or_default()
             .insert(perm_id, value.clone());
     }
 
@@ -7405,7 +7405,7 @@ async fn view_tags(client: ClientCtx) -> Result<impl Responder, Error> {
         if let Some(forum) = forum_opt {
             tag_forum_map
                 .entry(tf.tag_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(forum.label);
         }
     }

@@ -54,8 +54,8 @@ impl super::Tag {
 
     pub fn fill_thumb_tag(mut el: RefMut<Element>, contents: String) -> String {
         // Support relative URLs starting with /
-        if contents.starts_with('/') {
-            if !contents.contains("..") && !contents.contains('\0') {
+        if contents.starts_with('/')
+            && !contents.contains("..") && !contents.contains('\0') {
                 el.clear_contents();
                 let escaped = html_escape(&contents);
                 return format!(
@@ -64,7 +64,6 @@ impl super::Tag {
                     escaped, escaped
                 );
             }
-        }
 
         // Support absolute URLs
         if let Ok(url) = Url::parse(&contents) {

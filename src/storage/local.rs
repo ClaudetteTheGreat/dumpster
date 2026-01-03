@@ -126,7 +126,7 @@ impl StorageBackend for LocalStorage {
             fs::write(&path, data)
         })
         .await
-        .map_err(|e| StorageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+        .map_err(|e| StorageError::Io(std::io::Error::other(e)))??;
 
         Ok(())
     }
@@ -174,7 +174,7 @@ impl StorageBackend for LocalStorage {
             },
         )
         .await
-        .map_err(|e| StorageError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+        .map_err(|e| StorageError::Io(std::io::Error::other(e)))??;
 
         let (buffer, metadata, content_range) = result;
         let content_length = buffer.len() as i64;

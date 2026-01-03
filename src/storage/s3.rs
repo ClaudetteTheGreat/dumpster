@@ -84,7 +84,7 @@ impl StorageBackend for S3Storage {
         let body: ByteStream = match output.body {
             Some(stream) => {
                 let mapped = stream.map_ok(Bytes::from).map_err(|e: std::io::Error| {
-                    std::io::Error::new(std::io::ErrorKind::Other, e.to_string())
+                    std::io::Error::other(e.to_string())
                 });
                 Box::pin(mapped)
             }

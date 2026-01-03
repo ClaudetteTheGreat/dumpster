@@ -101,7 +101,7 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
 
             let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
 
-            let forum_vals = forum_perms_map.entry(forum_id).or_insert_with(DashMap::new);
+            let forum_vals = forum_perms_map.entry(forum_id).or_default();
 
             if forum_vals.contains_key(&val_key) {
                 forum_vals.alter(&val_key, |_, v| cv.join(&v));
@@ -127,7 +127,7 @@ pub async fn reload_forum_permissions() -> Result<(), sea_orm::error::DbErr> {
     for fm in forum_mod_rows {
         forum_moderators_map
             .entry(fm.forum_id)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(fm.user_id);
     }
 
@@ -436,7 +436,7 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
 
             let val_key = (pc.group_id.unwrap_or(0), pc.user_id.unwrap_or(0));
 
-            let forum_vals = forum_perms_map.entry(forum_id).or_insert_with(DashMap::new);
+            let forum_vals = forum_perms_map.entry(forum_id).or_default();
 
             if forum_vals.contains_key(&val_key) {
                 forum_vals.alter(&val_key, |_, v| cv.join(&v));
@@ -462,7 +462,7 @@ pub async fn new() -> Result<PermissionData, sea_orm::error::DbErr> {
     for fm in forum_mod_rows {
         forum_moderators_map
             .entry(fm.forum_id)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(fm.user_id);
     }
 

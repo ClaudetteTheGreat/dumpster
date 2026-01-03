@@ -117,11 +117,11 @@ impl Model {
         let has_vars = self
             .css_variables
             .as_ref()
-            .map_or(false, |v| !v.trim().is_empty());
+            .is_some_and(|v| !v.trim().is_empty());
         let has_custom = self
             .css_custom
             .as_ref()
-            .map_or(false, |c| !c.trim().is_empty());
+            .is_some_and(|c| !c.trim().is_empty());
         has_vars || has_custom
     }
 

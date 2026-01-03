@@ -252,7 +252,7 @@ impl ClientCtx {
         self.0
             .theme
             .as_ref()
-            .map(|t| crate::theme::get_theme_full_css(t))
+            .map(crate::theme::get_theme_full_css)
             .unwrap_or_default()
     }
 
@@ -261,7 +261,7 @@ impl ClientCtx {
         self.0
             .theme
             .as_ref()
-            .map(|t| crate::theme::theme_has_css(t))
+            .map(crate::theme::theme_has_css)
             .unwrap_or(false)
     }
 
