@@ -329,16 +329,22 @@ pub async fn search_usernames(
     let db = get_db_pool();
 
     // Search for usernames starting with the search term (case-insensitive)
-    let results = user_names::Entity::find()
-        .filter(Expr::cust_with_values(
-            "LOWER(name) LIKE $1",
-            [format!("{}%", search_term.to_lowercase())],
-        ))
-        .order_by_asc(user_names::Column::Name)
-        .limit(10)
-        .all(db)
-        .await
-        .map_err(error::ErrorInternalServerError)?;
+    use sea_orm::{DbBackend, FromQueryResult, Statement};
+
+    let results = user_names::Model::find_by_statement(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        r#"
+            SELECT user_id, name
+            FROM user_names
+            WHERE LOWER(name) LIKE LOWER($1 || '%')
+            ORDER BY name
+            LIMIT 10
+        "#,
+        [search_term.into()],
+    ))
+    .all(db)
+    .await
+    .map_err(error::ErrorInternalServerError)?;
 
     let response: Vec<UsernameSearchResult> = results
         .into_iter()
