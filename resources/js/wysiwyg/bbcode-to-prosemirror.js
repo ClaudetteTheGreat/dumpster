@@ -85,30 +85,44 @@ export function parseHTML(html) {
 function preprocessDOM(container) {
   // Handle blockquotes with attribution
   container.querySelectorAll('blockquote').forEach(bq => {
-    // Extract author from "username said:" pattern
-    const header = bq.querySelector('.quote-header, .bbcode-quote-header');
-    if (header) {
-      const authorText = header.textContent || '';
-      const authorMatch = authorText.match(/^(.+?)\s+said:/i);
-      if (authorMatch) {
-        bq.setAttribute('data-author', authorMatch[1].trim());
-      }
+    // Server uses data-author, data-thread, data-post
+    // We need data-thread-id and data-post-id for the schema
+    const dataThread = bq.getAttribute('data-thread');
+    const dataPost = bq.getAttribute('data-post');
+    if (dataThread) {
+      bq.setAttribute('data-thread-id', dataThread);
+    }
+    if (dataPost) {
+      bq.setAttribute('data-post-id', dataPost);
+    }
 
-      // Extract thread/post IDs from link if present
-      const link = header.querySelector('a');
-      if (link) {
-        const href = link.getAttribute('href') || '';
-        const match = href.match(/\/threads\/(\d+)\/post-(\d+)/);
-        if (match) {
-          bq.setAttribute('data-thread-id', match[1]);
-          bq.setAttribute('data-post-id', match[2]);
-        } else {
-          const postMatch = href.match(/#post-(\d+)/);
-          if (postMatch) {
-            bq.setAttribute('data-post-id', postMatch[1]);
-          }
+    // Also check for quote link and extract IDs if data attributes missing
+    const link = bq.querySelector('a.quote-link');
+    if (link && !bq.hasAttribute('data-thread-id')) {
+      const href = link.getAttribute('href') || '';
+      const match = href.match(/\/threads\/(\d+)\/post-(\d+)/);
+      if (match) {
+        bq.setAttribute('data-thread-id', match[1]);
+        bq.setAttribute('data-post-id', match[2]);
+      }
+    }
+
+    // Extract author from .attribution if data-author missing
+    if (!bq.hasAttribute('data-author')) {
+      const header = bq.querySelector('.attribution, .quote-header, .bbcode-quote-header');
+      if (header) {
+        const authorText = header.textContent || '';
+        const authorMatch = authorText.match(/^(.+?)\s+said:/i);
+        if (authorMatch) {
+          bq.setAttribute('data-author', authorMatch[1].trim());
         }
       }
+    }
+
+    // Add quote-content class to .quoted div for contentElement matching
+    const quoted = bq.querySelector('.quoted');
+    if (quoted && !quoted.classList.contains('quote-content')) {
+      quoted.classList.add('quote-content');
     }
   });
 

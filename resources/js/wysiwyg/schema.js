@@ -65,6 +65,10 @@ const nodes = {
           threadId: dom.getAttribute('data-thread-id') || null,
           postId: dom.getAttribute('data-post-id') || null
         };
+      },
+      // Only parse .quote-content as the quote's content, not the header
+      contentElement(dom) {
+        return dom.querySelector('.quote-content') || dom;
       }
     }],
     toDOM(node) {
