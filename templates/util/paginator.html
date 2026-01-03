@@ -144,5 +144,61 @@
             font-size: 0.8em;
         }
     }
+
+    /* Dark mode */
+    html.dark .page-link,
+    [data-theme="dark"] .page-link {
+        color: #6ea8fe;
+        background: #2a2a2a;
+        border-color: #444;
+    }
+
+    html.dark .page-link:hover:not(.page-link--current):not(.page-link--disabled):not(.page-link--ellipsis),
+    [data-theme="dark"] .page-link:hover:not(.page-link--current):not(.page-link--disabled):not(.page-link--ellipsis) {
+        background-color: #3a3a3a;
+        border-color: #555;
+    }
+
+    html.dark .page-link--current,
+    [data-theme="dark"] .page-link--current {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+
+    html.dark .page-link--disabled,
+    [data-theme="dark"] .page-link--disabled {
+        color: #666;
+    }
+
+    html.dark .page-link--ellipsis,
+    [data-theme="dark"] .page-link--ellipsis {
+        color: #666;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) .page-link {
+            color: #6ea8fe;
+            background: #2a2a2a;
+            border-color: #444;
+        }
+
+        html:not([data-theme="light"]) .page-link:hover:not(.page-link--current):not(.page-link--disabled):not(.page-link--ellipsis) {
+            background-color: #3a3a3a;
+            border-color: #555;
+        }
+
+        html:not([data-theme="light"]) .page-link--current {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+
+        html:not([data-theme="light"]) .page-link--disabled {
+            color: #666;
+        }
+
+        html:not([data-theme="light"]) .page-link--ellipsis {
+            color: #666;
+        }
+    }
 </style>
 {% endif %}

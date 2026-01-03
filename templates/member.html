@@ -596,111 +596,162 @@
 }
 
 /* Dark mode support */
+html.dark .member-header,
+[data-theme="dark"] .member-header {
+    background: #2d2d2d;
+}
+
+html.dark .follow-stat:hover,
+[data-theme="dark"] .follow-stat:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .follow-count,
+[data-theme="dark"] .follow-count {
+    color: #e0e0e0;
+}
+
+html.dark .follow-label,
+[data-theme="dark"] .follow-label {
+    color: #aaa;
+}
+
+html.dark .btn-secondary,
+[data-theme="dark"] .btn-secondary {
+    background: #495057;
+}
+
+html.dark .btn-secondary:hover,
+[data-theme="dark"] .btn-secondary:hover {
+    background: #5a6268;
+}
+
+html.dark .member-badges,
+[data-theme="dark"] .member-badges {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+html.dark .member-badges h3,
+[data-theme="dark"] .member-badges h3 {
+    color: #e0e0e0;
+}
+
+html.dark .badge-item,
+[data-theme="dark"] .badge-item {
+    background: #3d3d3d;
+}
+
+html.dark .badge-item:hover,
+[data-theme="dark"] .badge-item:hover {
+    background: #4d4d4d;
+}
+
+html.dark .badge-name,
+[data-theme="dark"] .badge-name {
+    color: #e0e0e0;
+}
+
+html.dark .member-social-links,
+[data-theme="dark"] .member-social-links {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+html.dark .member-social-links h3,
+[data-theme="dark"] .member-social-links h3 {
+    color: #e0e0e0;
+}
+
+html.dark .social-link-card,
+[data-theme="dark"] .social-link-card {
+    background: #3d3d3d;
+}
+
+html.dark .social-link-card:hover,
+[data-theme="dark"] .social-link-card:hover {
+    background: #4d4d4d;
+}
+
+html.dark .social-link-platform,
+[data-theme="dark"] .social-link-platform {
+    color: #e0e0e0;
+}
+
+html.dark .social-link-username,
+[data-theme="dark"] .social-link-username {
+    color: #aaa;
+}
+
+html.dark .member-wall,
+[data-theme="dark"] .member-wall {
+    background: #2d2d2d;
+    border-color: #404040;
+}
+
+html.dark .member-wall h3,
+[data-theme="dark"] .member-wall h3 {
+    color: #e0e0e0;
+}
+
+html.dark .wall-post-form textarea,
+[data-theme="dark"] .wall-post-form textarea {
+    background: #3d3d3d;
+    border-color: #505050;
+    color: #e0e0e0;
+}
+
+html.dark .wall-post-form textarea::placeholder,
+[data-theme="dark"] .wall-post-form textarea::placeholder {
+    color: #888;
+}
+
+html.dark .wall-post,
+[data-theme="dark"] .wall-post {
+    background: #3d3d3d;
+}
+
+html.dark .wall-post-author a,
+[data-theme="dark"] .wall-post-author a {
+    color: #4da6ff;
+}
+
+html.dark .wall-post-content,
+[data-theme="dark"] .wall-post-content {
+    color: #e0e0e0;
+}
+
+html.dark .wall-post-meta,
+[data-theme="dark"] .wall-post-meta {
+    color: #999;
+}
+
 @media (prefers-color-scheme: dark) {
-    .member-header {
-        background: #2d2d2d;
-    }
-
-    .follow-stat:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .follow-count {
-        color: #e0e0e0;
-    }
-
-    .follow-label {
-        color: #aaa;
-    }
-
-    .btn-secondary {
-        background: #495057;
-    }
-
-    .btn-secondary:hover {
-        background: #5a6268;
-    }
-
-    .member-badges {
-        background: #2d2d2d;
-        border-color: #404040;
-    }
-
-    .member-badges h3 {
-        color: #e0e0e0;
-    }
-
-    .badge-item {
-        background: #3d3d3d;
-    }
-
-    .badge-item:hover {
-        background: #4d4d4d;
-    }
-
-    .badge-name {
-        color: #e0e0e0;
-    }
-
-    .member-social-links {
-        background: #2d2d2d;
-        border-color: #404040;
-    }
-
-    .member-social-links h3 {
-        color: #e0e0e0;
-    }
-
-    .social-link-card {
-        background: #3d3d3d;
-    }
-
-    .social-link-card:hover {
-        background: #4d4d4d;
-    }
-
-    .social-link-platform {
-        color: #e0e0e0;
-    }
-
-    .social-link-username {
-        color: #aaa;
-    }
-
-    .member-wall {
-        background: #2d2d2d;
-        border-color: #404040;
-    }
-
-    .member-wall h3 {
-        color: #e0e0e0;
-    }
-
-    .wall-post-form textarea {
-        background: #3d3d3d;
-        border-color: #505050;
-        color: #e0e0e0;
-    }
-
-    .wall-post-form textarea::placeholder {
-        color: #888;
-    }
-
-    .wall-post {
-        background: #3d3d3d;
-    }
-
-    .wall-post-author a {
-        color: #4da6ff;
-    }
-
-    .wall-post-content {
-        color: #e0e0e0;
-    }
-
-    .wall-post-meta {
-        color: #999;
-    }
+    html:not([data-theme="light"]) .member-header { background: #2d2d2d; }
+    html:not([data-theme="light"]) .follow-stat:hover { background: rgba(255, 255, 255, 0.1); }
+    html:not([data-theme="light"]) .follow-count { color: #e0e0e0; }
+    html:not([data-theme="light"]) .follow-label { color: #aaa; }
+    html:not([data-theme="light"]) .btn-secondary { background: #495057; }
+    html:not([data-theme="light"]) .btn-secondary:hover { background: #5a6268; }
+    html:not([data-theme="light"]) .member-badges { background: #2d2d2d; border-color: #404040; }
+    html:not([data-theme="light"]) .member-badges h3 { color: #e0e0e0; }
+    html:not([data-theme="light"]) .badge-item { background: #3d3d3d; }
+    html:not([data-theme="light"]) .badge-item:hover { background: #4d4d4d; }
+    html:not([data-theme="light"]) .badge-name { color: #e0e0e0; }
+    html:not([data-theme="light"]) .member-social-links { background: #2d2d2d; border-color: #404040; }
+    html:not([data-theme="light"]) .member-social-links h3 { color: #e0e0e0; }
+    html:not([data-theme="light"]) .social-link-card { background: #3d3d3d; }
+    html:not([data-theme="light"]) .social-link-card:hover { background: #4d4d4d; }
+    html:not([data-theme="light"]) .social-link-platform { color: #e0e0e0; }
+    html:not([data-theme="light"]) .social-link-username { color: #aaa; }
+    html:not([data-theme="light"]) .member-wall { background: #2d2d2d; border-color: #404040; }
+    html:not([data-theme="light"]) .member-wall h3 { color: #e0e0e0; }
+    html:not([data-theme="light"]) .wall-post-form textarea { background: #3d3d3d; border-color: #505050; color: #e0e0e0; }
+    html:not([data-theme="light"]) .wall-post-form textarea::placeholder { color: #888; }
+    html:not([data-theme="light"]) .wall-post { background: #3d3d3d; }
+    html:not([data-theme="light"]) .wall-post-author a { color: #4da6ff; }
+    html:not([data-theme="light"]) .wall-post-content { color: #e0e0e0; }
+    html:not([data-theme="light"]) .wall-post-meta { color: #999; }
 }
 </style>
 {% endblock %}

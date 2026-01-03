@@ -280,5 +280,142 @@
             font-size: 0.95em;
         }
     }
+
+    /* Dark mode */
+    html.dark h1,
+    [data-theme="dark"] h1 {
+        color: #e0e0e0;
+    }
+
+    html.dark .feed-description,
+    [data-theme="dark"] .feed-description {
+        color: #999;
+    }
+
+    html.dark .profile-header,
+    [data-theme="dark"] .profile-header {
+        background: #2a2a2a;
+    }
+
+    html.dark .profile-name,
+    [data-theme="dark"] .profile-name {
+        color: #e0e0e0;
+    }
+
+    html.dark .activity-nav,
+    [data-theme="dark"] .activity-nav {
+        border-bottom-color: #444;
+    }
+
+    html.dark .activity-nav-link,
+    [data-theme="dark"] .activity-nav-link {
+        color: #999;
+    }
+
+    html.dark .activity-nav-link:hover,
+    [data-theme="dark"] .activity-nav-link:hover {
+        color: #e0e0e0;
+        background-color: #2a2a2a;
+    }
+
+    html.dark .activity-nav-link.active,
+    [data-theme="dark"] .activity-nav-link.active {
+        color: #6ea8fe;
+        border-bottom-color: #6ea8fe;
+    }
+
+    html.dark .activity-actor a,
+    [data-theme="dark"] .activity-actor a {
+        color: #6ea8fe;
+    }
+
+    html.dark .activity-action,
+    [data-theme="dark"] .activity-action {
+        color: #999;
+    }
+
+    html.dark .activity-target,
+    [data-theme="dark"] .activity-target {
+        color: #6ea8fe;
+    }
+
+    html.dark .activity-preview,
+    [data-theme="dark"] .activity-preview {
+        background: #2a2a2a;
+        color: #ccc;
+        border-left-color: #555;
+    }
+
+    html.dark .activity-meta,
+    [data-theme="dark"] .activity-meta {
+        color: #777;
+    }
+
+    html.dark .no-content,
+    [data-theme="dark"] .no-content {
+        color: #777;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) h1 {
+            color: #e0e0e0;
+        }
+
+        html:not([data-theme="light"]) .feed-description {
+            color: #999;
+        }
+
+        html:not([data-theme="light"]) .profile-header {
+            background: #2a2a2a;
+        }
+
+        html:not([data-theme="light"]) .profile-name {
+            color: #e0e0e0;
+        }
+
+        html:not([data-theme="light"]) .activity-nav {
+            border-bottom-color: #444;
+        }
+
+        html:not([data-theme="light"]) .activity-nav-link {
+            color: #999;
+        }
+
+        html:not([data-theme="light"]) .activity-nav-link:hover {
+            color: #e0e0e0;
+            background-color: #2a2a2a;
+        }
+
+        html:not([data-theme="light"]) .activity-nav-link.active {
+            color: #6ea8fe;
+            border-bottom-color: #6ea8fe;
+        }
+
+        html:not([data-theme="light"]) .activity-actor a {
+            color: #6ea8fe;
+        }
+
+        html:not([data-theme="light"]) .activity-action {
+            color: #999;
+        }
+
+        html:not([data-theme="light"]) .activity-target {
+            color: #6ea8fe;
+        }
+
+        html:not([data-theme="light"]) .activity-preview {
+            background: #2a2a2a;
+            color: #ccc;
+            border-left-color: #555;
+        }
+
+        html:not([data-theme="light"]) .activity-meta {
+            color: #777;
+        }
+
+        html:not([data-theme="light"]) .no-content {
+            color: #777;
+        }
+    }
 </style>
 {% endblock %}
