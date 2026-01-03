@@ -202,6 +202,7 @@ export class WysiwygEditor {
       /\[u\]/i,
       /\[url/i,
       /\[img/i,
+      /\[thumb/i,
       /\[quote/i,
       /\[code/i,
       /\[spoiler/i,

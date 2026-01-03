@@ -197,6 +197,11 @@ class BBCodeSerializer {
       }
     },
 
+    // Thumbnail
+    thumbnail: function(node) {
+      this.output += `[thumb]${node.attrs.src}[/thumb]`;
+    },
+
     // Video
     video: function(node) {
       this.output += `[video]${node.attrs.src}[/video]\n`;

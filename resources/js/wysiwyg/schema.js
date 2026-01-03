@@ -186,6 +186,32 @@ const nodes = {
   },
 
   // ==========================================================================
+  // Thumbnail - [thumb] - clickable image that links to full size
+  // ==========================================================================
+  thumbnail: {
+    inline: true,
+    group: 'inline',
+    draggable: true,
+    attrs: {
+      src: {}
+    },
+    parseDOM: [{
+      tag: 'a.bbcode-thumb',
+      getAttrs(dom) {
+        const img = dom.querySelector('img');
+        return {
+          src: img ? img.getAttribute('src') : dom.getAttribute('href')
+        };
+      }
+    }],
+    toDOM(node) {
+      return ['a', { href: node.attrs.src, class: 'bbcode-thumb', target: '_blank' },
+        ['img', { src: node.attrs.src, class: 'bbcode-thumb-img' }]
+      ];
+    }
+  },
+
+  // ==========================================================================
   // Video embed - [video]
   // ==========================================================================
   video: {
