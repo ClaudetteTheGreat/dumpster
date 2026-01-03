@@ -27,7 +27,7 @@
                         <button type="submit" class="watch-button">Archive</button>
                     </form>
                 {% endif %}
-                <form action="/conversations/{{ conversation_id }}/leave" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to leave this conversation? You will no longer receive messages.');">
+                <form action="/conversations/{{ conversation_id }}/leave" method="post" style="display: inline;" class="leave-form">
                     <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
                     <button type="submit" class="watch-button watch-button--danger">Leave</button>
                 </form>
@@ -130,7 +130,7 @@
                         <button type="button" class="edit-message-btn" data-message-id="{{ msg.id }}">Edit</button>
                         {% endif %}
                         {% if msg.user_id == client.get_id() || client.can("moderate.message.delete_any") %}
-                        <form action="/conversations/messages/{{ msg.id }}/delete" method="post" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this message?');">
+                        <form action="/conversations/messages/{{ msg.id }}/delete" method="post" style="display: inline;" class="delete-message-form">
                             <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
                             <button type="submit" class="delete-message-btn">Delete</button>
                         </form>
@@ -184,7 +184,7 @@
                         {% endif %}
                     </a>
                     {% if is_creator && participant.user_id != client.get_id().unwrap_or(0) %}
-                    <form action="/conversations/{{ conversation_id }}/kick" method="post" class="kick-form" onsubmit="return confirm('Remove {{ participant.name }} from this conversation?');">
+                    <form action="/conversations/{{ conversation_id }}/kick" method="post" class="kick-form" data-username="{{ participant.name }}">
                         <input type="hidden" name="csrf_token" value="{{ client.get_csrf_token() }}">
                         <input type="hidden" name="user_id" value="{{ participant.user_id }}">
                         <button type="submit" class="kick-btn" title="Remove from conversation">×</button>
@@ -421,6 +421,32 @@
 
 <script nonce="{{ client.get_nonce() }}">
 document.addEventListener('DOMContentLoaded', function() {
+    // Confirmation dialogs for forms
+    document.querySelectorAll('.leave-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Are you sure you want to leave this conversation? You will no longer receive messages.')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    document.querySelectorAll('.delete-message-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('Are you sure you want to delete this message?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
+    document.querySelectorAll('.kick-form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            var username = form.dataset.username || 'this user';
+            if (!confirm('Remove ' + username + ' from this conversation?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
     // Edit message button handler
     document.querySelectorAll('.edit-message-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
