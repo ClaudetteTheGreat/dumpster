@@ -513,16 +513,6 @@ html.dark {
     // REPORT BUTTON & MODAL
     // ==========================================================================
 
-    .report-btn {
-        border-color: var(--danger-accent);
-        color: var(--danger-accent);
-
-        &:hover {
-            background: var(--danger-accent);
-            color: var(--bg-primary);
-        }
-    }
-
     .report-modal-content {
         background: var(--bg-modal);
         border: 1px solid var(--border-secondary);

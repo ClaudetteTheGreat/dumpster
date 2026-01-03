@@ -123,19 +123,19 @@
                 </div>
 
                 <div class="actionBar-set actionBar-set--internal">
+                    {% if client.can_update_post(post) %}
+                    <button type="button" class="actionBar-action actionBar-action--edit quote-btn edit-post-btn" data-post-id="{{ post.id }}">Edit</button>
+                    <a href="/posts/{{ post.id }}/delete" class="actionBar-action actionBar-action--delete quote-btn">Delete</a>
+                    {% endif %}
                     {% if client.is_user() %}
-                    <button type="button" class="actionBar-action actionBar-action--report report-btn"
+                    <button type="button" class="actionBar-action actionBar-action--report quote-btn report-btn"
                         data-content-type="post"
                         data-content-id="{{ post.id }}"
                         data-csrf="{{ client.get_csrf_token() }}"
                         title="Report this post">Report</button>
                     {% endif %}
-                    {% if client.can_update_post(post) %}
-                    <button type="button" class="actionBar-action actionBar-action--edit edit-post-btn" data-post-id="{{ post.id }}">Edit</button>
-                    <a href="/posts/{{ post.id }}/delete" class="actionBar-action actionBar-action--delete">Delete</a>
-                    {% endif %}
                     {% if post.created_at != post.updated_at && client.can_update_post(post) %}
-                    <a href="/posts/{{ post.id }}/history" class="actionBar-action actionBar-action--history">History</a>
+                    <a href="/posts/{{ post.id }}/history" class="actionBar-action actionBar-action--history quote-btn">History</a>
                     {% endif %}
                 </div>
             </div>
