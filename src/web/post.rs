@@ -229,6 +229,7 @@ pub async fn destroy_post(
         .map_err(error::ErrorInternalServerError)?;
 
         // Spawn a thread to handle post-deletion work.
+        let post_user_id = post.user_id;
         actix_web::rt::spawn(async move {
             use super::thread::update_thread_after_reply_is_deleted;
 
@@ -248,6 +249,20 @@ pub async fn destroy_post(
             let _thread_res = update_thread_after_reply_is_deleted(post.thread_id)
                 .await
                 .map_err(|e| log::error!("destroy_post thread: {}", e));
+
+            // Decrement user's post_count (denormalized for performance)
+            if let Some(user_id) = post_user_id {
+                use crate::orm::users;
+                let _ = users::Entity::update_many()
+                    .col_expr(
+                        users::Column::PostCount,
+                        Expr::cust("GREATEST(post_count - 1, 0)"), // Prevent negative
+                    )
+                    .filter(users::Column::Id.eq(user_id))
+                    .exec(db)
+                    .await
+                    .map_err(|e| log::error!("destroy_post user post_count: {}", e));
+            }
         });
     }
 
@@ -325,7 +340,8 @@ pub async fn restore_post(
         .await
         .map_err(error::ErrorInternalServerError)?;
 
-    // Update post positions
+    // Update post positions and user post count
+    let post_user_id = post.user_id;
     actix_web::rt::spawn(async move {
         // Increment positions of posts that came after this one
         let _post_res = posts::Entity::update_many()
@@ -338,6 +354,20 @@ pub async fn restore_post(
             .exec(db)
             .await
             .map_err(|e| log::error!("restore_post thread: {}", e));
+
+        // Increment user's post_count (denormalized for performance)
+        if let Some(user_id) = post_user_id {
+            use crate::orm::users;
+            let _ = users::Entity::update_many()
+                .col_expr(
+                    users::Column::PostCount,
+                    Expr::col(users::Column::PostCount).add(1),
+                )
+                .filter(users::Column::Id.eq(user_id))
+                .exec(db)
+                .await
+                .map_err(|e| log::error!("restore_post user post_count: {}", e));
+        }
     });
 
     Ok(HttpResponse::Found()

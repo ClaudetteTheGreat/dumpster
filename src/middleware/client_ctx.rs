@@ -225,6 +225,15 @@ impl ClientCtx {
         self.0.client.as_ref()
     }
 
+    /// Get user's posts per page preference, or default if guest
+    pub fn get_posts_per_page(&self) -> i32 {
+        self.0
+            .client
+            .as_ref()
+            .map(|u| u.posts_per_page)
+            .unwrap_or(crate::web::thread::DEFAULT_POSTS_PER_PAGE)
+    }
+
     pub fn get_csrf_token(&self) -> &str {
         &self.0.csrf_token
     }

@@ -37,6 +37,8 @@ pub struct Model {
     pub following_count: i32,
     pub first_post_approved: bool,
     pub default_chat_room: Option<i32>,
+    /// Denormalized post count for performance (avoid COUNT(*) on every profile load)
+    pub post_count: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, EnumIter, DeriveActiveEnum)]

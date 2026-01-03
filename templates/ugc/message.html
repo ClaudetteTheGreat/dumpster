@@ -29,11 +29,9 @@
             <div class="user-joined">
                 Joined: {{ user.created_at.format("%b %Y") }}
             </div>
-            {% if let Some(post_count) = user.post_count %}
             <div class="user-posts">
-                Posts: {{ post_count }}
+                Posts: {{ user.post_count }}
             </div>
-            {% endif %}
             <div class="user-reputation{% if user.reputation_score > 0 %} reputation-positive{% else if user.reputation_score < 0 %} reputation-negative{% endif %}">
                 Reputation: {{ user.reputation_score }}
             </div>

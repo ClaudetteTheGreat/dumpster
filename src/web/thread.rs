@@ -199,6 +199,7 @@ pub fn get_url_for_pos(thread_id: i32, pos: i32) -> String {
 }
 
 /// Fetches poll data for a thread, if one exists.
+/// Optimized to load poll + options in a single query.
 pub async fn get_poll_for_thread(
     thread_id: i32,
     user_id: Option<i32>,
@@ -207,29 +208,27 @@ pub async fn get_poll_for_thread(
 
     let db = get_db_pool();
 
-    // Try to find poll for this thread
-    let poll = polls::Entity::find()
+    // Load poll with options in a single query using find_with_related
+    let poll_with_options: Vec<(polls::Model, Vec<poll_options::Model>)> = polls::Entity::find()
         .filter(polls::Column::ThreadId.eq(thread_id))
-        .one(db)
+        .find_with_related(poll_options::Entity)
+        .all(db)
         .await?;
 
-    let poll = match poll {
-        Some(p) => p,
+    // Extract poll and options from result
+    let (poll, mut options) = match poll_with_options.into_iter().next() {
+        Some((p, opts)) => (p, opts),
         None => return Ok(None),
     };
 
-    // Fetch poll options
-    let options = poll_options::Entity::find()
-        .filter(poll_options::Column::PollId.eq(poll.id))
-        .order_by_asc(poll_options::Column::DisplayOrder)
-        .all(db)
-        .await?;
+    // Sort options by display order (find_with_related doesn't preserve order)
+    options.sort_by_key(|o| o.display_order);
 
     // Calculate total votes
     let total_votes: i32 = options.iter().map(|o| o.vote_count).sum();
 
-    // Check if user has voted
-    let user_voted_options = if let Some(uid) = user_id {
+    // Check if user has voted (still needs separate query for user-specific data)
+    let user_voted_options: Vec<i32> = if let Some(uid) = user_id {
         poll_votes::Entity::find()
             .filter(poll_votes::Column::PollId.eq(poll.id))
             .filter(poll_votes::Column::UserId.eq(uid))
@@ -284,36 +283,28 @@ pub async fn get_poll_for_thread(
 }
 
 /// Fetches tags for a thread.
+/// Optimized to load thread_tags + tags in a single query using join.
 pub async fn get_tags_for_thread(thread_id: i32) -> Result<Vec<TagForTemplate>, sea_orm::DbErr> {
     use sea_orm::EntityTrait;
 
     let db = get_db_pool();
 
-    // Find all tag IDs for this thread
-    let thread_tag_records = thread_tags::Entity::find()
+    // Join thread_tags with tags in a single query
+    let results: Vec<(thread_tags::Model, Option<tags::Model>)> = thread_tags::Entity::find()
         .filter(thread_tags::Column::ThreadId.eq(thread_id))
+        .find_also_related(tags::Entity)
         .all(db)
         .await?;
 
-    if thread_tag_records.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let tag_ids: Vec<i32> = thread_tag_records.iter().map(|tt| tt.tag_id).collect();
-
-    // Fetch the actual tags
-    let tag_records = tags::Entity::find()
-        .filter(tags::Column::Id.is_in(tag_ids))
-        .all(db)
-        .await?;
-
-    Ok(tag_records
+    Ok(results
         .into_iter()
-        .map(|t| TagForTemplate {
-            id: t.id,
-            name: t.name,
-            slug: t.slug,
-            color: t.color.unwrap_or_else(|| "#6c757d".to_string()),
+        .filter_map(|(_tt, tag)| {
+            tag.map(|t| TagForTemplate {
+                id: t.id,
+                name: t.name,
+                slug: t.slug,
+                color: t.color.unwrap_or_else(|| "#6c757d".to_string()),
+            })
         })
         .collect())
 }
@@ -481,19 +472,8 @@ async fn get_thread_and_replies_for_page(
         .map_err(error::ErrorInternalServerError)?
         .ok_or_else(|| error::ErrorNotFound("Forum not found."))?;
 
-    // Get user's posts per page preference
-    let posts_per_page = if let Some(user_id) = client.get_id() {
-        use crate::orm::users;
-        users::Entity::find_by_id(user_id)
-            .one(db)
-            .await
-            .ok()
-            .flatten()
-            .map(|u| u.posts_per_page)
-            .unwrap_or(DEFAULT_POSTS_PER_PAGE)
-    } else {
-        DEFAULT_POSTS_PER_PAGE
-    };
+    // Get user's posts per page preference from already-loaded profile
+    let posts_per_page = client.get_posts_per_page();
 
     // Update thread to include views.
     let db_clone = db;
@@ -947,6 +927,17 @@ pub async fn create_reply(
             Expr::value(new_post.created_at),
         )
         .filter(threads::Column::Id.eq(thread_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
+    // Increment user's post_count (denormalized for performance)
+    users::Entity::update_many()
+        .col_expr(
+            users::Column::PostCount,
+            Expr::col(users::Column::PostCount).add(1),
+        )
+        .filter(users::Column::Id.eq(authenticated_user_id))
         .exec(db)
         .await
         .map_err(error::ErrorInternalServerError)?;

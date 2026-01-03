@@ -373,8 +373,8 @@ pub async fn get_conversation_messages(
                             None,
                             None,
                             None,
-                            None,
-                            0,
+                            0, // post_count
+                            0, // reputation_score
                             None,
                             None,
                         )
@@ -418,7 +418,7 @@ pub struct MessageDisplay {
     pub avatar_width: Option<i32>,
     pub avatar_height: Option<i32>,
     pub user_created_at: Option<chrono::NaiveDateTime>,
-    pub post_count: Option<i64>,
+    pub post_count: i32,
     pub reputation_score: i32,
     pub custom_title: Option<String>,
     pub signature: Option<String>,

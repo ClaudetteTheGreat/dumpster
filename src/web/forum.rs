@@ -674,6 +674,19 @@ pub async fn create_thread(
         )));
     }
 
+    // Increment user's post_count (denormalized for performance)
+    // Only for approved posts (not pending)
+    let db = get_db_pool();
+    users::Entity::update_many()
+        .col_expr(
+            users::Column::PostCount,
+            Expr::col(users::Column::PostCount).add(1),
+        )
+        .filter(users::Column::Id.eq(user_id))
+        .exec(db)
+        .await
+        .map_err(error::ErrorInternalServerError)?;
+
     // Check and award any automatic badges the user may have earned (async, non-blocking)
     actix::spawn(async move {
         crate::badges::check_and_award_automatic_badges(user_id).await;

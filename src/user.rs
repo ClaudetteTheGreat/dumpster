@@ -21,13 +21,13 @@ static ACTIVITY_UPDATE_CACHE: Lazy<RwLock<HashMap<i32, DateTime<Utc>>>> =
 /// Base URL fragment for resource.
 pub static RESOURCE_URL: &str = "members";
 
+/// Joins user data (name, avatar, post_count) to a query.
+/// Optimized: uses denormalized post_count column instead of correlated subquery.
 pub fn find_also_user<E, C>(sel: Select<E>, col: C) -> SelectTwo<E, users::Entity>
 where
     E: EntityTrait<Column = C>,
     C: IntoSimpleExpr + ColumnTrait,
 {
-    use sea_orm::sea_query::Expr;
-
     sel.select_also(users::Entity)
         .join(
             JoinType::LeftJoin,
@@ -46,14 +46,8 @@ where
         .column_as(attachments::Column::Filename, "B_avatar_filename")
         .column_as(attachments::Column::FileHeight, "B_avatar_height")
         .column_as(attachments::Column::FileWidth, "B_avatar_width")
-        // Add post count subquery
-        .column_as(
-            Expr::cust_with_values(
-                "(SELECT COUNT(*) FROM posts WHERE posts.user_id = users.id)",
-                std::iter::empty::<sea_orm::Value>(),
-            ),
-            "B_post_count",
-        )
+        // Use denormalized post_count column instead of subquery
+        .column_as(users::Column::PostCount, "B_post_count")
 }
 
 /// A struct to hold all information for a user, including relational information.
@@ -67,7 +61,8 @@ pub struct Profile {
     pub avatar_height: Option<i32>,
     pub avatar_width: Option<i32>,
     pub posts_per_page: i32,
-    pub post_count: Option<i64>,
+    /// Denormalized post count from users table (no longer computed via COUNT)
+    pub post_count: i32,
     pub theme: Option<String>,
     pub theme_auto: bool,
     pub bio: Option<String>,
@@ -85,13 +80,15 @@ pub struct Profile {
 
 impl Profile {
     /// Returns a fully qualified user profile by id.
+    /// Optimized: uses denormalized post_count column instead of COUNT(*).
     pub async fn get_by_id(
         db: &DatabaseConnection,
         id: i32,
     ) -> Result<Option<Self>, sea_orm::DbErr> {
         use sea_orm::{DbBackend, Statement};
 
-        // Use raw SQL to include post count
+        // Optimized query using denormalized post_count column
+        // No longer needs to join posts table or use GROUP BY
         let sql = r#"
             SELECT
                 u.id,
@@ -102,7 +99,7 @@ impl Profile {
                 a.file_height as avatar_height,
                 a.file_width as avatar_width,
                 u.posts_per_page,
-                COUNT(p.id) as post_count,
+                u.post_count,
                 u.theme,
                 u.theme_auto,
                 u.bio,
@@ -120,9 +117,7 @@ impl Profile {
             LEFT JOIN user_names un ON un.user_id = u.id
             LEFT JOIN user_avatars ua ON ua.user_id = u.id
             LEFT JOIN attachments a ON a.id = ua.attachment_id
-            LEFT JOIN posts p ON p.user_id = u.id
             WHERE u.id = $1
-            GROUP BY u.id, un.name, u.created_at, u.password_cipher, a.filename, a.file_height, a.file_width, u.posts_per_page, u.theme, u.theme_auto, u.bio, u.location, u.website_url, u.signature, u.custom_title, u.show_online, u.reputation_score, u.allow_profile_posts, u.follower_count, u.following_count, u.default_chat_room
         "#;
 
         Self::find_by_statement(Statement::from_sql_and_values(

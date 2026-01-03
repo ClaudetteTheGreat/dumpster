@@ -31,6 +31,7 @@ async fn create_unverified_user(
         locked_until: Set(None),
         email: Set(Some(email.to_string())),
         email_verified: Set(false), // Unverified
+        post_count: Set(0),
         ..Default::default()
     };
     let user_model = user.insert(db).await?;
