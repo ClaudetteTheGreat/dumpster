@@ -1,0 +1,422 @@
+// ==========================================================================
+// FORUM PAGE STYLES
+// ==========================================================================
+// Styles for forum view (thread listing) and forum list pages
+
+// ==================== FORUM RULES ====================
+
+.forum-rules {
+    background-color: var(--warning-bg);
+    border: 2px solid var(--warning-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-5);
+    margin: var(--space-5) 0;
+
+    h3 {
+        margin-top: 0;
+        margin-bottom: var(--space-4);
+        color: var(--warning-text);
+        font-size: var(--font-size-lg);
+    }
+}
+
+.forum-rules-content {
+    color: var(--text-primary);
+    line-height: var(--line-height-relaxed);
+
+    ul,
+    ol {
+        margin: var(--space-2) 0;
+        padding-left: var(--space-6);
+    }
+
+    li {
+        margin: var(--space-1) 0;
+    }
+}
+
+// ==================== THREAD TITLE & BADGES ====================
+
+.thread-title-with-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.thread-badge {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    border-radius: var(--radius-sm);
+}
+
+.thread-badge--pinned {
+    background: #ffc107;
+    color: #212529;
+}
+
+.thread-badge--locked {
+    background: var(--danger-btn);
+    color: var(--text-white);
+}
+
+.thread-prefix {
+    display: inline-block;
+    padding: 3px var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    border-radius: var(--radius-sm);
+    background: var(--text-muted);
+    color: var(--text-white);
+    letter-spacing: 0.5px;
+}
+
+// ==================== LATEST POST INFO ====================
+
+.latest-info {
+    text-align: center;
+    font-size: var(--font-size-sm);
+}
+
+.latest-time {
+    color: var(--text-muted);
+    margin-bottom: var(--space-1);
+}
+
+.latest-links {
+    display: flex;
+    gap: var(--space-2);
+    justify-content: center;
+}
+
+.latest-link {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    background: var(--success-btn);
+    color: var(--text-white);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    transition: background var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background: var(--success-btn-hover);
+        text-decoration: none;
+    }
+}
+
+.unread-link {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    background: var(--link-color);
+    color: var(--text-white);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    transition: background var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background: var(--link-hover);
+        text-decoration: none;
+    }
+}
+
+.struct-item-cell--latest {
+    min-width: 120px;
+    padding: var(--space-2);
+}
+
+// ==================== THREAD LISTING TAGS ====================
+
+.thread-listing-tags {
+    margin-top: var(--space-1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+}
+
+.thread-listing-tag {
+    display: inline-block;
+    padding: 2px var(--space-2);
+    font-size: var(--font-size-xs);
+    color: var(--text-white);
+    text-decoration: none;
+    border-radius: var(--radius-full);
+    transition: opacity var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        opacity: 0.8;
+        text-decoration: none;
+    }
+}
+
+// ==================== ACTIVE TAG FILTER ====================
+
+.active-filter {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--accent-selected-bg);
+    border: 1px solid var(--accent-selected-border);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-5);
+}
+
+.active-filter-label {
+    color: var(--link-color);
+    font-weight: var(--font-weight-medium);
+}
+
+.active-filter-tag {
+    display: inline-block;
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-sm);
+    color: var(--text-white);
+    border-radius: var(--radius-lg);
+    font-weight: var(--font-weight-medium);
+}
+
+.clear-filter {
+    margin-left: auto;
+    color: var(--danger-btn);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background: rgba(220, 53, 69, 0.1);
+        text-decoration: none;
+    }
+}
+
+// ==================== FORUM MODERATORS ====================
+
+.forum-moderators {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-5);
+    font-size: var(--font-size-sm);
+}
+
+.moderators-label {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-secondary);
+}
+
+.moderator-link {
+    color: var(--link-color);
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}
+
+// ==================== SUB-FORUMS ====================
+
+.struct-container--subforums {
+    margin-bottom: var(--space-8);
+}
+
+.struct-item--subforum-inline {
+    background-color: var(--bg-secondary);
+    border-left: 3px solid var(--text-muted);
+
+    .forum-icon--sub {
+        font-size: 1.5em;
+        opacity: 0.8;
+    }
+
+    .forum-title {
+        font-size: var(--font-size-base);
+    }
+
+    .forum-description {
+        font-size: var(--font-size-sm);
+        color: var(--text-muted);
+        margin-top: var(--space-1);
+    }
+}
+
+.forum-icon-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+}
+
+.forum-icon-img--sub {
+    width: 36px;
+    height: 36px;
+    opacity: 0.9;
+}
+
+// ==================== STATS & META CELLS ====================
+
+.struct-item-cell--stats,
+.struct-item-cell--meta {
+    display: flex;
+    gap: var(--space-5);
+    align-items: center;
+    padding: var(--space-2) var(--space-4);
+    min-width: 150px;
+
+    dl {
+        margin: 0;
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-1);
+    }
+
+    dt {
+        font-size: var(--font-size-xs);
+        color: var(--text-hint);
+        text-transform: uppercase;
+        font-weight: var(--font-weight-medium);
+    }
+
+    dd {
+        margin: 0;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        color: var(--text-primary);
+    }
+}
+
+// ==================== FORUM ACTIONS ====================
+
+.forum-actions {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+}
+
+.inline-form {
+    display: inline;
+}
+
+.btn--secondary {
+    background: var(--text-muted);
+    color: var(--text-white);
+    border: none;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+    transition: background var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background: var(--text-secondary);
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+}
+
+.btn--small {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+}
+
+// ==================== NEW THREAD CTA ====================
+
+.new-thread-cta {
+    margin: var(--space-6) 0;
+    text-align: center;
+}
+
+.btn-new-thread {
+    display: inline-block;
+    padding: var(--space-3) var(--space-6);
+    background: var(--success-btn);
+    color: var(--text-white);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    transition: background var(--duration-fast) var(--easing-default),
+                transform var(--duration-fast) var(--easing-default),
+                box-shadow var(--duration-fast) var(--easing-default);
+    box-shadow: var(--shadow-sm);
+
+    &:hover {
+        background: var(--success-btn-hover);
+        text-decoration: none;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+    }
+
+    &:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-sm);
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+}
+
+// ==================== RESPONSIVE ====================
+
+@media (max-width: 768px) {
+    .struct-item-cell--latest,
+    .struct-item-cell--stats,
+    .struct-item-cell--meta {
+        display: none;
+    }
+}
+
+// ==================== DARK MODE ====================
+// Most styles use CSS custom properties that automatically adapt.
+// These overrides handle specific dark mode adjustments.
+
+html.dark {
+    .thread-prefix {
+        background: #555;
+    }
+
+    .active-filter {
+        background: #1a237e;
+        border-color: #3949ab;
+    }
+
+    .active-filter-label {
+        color: #90caf9;
+    }
+
+    .clear-filter {
+        color: #ef5350;
+
+        &:hover {
+            background: rgba(239, 83, 80, 0.2);
+        }
+    }
+
+    .struct-item--subforum-inline {
+        background-color: var(--bg-primary);
+        border-left-color: #555;
+    }
+
+    .btn-new-thread {
+        background: #218838;
+
+        &:hover {
+            background: #1e7e34;
+        }
+    }
+}

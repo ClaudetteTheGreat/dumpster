@@ -18,6 +18,10 @@
 @use 'components/pagination';
 @use 'components/breadcrumb';
 
+// ==================== PAGES ====================
+// Page-specific styles
+@use 'pages/forum';
+
 // ==================== LEGACY MODULES ====================
 // These will be incrementally refactored into components/pages
 @use 'generic';
