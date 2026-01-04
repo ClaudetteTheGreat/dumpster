@@ -381,11 +381,164 @@
     }
 }
 
+// ==================== FORUMS LIST PAGE ====================
+
+.forums-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-5);
+
+    h1 {
+        margin: 0;
+    }
+}
+
+.forum-icon {
+    font-size: 2em;
+    display: block;
+    text-align: center;
+}
+
+.forum-icon--sub {
+    font-size: 1.5em;
+    opacity: 0.8;
+}
+
+// Unread forum indicator
+.struct-item--unread {
+    border-left: 3px solid var(--link-color);
+
+    .forum-title a {
+        font-weight: var(--font-weight-semibold);
+    }
+}
+
+// Subforum styling
+.struct-item--subforum {
+    margin-left: var(--space-8);
+    border-left: 3px solid var(--border-light);
+    background-color: var(--bg-secondary);
+
+    .forum-title {
+        font-size: var(--font-size-base);
+    }
+
+    .struct-item-cell--stats dl dd {
+        font-size: var(--font-size-xs);
+    }
+}
+
+.forum-title {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--space-1);
+
+    a {
+        color: var(--link-color);
+        text-decoration: none;
+        font-weight: var(--font-weight-medium);
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.forum-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: var(--space-1);
+}
+
+// Latest activity cell (forums list)
+.struct-item-cell--latest {
+    min-width: 200px;
+    max-width: 250px;
+    padding: var(--space-2) var(--space-4);
+}
+
+.latest-info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.latest-thread {
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-tight);
+
+    a {
+        color: var(--link-color);
+        text-decoration: none;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.latest-meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+
+    time {
+        color: var(--text-hint);
+    }
+}
+
+.latest-by {
+    margin-left: var(--space-1);
+
+    a {
+        color: var(--link-color);
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.no-forums {
+    text-align: center;
+    padding: var(--space-10);
+    color: var(--text-hint);
+    font-size: var(--font-size-lg);
+}
+
+// ==================== RESPONSIVE (FORUMS) ====================
+
+@media (max-width: 768px) {
+    .forum-icon {
+        font-size: 1.5em;
+    }
+
+    .forum-title {
+        font-size: var(--font-size-base);
+    }
+
+    .struct-item--subforum {
+        margin-left: var(--space-4);
+    }
+}
+
 // ==================== DARK MODE ====================
 // Most styles use CSS custom properties that automatically adapt.
 // These overrides handle specific dark mode adjustments.
 
 html.dark {
+    .struct-item--subforum {
+        border-left-color: #444;
+        background-color: var(--bg-primary);
+    }
+
+    .struct-item--unread {
+        border-left-color: #6ea8fe;
+    }
     .thread-prefix {
         background: #555;
     }
