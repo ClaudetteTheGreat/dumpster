@@ -1,0 +1,97 @@
+// ==========================================================================
+// PAGINATION COMPONENT
+// ==========================================================================
+// Used for navigating between pages of thread posts, forum lists, etc.
+
+.paginated-nav {
+    margin: var(--space-5) 0;
+    display: flex;
+    justify-content: center;
+}
+
+.pagination {
+    display: flex;
+    gap: var(--space-1);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-2) var(--space-3);
+    min-width: 40px;
+    text-decoration: none;
+    color: var(--link-color);
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-fast) var(--easing-default),
+                border-color var(--duration-fast) var(--easing-default);
+    font-size: var(--font-size-sm);
+    text-align: center;
+
+    &:hover:not(.page-link--current):not(.page-link--disabled):not(.page-link--ellipsis) {
+        background-color: var(--bg-hover);
+        border-color: var(--border-secondary);
+        text-decoration: none;
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+}
+
+.page-link--current {
+    background-color: var(--link-color);
+    color: var(--text-white);
+    border-color: var(--link-color);
+    font-weight: var(--font-weight-bold);
+    cursor: default;
+}
+
+.page-link--disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.page-link--ellipsis {
+    border: none;
+    background: none;
+    cursor: default;
+    pointer-events: none;
+    color: var(--text-muted);
+    min-width: auto;
+    padding: var(--space-2) var(--space-1);
+}
+
+.page-link--prev,
+.page-link--next {
+    font-weight: var(--font-weight-medium);
+}
+
+// ==================== RESPONSIVE ====================
+
+@media (max-width: 768px) {
+    .pagination {
+        gap: 2px;
+    }
+
+    .page-link {
+        padding: var(--space-1) var(--space-2);
+        font-size: var(--font-size-xs);
+        min-width: 35px;
+    }
+
+    .page-link--prev,
+    .page-link--next {
+        font-size: var(--font-size-xs);
+    }
+}
+
+// ==================== DARK MODE ====================
+// Dark mode is handled via CSS custom properties defined in var.scss
+// The variables automatically change when html.dark class is present
