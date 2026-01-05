@@ -1,0 +1,465 @@
+// ==========================================================================
+// BUTTON COMPONENT
+// ==========================================================================
+// Unified button system with variants, sizes, and states
+
+// ==================== BASE BUTTON ====================
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-tight);
+    text-decoration: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    transition: background-color var(--duration-fast) var(--easing-default),
+                border-color var(--duration-fast) var(--easing-default),
+                color var(--duration-fast) var(--easing-default),
+                box-shadow var(--duration-fast) var(--easing-default);
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+
+    &:disabled,
+    &.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    // Icon-only button adjustment
+    svg {
+        flex-shrink: 0;
+    }
+}
+
+// ==================== BUTTON VARIANTS ====================
+
+// Primary (default action)
+.btn-primary,
+.btn--primary {
+    background-color: var(--link-color);
+    border-color: var(--link-color);
+    color: var(--text-white);
+
+    &:hover {
+        background-color: var(--link-hover);
+        border-color: var(--link-hover);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--accent-focus-dark);
+        border-color: var(--accent-focus-dark);
+    }
+}
+
+// Secondary (alternative action)
+.btn-secondary,
+.btn--secondary {
+    background-color: var(--text-muted);
+    border-color: var(--text-muted);
+    color: var(--text-white);
+
+    &:hover {
+        background-color: var(--text-secondary);
+        border-color: var(--text-secondary);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: #4a5568;
+    }
+}
+
+// Success (positive action)
+.btn-success,
+.btn--success {
+    background-color: var(--success-btn);
+    border-color: var(--success-btn);
+    color: var(--text-white);
+
+    &:hover {
+        background-color: var(--success-btn-hover);
+        border-color: var(--success-btn-hover);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--success-border-dark);
+    }
+}
+
+// Danger (destructive action)
+.btn-danger,
+.btn--danger {
+    background-color: var(--danger-btn);
+    border-color: var(--danger-btn);
+    color: var(--text-white);
+
+    &:hover {
+        background-color: var(--danger-btn-dark);
+        border-color: var(--danger-btn-dark);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--danger-border-dark);
+    }
+}
+
+// Warning (caution action)
+.btn-warning,
+.btn--warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+
+    &:hover {
+        background-color: #e0a800;
+        border-color: #d39e00;
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: #c69500;
+    }
+}
+
+// Ghost (minimal, transparent)
+.btn-ghost,
+.btn--ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--text-secondary);
+
+    &:hover {
+        background-color: var(--bg-hover);
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--bg-active);
+    }
+}
+
+// Outline (bordered, no fill)
+.btn-outline,
+.btn--outline {
+    background-color: transparent;
+    border-color: var(--border-secondary);
+    color: var(--text-secondary);
+
+    &:hover {
+        background-color: var(--bg-hover);
+        border-color: var(--border-tertiary);
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--bg-active);
+    }
+}
+
+// Outline Primary
+.btn-outline-primary,
+.btn--outline-primary {
+    background-color: transparent;
+    border-color: var(--link-color);
+    color: var(--link-color);
+
+    &:hover {
+        background-color: var(--link-color);
+        color: var(--text-white);
+        text-decoration: none;
+    }
+}
+
+// Outline Danger
+.btn-outline-danger,
+.btn--outline-danger {
+    background-color: transparent;
+    border-color: var(--danger-btn);
+    color: var(--danger-btn);
+
+    &:hover {
+        background-color: var(--danger-btn);
+        color: var(--text-white);
+        text-decoration: none;
+    }
+}
+
+// Link style (looks like a link)
+.btn-link,
+.btn--link {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--link-color);
+    padding-left: 0;
+    padding-right: 0;
+
+    &:hover {
+        color: var(--link-hover);
+        text-decoration: underline;
+    }
+}
+
+// ==================== BUTTON SIZES ====================
+
+.btn-xs,
+.btn--xs {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+    border-radius: var(--radius-sm);
+}
+
+.btn-sm,
+.btn--sm {
+    padding: var(--space-1) var(--space-3);
+    font-size: var(--font-size-xs);
+}
+
+.btn-lg,
+.btn--lg {
+    padding: var(--space-3) var(--space-6);
+    font-size: var(--font-size-lg);
+    border-radius: var(--radius-lg);
+}
+
+.btn-xl,
+.btn--xl {
+    padding: var(--space-4) var(--space-8);
+    font-size: var(--font-size-xl);
+    border-radius: var(--radius-lg);
+}
+
+// ==================== BUTTON MODIFIERS ====================
+
+// Full width
+.btn-block,
+.btn--block {
+    display: flex;
+    width: 100%;
+}
+
+// Icon only (square)
+.btn-icon,
+.btn--icon {
+    padding: var(--space-2);
+    aspect-ratio: 1;
+
+    &.btn-sm,
+    &.btn--sm {
+        padding: var(--space-1);
+    }
+
+    &.btn-lg,
+    &.btn--lg {
+        padding: var(--space-3);
+    }
+}
+
+// Loading state
+.btn-loading,
+.btn--loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+
+    &::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 1em;
+        height: 1em;
+        margin: -0.5em 0 0 -0.5em;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: var(--radius-full);
+        animation: btn-spinner 0.75s linear infinite;
+        opacity: 1;
+        color: var(--text-white);
+    }
+}
+
+@keyframes btn-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+// ==================== BUTTON GROUPS ====================
+
+.btn-group {
+    display: inline-flex;
+
+    > .btn {
+        border-radius: 0;
+
+        &:first-child {
+            border-top-left-radius: var(--radius-md);
+            border-bottom-left-radius: var(--radius-md);
+        }
+
+        &:last-child {
+            border-top-right-radius: var(--radius-md);
+            border-bottom-right-radius: var(--radius-md);
+        }
+
+        &:not(:last-child) {
+            border-right-width: 0;
+        }
+
+        &:hover,
+        &:focus {
+            z-index: 1;
+        }
+    }
+}
+
+// ==================== LEGACY BUTTON STYLES ====================
+// For backward compatibility with existing .button class
+
+.button {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-4);
+    background: none;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--button-text-color, var(--text-white));
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-base);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background-color: var(--background-mod-hover);
+    }
+
+    &:active {
+        background-color: var(--background-mod-active);
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+
+    // Danger variant
+    &.delete {
+        background-color: var(--button-danger-background, var(--danger-btn));
+
+        &:hover {
+            background-color: var(--button-danger-background-hover, var(--danger-btn-dark));
+        }
+
+        &:active {
+            background-color: var(--button-danger-background-active, var(--danger-border-dark));
+        }
+    }
+
+    // Cancel/plain variant
+    &.cancel {
+        &:hover,
+        &:active {
+            background: none;
+            text-decoration: underline;
+        }
+    }
+}
+
+// Form button (standalone)
+.form-button {
+    padding: var(--space-2) var(--space-4);
+    margin: var(--space-2) 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent-focus, var(--link-color));
+    color: var(--text-white);
+    font-size: var(--font-size-base);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--easing-default);
+
+    &:hover {
+        background: var(--accent-focus-dark, var(--link-hover));
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+}
+
+// Delete button (text style)
+.btn-delete {
+    background: none;
+    border: none;
+    color: var(--danger-btn);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    padding: 0;
+
+    &:hover {
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+    }
+}
+
+// ==================== DARK MODE ====================
+
+html.dark {
+    .btn-secondary,
+    .btn--secondary {
+        background-color: #495057;
+
+        &:hover {
+            background-color: #5a6268;
+        }
+    }
+
+    .btn-ghost,
+    .btn--ghost {
+        color: var(--text-muted);
+
+        &:hover {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+    }
+
+    .btn-outline,
+    .btn--outline {
+        border-color: var(--border-secondary);
+        color: var(--text-muted);
+
+        &:hover {
+            background-color: var(--bg-hover);
+            color: var(--text-primary);
+        }
+    }
+}

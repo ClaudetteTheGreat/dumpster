@@ -1,9 +1,40 @@
+// ==========================================================================
+// DUMPSTER FORUM - MAIN STYLESHEET
+// ==========================================================================
+// This is the entry point for all styles. Import order matters.
+
+// ==================== DESIGN SYSTEM ====================
+// Tokens and variables first (they define CSS custom properties)
 @use 'var';
+
+// Base styles (normalize, typography, focus states)
+@use 'base';
+
+// Utility classes (accessibility, layout helpers)
+@use 'utilities';
+
+// ==================== COMPONENTS ====================
+// Extracted component styles
+@use 'components/button';
+@use 'components/input';
+@use 'components/card';
+@use 'components/alert';
+@use 'components/pagination';
+@use 'components/breadcrumb';
+
+// ==================== PAGES ====================
+// Page-specific styles
+@use 'pages/forum';
+@use 'pages/thread';
+@use 'pages/member';
+
+// ==================== LEGACY MODULES ====================
+// These will be incrementally refactored into components/pages
 @use 'generic';
 @use 'layout';
 @use 'nav';
 @use 'chat';
-@use 'thread';
+@use 'thread' as thread-posts;
 @use 'form';
 @use 'modal';
 @use 'struct';
@@ -12,4 +43,7 @@
 @use 'unfurl';
 @use 'notifications';
 @use 'wysiwyg';
+
+// ==================== DARK MODE ====================
+// Must come last to override light mode styles
 @use 'dark-mode';
