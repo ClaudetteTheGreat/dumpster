@@ -32,27 +32,29 @@
             {% endif %}
         </div>
         <div class="thread-actions">
-            {% if thread.post_count > 1 %}
-            {% match thread.last_post_id %}
-            {% when Some with (last_post_id) %}
-            <a href="/threads/{{ thread.id }}/post-{{ last_post_id }}" class="action-button action-button--secondary" title="Go to latest post">
-                Latest Post →
-            </a>
-            {% when None %}{% endmatch %}
-            {% endif %}
             {% if client.is_user() %}
             {% if is_watching %}
-            <form method="post" action="/threads/{{ thread.id }}/unwatch" style="display: inline;">
-                <button type="submit" class="watch-button">Unwatch</button>
+            <form method="post" action="/threads/{{ thread.id }}/unwatch" class="thread-action-form">
+                <button type="submit" class="thread-action-btn thread-action-btn--watching" title="Unwatch thread">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    <span>Watching</span>
+                </button>
             </form>
-            <form method="post" action="/threads/{{ thread.id }}/toggle-email" style="display: inline;">
-                <button type="submit" class="watch-button {% if email_on_reply %}email-on{% endif %}" title="{% if email_on_reply %}Email notifications ON{% else %}Email notifications OFF{% endif %}">
-                    {% if email_on_reply %}📧{% else %}🔕{% endif %}
+            <form method="post" action="/threads/{{ thread.id }}/toggle-email" class="thread-action-form">
+                <button type="submit" class="thread-action-btn thread-action-btn--icon {% if email_on_reply %}thread-action-btn--active{% endif %}" title="{% if email_on_reply %}Email notifications ON{% else %}Email notifications OFF{% endif %}">
+                    {% if email_on_reply %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/></svg>
+                    {% else %}
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-3.5-6.2l-2.8 3.4h2.8V15h-5v-1.8l2.8-3.4H9.5V8h5v1.8z"/></svg>
+                    {% endif %}
                 </button>
             </form>
             {% else %}
-            <form method="post" action="/threads/{{ thread.id }}/watch" style="display: inline;">
-                <button type="submit" class="watch-button watching">Watch Thread</button>
+            <form method="post" action="/threads/{{ thread.id }}/watch" class="thread-action-form">
+                <button type="submit" class="thread-action-btn" title="Watch thread">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                    <span>Watch</span>
+                </button>
             </form>
             {% endif %}
             {% endif %}
