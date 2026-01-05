@@ -802,3 +802,95 @@
 .reaction-user-name {
     font-weight: 500;
 }
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+/* Mobile: Stack post layout vertically */
+@media (max-width: 600px) {
+    .thread {
+        .message {
+            flex-direction: column;
+        }
+    }
+
+    .message-cell--author {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 12px;
+        padding: 10px;
+
+        .avatar {
+            max-width: 48px;
+            max-height: 48px;
+        }
+    }
+
+    .message-cell--main {
+        width: 100%;
+    }
+
+    .message-header {
+        font-size: 0.75rem;
+    }
+
+    .message-content {
+        font-size: 0.95rem;
+    }
+
+    .message-attachments {
+        .attachment {
+            min-width: 100%;
+        }
+    }
+
+    .message-actionBar {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .actionBar-set {
+        flex-wrap: wrap;
+    }
+
+    .actionBar-action {
+        padding: 6px 8px;
+        font-size: 0.8em;
+    }
+
+    // Multi-quote indicator
+    #multi-quote-indicator {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.85em;
+    }
+}
+
+/* Small mobile: Further compact */
+@media (max-width: 400px) {
+    .message-cell--author {
+        padding: 8px;
+
+        .avatar {
+            max-width: 36px;
+            max-height: 36px;
+        }
+    }
+
+    .message-content {
+        padding: 10px;
+    }
+
+    .actionBar-action {
+        padding: 4px 6px;
+    }
+}

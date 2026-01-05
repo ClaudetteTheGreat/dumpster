@@ -90,19 +90,20 @@ body {
 
 .p-nav-inner {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
-    padding: 0 10px;
-    min-height: 44px;
+    justify-content: center;
+    padding: 0;
 }
 
 .p-nav-logo {
+    width: 100%;
+    text-align: center;
     color: inherit;
     font-weight: 700;
     font-size: 1.1rem;
     text-decoration: none;
-    padding: 8px 10px 8px 0;
-    margin-right: auto;
+    padding: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
     &:hover {
         text-decoration: none;
@@ -115,16 +116,16 @@ body {
     flex-wrap: wrap;
     list-style: none;
     margin: 0;
-    padding: 0;
-    font-size: 0;
+    padding: 4px 0;
+    align-items: center;
+    justify-content: center;
 
     > li {
         display: inline-block;
-        font-size: 1rem;
     }
 
     &.p-nav-list--right {
-        margin-left: auto;
+        // No auto margin - sits next to the first list
     }
 }
 
@@ -251,32 +252,8 @@ main {
 }
 
 @media (max-width: 750px) {
-    .p-nav-inner {
-        flex-wrap: wrap;
-    }
-
-    .p-nav-list {
-        width: 100%;
-        justify-content: center;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 4px;
-        margin-top: 4px;
-
-        &.p-nav-list--right {
-            margin-left: 0;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-    }
-
-    .p-nav-logo {
-        width: 100%;
-        text-align: center;
-        padding: 8px 0;
-        margin-right: 0;
-    }
-
     .p-nav-link {
-        padding: 8px 8px;
+        padding: 8px 6px;
         font-size: 0.85rem;
     }
 
@@ -287,7 +264,7 @@ main {
 
 @media (max-width: 480px) {
     .p-nav-link {
-        padding: 6px 6px;
+        padding: 6px 5px;
         font-size: 0.8rem;
     }
 

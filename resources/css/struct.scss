@@ -107,3 +107,44 @@
     background: var(--badge-info-bg, #17a2b8);
     color: #fff;
 }
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+/* Tablet: Hide meta column */
+@media (max-width: 900px) {
+    .struct-item-cell--meta {
+        display: none;
+    }
+}
+
+/* Mobile: Stack layout, hide extra columns */
+@media (max-width: 600px) {
+    .struct-item {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .struct-item-cell {
+        display: block;
+        padding: 8px;
+    }
+
+    .struct-item-cell--icon {
+        width: 40px;
+        flex-shrink: 0;
+    }
+
+    .struct-item-cell--main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .struct-item-cell--latest,
+    .struct-item-cell--meta {
+        display: none;
+    }
+}
