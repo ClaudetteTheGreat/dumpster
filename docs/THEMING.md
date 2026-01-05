@@ -1,208 +1,236 @@
-# Theming Feature - Planning Document
+# Theming System
 
-## Executive Summary
+## Overview
 
-**Status: Phase 1 COMPLETE**
+The theming system uses a **parent/child architecture** where the base (light) theme defines all design tokens, and child themes (like dark mode) only override token values. Components never contain theme-specific styles - they only reference tokens.
 
-Dark/light theming infrastructure is now fully consolidated. All hardcoded colors have been extracted to CSS variables, enabling easy theme customization.
+**Key Principle**: Dark mode works by overriding token values only. No component should have `html.dark` selectors.
 
-## Completed Work (Phase 1)
+## Architecture
 
-### ✅ Fixed Selector Inconsistency
-- Changed `body.style-dark` to `html.dark` in `var.scss`
-- All dark mode styles now use consistent `html.dark` selector
-- Commit: `268811a`
+```
+resources/css/
+├── tokens/
+│   └── _index.scss      # All design tokens (474 lines)
+├── base/
+│   └── _index.scss      # Reset, typography, globals (475 lines)
+├── themes/
+│   └── dark.scss        # Dark theme - token overrides ONLY (265 lines)
+├── components/          # Use ONLY tokens, no hardcoded colors
+│   ├── _button.scss
+│   ├── _input.scss
+│   ├── _card.scss
+│   ├── _alert.scss
+│   ├── _pagination.scss
+│   └── _breadcrumb.scss
+├── pages/               # Use ONLY tokens, no hardcoded colors
+│   ├── _forum.scss
+│   ├── _thread.scss
+│   └── _member.scss
+└── main.scss            # Entry point with import order
+```
 
-### ✅ Extracted Hardcoded Colors from dark-mode.scss
-- Created 61 semantic CSS variables organized by category
-- Replaced 100+ hardcoded hex values with `var()` references
-- Variables organized into: backgrounds, text, borders, accents, status colors, shadows
-- Commit: `e3a0391`
+## Design Tokens
 
-### ✅ Updated nav.scss for Theming
-- Added `--nav-background`, `--nav-text`, `--nav-text-hover`, `--nav-hover-background`
-- Navigation now responds to light/dark mode
-- Commit: `fe002ce`
+### Token Categories
 
-### ✅ Updated _variables.scss and thread.scss
-- Removed unused SCSS color variables (kept only `$padding`)
-- Added 40+ component-specific CSS variables to `var.scss`
-- Updated `thread.scss` to use CSS variables (~50 hardcoded values eliminated)
-- Commit: `efdac3e`
+All tokens are defined in `tokens/_index.scss`:
 
-### ✅ Cleaned Up Redundant Overrides
-- Removed 220 lines of redundant component overrides from `dark-mode.scss`
-- Components now themed via centralized variables in `var.scss`
-- Reduced compiled CSS by ~4KB
-- Commit: `86d877d`
+| Category | Examples |
+|----------|----------|
+| **Color Primitives** | `--color-gray-50` through `--color-gray-950`, `--color-blue-*`, `--color-green-*`, etc. |
+| **Surfaces** | `--surface-page`, `--surface-primary`, `--surface-secondary`, `--surface-hover`, `--surface-active` |
+| **Text** | `--text-primary`, `--text-secondary`, `--text-muted`, `--text-disabled`, `--text-inverse` |
+| **Borders** | `--border-default`, `--border-subtle`, `--border-strong` |
+| **Accent** | `--accent-default`, `--accent-hover`, `--accent-active`, `--accent-subtle` |
+| **Feedback** | `--success-*`, `--danger-*`, `--warning-*`, `--info-*` (each has default, hover, active, subtle, text, border) |
+| **Inputs** | `--input-bg`, `--input-border`, `--input-border-hover`, `--input-border-focus`, `--input-placeholder` |
+| **Links** | `--link-default`, `--link-hover`, `--link-visited` |
+| **Typography** | `--font-sans`, `--font-mono`, `--text-xs` through `--text-4xl`, `--font-normal` through `--font-bold` |
+| **Spacing** | `--space-1` through `--space-16` (4px increments) |
+| **Radius** | `--radius-sm`, `--radius-md`, `--radius-lg`, `--radius-xl`, `--radius-full` |
+| **Shadows** | `--shadow-xs`, `--shadow-sm`, `--shadow-md`, `--shadow-lg`, `--shadow-xl` |
+| **Motion** | `--duration-fast`, `--duration-normal`, `--duration-slow`, `--ease-default`, `--ease-in`, `--ease-out` |
+| **Layout** | `--container-max`, `--sidebar-width`, `--nav-height` |
+| **Focus** | `--focus-ring-width`, `--focus-ring-color`, `--focus-ring-offset` |
+| **Z-Index** | `--z-dropdown`, `--z-sticky`, `--z-modal`, `--z-toast` |
 
-## Current Architecture
+### Using Tokens in Components
 
-### CSS Variable Organization
-
-**var.scss** (`:root` and `html.dark`):
-- Base variables: `--background-color`, `--text-color`, `--border-color`
-- Navigation: `--nav-background`, `--nav-text`, `--nav-hover-background`
-- Buttons: `--btn-secondary-*`, `--btn-quote-*`
-- Multi-quote: `--mq-indicator-*`, `--mq-insert-*`, `--mq-clear-*`
-- Code blocks: `--code-bg`, `--code-border`, `--inline-code-*`
-- Mentions: `--mention-text`, `--mention-bg`
-- Tables: `--table-border`, `--table-header-bg`, `--table-hover-bg`
-- Reactions: `--reaction-bg`, `--reaction-border`, `--reaction-picker-*`
-- Signature: `--signature-text`
-
-**dark-mode.scss** (`html.dark`):
-- Color palette variables (61 total)
-- Base/layout styles not covered by component variables
-- Forms, blockquotes, messages, modals, toolbar, etc.
-
-### File Summary
-
-| File | Purpose | Lines |
-|------|---------|-------|
-| `var.scss` | Light/dark CSS variables for components | ~175 |
-| `dark-mode.scss` | Dark mode palette + base styles | ~700 |
-| `nav.scss` | Navigation using CSS variables | ~55 |
-| `thread.scss` | Thread/post styles using CSS variables | ~545 |
-| `_variables.scss` | SCSS spacing variables only | 5 |
-
-## Phase 2: Expand Theme Options (Optional)
-
-If there's demand for custom themes, the infrastructure is now ready:
-
-### Option A: Add Built-in Themes
-- High contrast
-- Sepia/warm
-- OLED dark (pure black)
-
-Simply create additional variable sets in `var.scss`:
 ```scss
-html.high-contrast {
-    --bg-primary: #000;
-    --text-primary: #fff;
-    // ...
+// CORRECT - Use tokens only
+.btn-primary {
+    background-color: var(--accent-default);
+    color: var(--text-inverse);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+
+    &:hover {
+        background-color: var(--accent-hover);
+    }
+}
+
+// WRONG - Never use hardcoded colors
+.btn-primary {
+    background-color: #0d6efd;  // DON'T DO THIS
+    color: #ffffff;              // DON'T DO THIS
+}
+
+// WRONG - Never add dark mode overrides to components
+html.dark {
+    .btn-primary {
+        background-color: #60a5fa;  // DON'T DO THIS
+    }
 }
 ```
 
-### Option B: Database-Backed Themes
-- `themes` table with color definitions
-- Admin UI to create/edit themes
-- User preference references theme ID
+## Creating a New Theme
 
-### Files to Modify (Phase 2)
-
-| File | Changes |
-|------|---------|
-| `migrations/YYYYMMDD_themes.up.sql` | Create themes table |
-| `src/orm/themes.rs` | Theme entity model |
-| `src/web/admin.rs` | Theme CRUD endpoints |
-| `templates/admin/themes.html` | Theme management UI |
-| `src/orm/users.rs` | Change theme column to reference themes |
-| `templates/container/public.html` | Load theme colors dynamically |
-
-## CSS Variable Reference
-
-### Defined in var.scss (both light and dark)
+To create a new theme, create a file in `themes/` that only overrides token values:
 
 ```scss
-// Base
---background-color, --border-color, --text-color, --text-muted
---input-background, --scrollbar-thumb
+// themes/high-contrast.scss
+html.high-contrast {
+    // Override color primitives
+    --color-gray-50: #000000;
+    --color-gray-900: #ffffff;
 
-// Navigation
---nav-background, --nav-text, --nav-text-hover, --nav-hover-background
+    // Override semantic tokens
+    --surface-page: #000000;
+    --surface-primary: #000000;
+    --text-primary: #ffffff;
+    --border-default: #ffffff;
 
-// Buttons
---btn-secondary-bg, --btn-secondary-border, --btn-secondary-text
---btn-secondary-hover-bg, --btn-secondary-hover-border, --btn-secondary-hover-text
---btn-quote-hover-bg, --btn-quote-hover-border, --btn-quote-hover-text
---btn-quote-selected-bg, --btn-quote-selected-border
+    // Override accent colors
+    --accent-default: #ffff00;
+    --accent-hover: #ffff66;
 
-// Multi-quote
---mq-indicator-bg, --mq-indicator-text
---mq-insert-bg, --mq-insert-hover-bg
---mq-clear-bg, --mq-clear-hover-bg
-
-// Code
---code-bg, --code-border, --code-header-bg, --code-text-muted
---code-copy-hover-bg, --code-copy-success
---inline-code-bg, --inline-code-border
-
-// Mentions
---mention-text, --mention-bg, --mention-hover-bg
-
-// Tables
---table-border, --table-header-bg, --table-hover-bg
-
-// Reactions
---reaction-bg, --reaction-border, --reaction-hover-bg, --reaction-hover-border
---reaction-active-bg, --reaction-active-border, --reaction-count-text
---reaction-picker-bg, --reaction-picker-shadow
---reaction-option-hover-bg, --reaction-option-active-bg, --reaction-option-active-border
-
-// Other
---video-bg, --signature-text
+    // All components automatically use these new values
+}
 ```
 
-### Defined in dark-mode.scss (dark mode only)
+Then import it in `main.scss`:
 
 ```scss
-// Background hierarchy
---bg-primary, --bg-secondary, --bg-tertiary, --bg-hover, --bg-active
---bg-header, --bg-code, --bg-modal, --bg-input, --bg-video
-
-// Text hierarchy
---text-primary, --text-secondary, --text-muted, --text-hint, --text-faint
---text-light, --text-white
-
-// Border hierarchy
---border-primary, --border-secondary, --border-tertiary, --border-light
-
-// Accents
---link-color, --link-hover
---accent-selected-bg, --accent-selected-border, --accent-active-bg
---accent-focus, --accent-focus-dark, --accent-mention, --accent-mention-bg
-
-// Status colors
---success-text, --success-bg, --success-border, --success-btn, --success-btn-hover
---danger-text, --danger-bg, --danger-border, --danger-btn, --danger-accent
---warning-text, --warning-bg, --warning-border
---notification-badge-bg
-
-// Shadows
---shadow-dropdown, --shadow-heavy, --shadow-light, --shadow-focus
---overlay-light, --overlay-medium
+// 6. THEMES
+@use 'themes/dark';
+@use 'themes/high-contrast';  // Add new theme
 ```
 
-## Database Schema (Phase 2)
+## Dark Theme Implementation
 
-If custom themes are needed:
+The dark theme (`themes/dark.scss`) demonstrates the pattern:
 
-```sql
-CREATE TABLE themes (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT,
-    is_default BOOLEAN DEFAULT FALSE,
-    is_dark BOOLEAN DEFAULT FALSE,
-    colors JSONB NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+```scss
+html.dark {
+    // Invert the gray scale
+    --color-gray-50: #18181b;
+    --color-gray-100: #27272a;
+    // ... through --color-gray-950
 
--- colors JSONB example:
--- {
---   "bg-primary": "#ffffff",
---   "bg-secondary": "#f5f5f5",
---   "text-primary": "#333333",
---   ...
--- }
+    // Dark surfaces
+    --surface-page: #0f0f0f;
+    --surface-primary: #18181b;
+    --surface-secondary: #27272a;
+
+    // Light text on dark backgrounds
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+
+    // Brighter accent for visibility
+    --accent-default: #60a5fa;
+    --accent-hover: #93c5fd;
+
+    // Adjusted shadows for dark mode
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
 ```
 
-## Testing Considerations
+**Important**: The dark theme file contains NO component-specific styles - only token value overrides.
 
-- ✅ Theme switching works without page reload
-- ✅ Auto mode responds to system preference changes
-- Test CSS variable fallbacks for older browsers
-- Test high contrast ratios for accessibility (WCAG AA minimum)
-- Test all UI components in each theme
+## Import Order in main.scss
+
+```scss
+// 1. DESIGN TOKENS - Must come first
+@use 'tokens/index' as tokens;
+
+// 2. BASE STYLES - Reset, typography, globals
+@use 'base/index' as base;
+@use 'utilities';
+
+// 3. COMPONENTS - Reusable UI components
+@use 'components/button';
+@use 'components/input';
+@use 'components/card';
+@use 'components/alert';
+@use 'components/pagination';
+@use 'components/breadcrumb';
+
+// 4. PAGE STYLES - Page-specific styles
+@use 'pages/forum';
+@use 'pages/thread';
+@use 'pages/member';
+
+// 5. LEGACY MODULES - Being migrated
+@use 'generic';
+@use 'layout';
+// ...
+
+// 6. THEMES - Token overrides LAST
+@use 'themes/dark';
+```
+
+## Legacy Token Aliases
+
+For backward compatibility, legacy token names are aliased to new semantic tokens:
+
+```scss
+// Legacy aliases (in tokens/_index.scss)
+--bg-primary: var(--surface-primary);
+--bg-secondary: var(--surface-secondary);
+--bg-tertiary: var(--surface-tertiary);
+--bg-hover: var(--surface-hover);
+--link-color: var(--link-default);
+--link-hover: var(--link-hover);
+--success-btn: var(--success-default);
+--danger-btn: var(--danger-default);
+// etc.
+```
+
+These allow existing code to continue working while new code uses semantic token names.
+
+## Migration Checklist for Components
+
+When refactoring a component to use tokens:
+
+1. **Replace hardcoded colors** with semantic tokens:
+   - Background colors → `--surface-*`
+   - Text colors → `--text-*`
+   - Border colors → `--border-*`
+   - Accent/brand colors → `--accent-*`
+   - Status colors → `--success-*`, `--danger-*`, `--warning-*`, `--info-*`
+
+2. **Replace hardcoded values** with tokens:
+   - Spacing → `--space-*`
+   - Border radius → `--radius-*`
+   - Shadows → `--shadow-*`
+   - Transitions → `--duration-*` and `--ease-*`
+
+3. **Remove all `html.dark` blocks** - dark mode is handled by token overrides
+
+4. **Test both themes** - verify component looks correct in light and dark mode
+
+## Accessibility
+
+- All focus states use `--focus-ring-*` tokens
+- Reduced motion is respected via `prefers-reduced-motion` media query in base
+- Color contrast ratios are validated at the token level
+- Focus-visible is used instead of focus for keyboard navigation
+
+## Build
+
+```bash
+npm run build  # or npx webpack
+```
+
+CSS output is in `public/assets/style.css`.
