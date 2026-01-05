@@ -41,6 +41,30 @@
 }
 
 // ==========================================================================
+// FORUM ICONS
+// ==========================================================================
+
+.forum-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.forum-icon--sub {
+    font-size: 1.25rem;
+}
+
+.forum-icon-img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+}
+
+.forum-icon-img--sub {
+    width: 24px;
+    height: 24px;
+}
+
+// ==========================================================================
 // STRUCT CONTAINER - List/table structures for forums, threads, etc.
 // ==========================================================================
 
