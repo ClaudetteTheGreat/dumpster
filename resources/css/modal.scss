@@ -1,10 +1,3 @@
-// ==========================================================================
-// MODAL STYLES
-// ==========================================================================
-// Dialog overlays and modal windows
-
-// ==================== MODAL CONTAINER ====================
-
 .modal-outer {
     display: none;
 
@@ -13,186 +6,80 @@
     }
 }
 
-// ==================== MODAL OVERLAY ====================
-
 .modal-overlay {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.85);
-    animation: modal-fade-in var(--duration-slow) var(--easing-out);
-    will-change: opacity;
-}
+    animation: mmfadeIn .3s cubic-bezier(0, 0, 0.2, 1);
+    will-change: transform;
 
-// ==================== MODAL DIALOG ====================
+    align-items: center;
+    background: rgb(0, 0, 0, 0.85);
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 1000;
+}
 
 .modal-dialog {
-    position: relative;
-    max-width: 500px;
+    animation: mmslideIn .3s cubic-bezier(0, 0, 0.2, 1);
+    will-change: transform;
+
+    background-color: var(--modal-background);
+    border-radius: 4px;
+    box-sizing: border-box;
     max-height: 100vh;
+    max-width: 500px;
     overflow-y: auto;
-    background-color: var(--modal-background, var(--bg-primary));
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-xl);
-    animation: modal-slide-in var(--duration-slow) var(--easing-out);
-    will-change: transform, opacity;
 }
-
-// Size variants
-.modal-dialog--sm {
-    max-width: 350px;
-}
-
-.modal-dialog--lg {
-    max-width: 700px;
-}
-
-.modal-dialog--xl {
-    max-width: 900px;
-}
-
-.modal-dialog--full {
-    max-width: calc(100vw - var(--space-8));
-    max-height: calc(100vh - var(--space-8));
-}
-
-// ==================== MODAL SECTIONS ====================
 
 .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-4);
-    border-bottom: 1px solid var(--border-primary);
-
-    .close {
-        flex-shrink: 0;
-        padding: var(--space-1);
-        background: none;
-        border: none;
-        font-size: var(--font-size-xl);
-        color: var(--text-muted);
-        cursor: pointer;
-        border-radius: var(--radius-sm);
-        transition: color var(--duration-fast) var(--easing-default),
-                    background-color var(--duration-fast) var(--easing-default);
-
-        &:hover {
-            color: var(--text-primary);
-            background-color: var(--bg-hover);
-        }
-
-        &:focus-visible {
-            outline: var(--focus-ring-width) solid var(--focus-ring-color);
-            outline-offset: var(--focus-ring-offset);
-        }
-    }
+    padding: 16px;
 }
 
-#modal-title,
-.modal-title {
+#modal-title {
     margin: 0;
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
-    line-height: var(--line-height-tight);
-    color: var(--text-primary);
+    font-size: 20px;
+    line-height: 24px;
+}
+
+.modal-header .close {
+    flex-grow: 0;
 }
 
 .modal-content {
-    padding: var(--space-4);
+    padding: 16px;
+    padding-top: 0;
 }
 
 .modal-desc {
-    margin: 0 0 var(--space-4) 0;
-    color: var(--text-secondary);
+    margin: 0 0 16px 0;
 }
 
-.modal-actions,
-.modal-footer {
+.modal-actions {
     display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-4);
-    background-color: var(--modal-footer-background, var(--bg-secondary));
-    border-top: 1px solid var(--border-primary);
-
-    .button,
-    .btn {
-        min-width: 96px;
-    }
-}
-
-// Reverse button order (primary on right)
-.modal-actions--reversed {
-    flex-direction: row-reverse;
     justify-content: flex-start;
-}
+    align-items: stretch;
+    flex-wrap: nowrap;
+    flex-direction: row-reverse;
 
-// ==================== MODAL ANIMATIONS ====================
+    background-color: var(--modal-footer-background);
+    padding: 16px;
 
-@keyframes modal-fade-in {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes modal-fade-out {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
+    .button {
+        width: auto;
+        height: 38px;
+        min-width: 96px;
+        min-height: 38px;
     }
 }
-
-@keyframes modal-slide-in {
-    from {
-        opacity: 0;
-        transform: translateY(15%);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes modal-slide-out {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-    to {
-        opacity: 0;
-        transform: translateY(-10%);
-    }
-}
-
-// Closing state animations
-.modal-overlay.is-closing {
-    animation: modal-fade-out var(--duration-fast) var(--easing-in) forwards;
-}
-
-.modal-dialog.is-closing {
-    animation: modal-slide-out var(--duration-fast) var(--easing-in) forwards;
-}
-
-// ==================== LEGACY ANIMATION NAMES ====================
-// Keep for backward compatibility
 
 @keyframes mmfadeIn {
     from {
         opacity: 0;
     }
+
     to {
         opacity: 1;
     }
@@ -202,6 +89,7 @@
     from {
         opacity: 1;
     }
+
     to {
         opacity: 0;
     }
@@ -211,6 +99,7 @@
     from {
         transform: translateY(15%);
     }
+
     to {
         transform: translateY(0);
     }
@@ -220,44 +109,8 @@
     from {
         transform: translateY(0);
     }
+
     to {
         transform: translateY(-10%);
-    }
-}
-
-// ==================== DARK MODE ====================
-
-html.dark {
-    .modal-dialog {
-        background-color: var(--bg-tertiary);
-        border: 1px solid var(--border-primary);
-    }
-
-    .modal-header {
-        border-bottom-color: var(--border-primary);
-    }
-
-    .modal-actions,
-    .modal-footer {
-        background-color: var(--bg-secondary);
-        border-top-color: var(--border-primary);
-    }
-
-    #modal-title,
-    .modal-title {
-        color: var(--text-primary);
-    }
-
-    .modal-desc {
-        color: var(--text-muted);
-    }
-}
-
-// ==================== REDUCED MOTION ====================
-
-@media (prefers-reduced-motion: reduce) {
-    .modal-overlay,
-    .modal-dialog {
-        animation-duration: 0.01ms !important;
     }
 }

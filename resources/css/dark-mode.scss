@@ -1,0 +1,727 @@
+// Dark mode styles
+// Applied when html.dark class is present
+//
+// Note: Many component styles (reactions, quotes, code blocks, tables, mentions)
+// are now handled by CSS variables in var.scss which define both light and dark
+// values. This file handles styles not covered by those component variables.
+
+html.dark {
+    // ==========================================================================
+    // COLOR PALETTE - All colors used in dark mode defined here
+    // ==========================================================================
+
+    // Background hierarchy (darkest to lightest)
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #3a3a3a;
+    --bg-hover: #454545;
+    --bg-active: #505050;
+
+    // Specialized backgrounds
+    --bg-header: #222;
+    --bg-code: #252525;
+    --bg-modal: #2a2a2a;
+    --bg-input: #333;
+    --bg-video: #111;
+
+    // Text hierarchy (brightest to dimmest)
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --text-muted: #808080;
+    --text-hint: #aaa;
+    --text-faint: #888;
+    --text-light: #ccc;
+    --text-white: #fff;
+
+    // Border hierarchy (darkest to lightest)
+    --border-primary: #404040;
+    --border-secondary: #444;
+    --border-tertiary: #555;
+    --border-light: #666;
+
+    // Link/accent colors (blue spectrum)
+    --link-color: #66b3ff;
+    --link-hover: #99ccff;
+    --accent-selected-bg: #1e3a5f;
+    --accent-selected-border: #4a90d9;
+    --accent-active-bg: #2a4a6f;
+    --accent-focus: #007bff;
+    --accent-focus-dark: #0056b3;
+    --accent-mention: #64b5f6;
+    --accent-mention-bg: rgba(100, 181, 246, 0.15);
+    --accent-mention-hover-bg: rgba(100, 181, 246, 0.25);
+
+    // Quote button selected state
+    --quote-selected-bg: #2980b9;
+    --quote-selected-border: #3498db;
+
+    // Status: Success (green spectrum)
+    --success-text: #90ee90;
+    --success-bg: #1a3a1a;
+    --success-border: #2d5a2d;
+    --success-btn: #27ae60;
+    --success-btn-hover: #2ecc71;
+    --success-icon: #5cb85c;
+    --success-border-dark: #157a3b;
+
+    // Status: Danger (red spectrum)
+    --danger-text: #ff9999;
+    --danger-text-light: #ffcccc;
+    --danger-bg: #3a1a1a;
+    --danger-border: #5a2d2d;
+    --danger-btn: #dc3545;
+    --danger-btn-dark: #bd2130;
+    --danger-accent: #ff6b6b;
+    --danger-remove: #e74c3c;
+    --danger-remove-hover: #c0392b;
+    --danger-border-dark: #a71d2a;
+    --danger-input-bg: #2a1a1a;
+
+    // Status: Warning (yellow spectrum)
+    --warning-text: #ffd966;
+    --warning-bg: #3a3a1a;
+    --warning-border: #5a5a2d;
+
+    // Alert message boxes
+    --alert-success-bg: var(--success-bg);
+    --alert-success-text: var(--success-text);
+    --alert-success-border: var(--success-border);
+    --alert-warning-bg: var(--warning-bg);
+    --alert-warning-text: var(--warning-text);
+    --alert-warning-border: var(--warning-border);
+    --alert-error-bg: var(--danger-bg);
+    --alert-error-text: var(--danger-text);
+    --alert-error-border: var(--danger-border);
+
+    // Badge colors
+    --badge-warning-bg: #b8860b;
+    --badge-warning-text: #fff;
+    --badge-secondary-bg: #555;
+    --badge-info-bg: #138496;
+
+    // Notification
+    --notification-badge-bg: #ff5555;
+
+    // Shadows and overlays
+    --shadow-dropdown: rgba(0, 0, 0, 0.4);
+    --shadow-heavy: rgba(0, 0, 0, 0.5);
+    --shadow-light: rgba(0, 0, 0, 0.3);
+    --shadow-focus: rgba(74, 144, 217, 0.3);
+    --overlay-light: rgba(255, 255, 255, 0.05);
+    --overlay-medium: rgba(255, 255, 255, 0.1);
+
+    // ==========================================================================
+    // BASE STYLES
+    // ==========================================================================
+
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+
+    body {
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+    }
+
+    // Links
+    a {
+        color: var(--link-color);
+
+        &:hover {
+            color: var(--link-hover);
+        }
+    }
+
+    // ==========================================================================
+    // HEADER & NAVIGATION
+    // ==========================================================================
+
+    // Note: Header/nav colors are handled by --nav-* variables in var.scss
+    header {
+        border-bottom: 1px solid var(--border-primary);
+
+        .username {
+            color: var(--text-primary);
+        }
+    }
+
+    // ==========================================================================
+    // FOOTER
+    // ==========================================================================
+
+    footer {
+        background-color: var(--bg-primary);
+        color: var(--text-secondary);
+        border-top: 1px solid var(--border-primary);
+    }
+
+    // ==========================================================================
+    // CONTAINERS & STRUCTURE
+    // ==========================================================================
+
+    .struct-container {
+        background-color: var(--bg-primary);
+    }
+
+    .struct-item {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-primary);
+
+        &:hover {
+            background-color: var(--bg-tertiary);
+        }
+    }
+
+    // ==========================================================================
+    // FORMS
+    // ==========================================================================
+
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="search"],
+    textarea,
+    select {
+        background-color: var(--bg-secondary);
+        color: var(--text-primary);
+        border-color: var(--border-primary);
+
+        &:focus {
+            background-color: var(--bg-tertiary);
+            border-color: var(--link-color);
+        }
+    }
+
+    button,
+    input[type="submit"],
+    .button {
+        background-color: var(--border-primary);
+        color: var(--text-primary);
+        border-color: var(--border-primary);
+
+        &:hover {
+            background-color: var(--bg-active);
+        }
+    }
+
+    // Quote, Edit/Delete, and React buttons use their own styling
+    .quote-btn,
+    .add-quote-btn,
+    .edit-message-btn,
+    .delete-message-btn,
+    .actionBar-action.reaction-picker-toggle {
+        background: var(--btn-secondary-bg);
+        border-color: var(--btn-secondary-border);
+        color: var(--btn-secondary-text);
+
+        &:hover {
+            background-color: var(--btn-secondary-hover-bg);
+            border-color: var(--btn-secondary-hover-border);
+            color: var(--btn-secondary-hover-text);
+        }
+    }
+
+    // ==========================================================================
+    // TABLES (generic, not BBCode tables which use --table-* vars)
+    // ==========================================================================
+
+    table {
+        border-color: var(--border-primary);
+
+        th {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        td {
+            border-color: var(--border-primary);
+        }
+
+        tr:hover {
+            background-color: var(--bg-tertiary);
+        }
+    }
+
+    // ==========================================================================
+    // CODE BLOCKS (generic, UGC code uses --code-* vars in thread.scss)
+    // ==========================================================================
+
+    code,
+    pre {
+        background-color: var(--bg-code);
+        color: var(--text-primary);
+        border-color: var(--border-primary);
+    }
+
+    // ==========================================================================
+    // QUOTES & BLOCKQUOTES
+    // ==========================================================================
+
+    blockquote {
+        background-color: var(--bg-modal);
+        border-left-color: var(--bg-active);
+        color: var(--text-secondary);
+
+        &.tagQuote {
+            border-color: var(--border-primary);
+
+            .quote-link {
+                color: var(--text-secondary);
+                background: var(--bg-tertiary);
+
+                &:hover {
+                    background: var(--bg-active);
+                    color: var(--text-primary);
+                }
+            }
+
+            .attribution {
+                color: var(--text-secondary);
+            }
+
+            // Nested quotes in dark mode
+            blockquote.tagQuote {
+                background: var(--bg-tertiary);
+            }
+        }
+    }
+
+    // ==========================================================================
+    // MESSAGES & POSTS
+    // ==========================================================================
+
+    .message-cell {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-primary);
+    }
+
+    .message-userBlock {
+        background-color: var(--bg-tertiary);
+        border-color: var(--border-primary);
+    }
+
+    .message-body {
+        color: var(--text-primary);
+    }
+
+    // ==========================================================================
+    // PREFERENCES & SETTINGS
+    // ==========================================================================
+
+    .preferences-section {
+        background-color: var(--bg-secondary);
+        border-color: var(--border-primary);
+    }
+
+    .help-text {
+        color: var(--text-muted);
+    }
+
+    // ==========================================================================
+    // FORUM & THREAD ELEMENTS
+    // ==========================================================================
+
+    .forum-description {
+        color: var(--text-secondary);
+    }
+
+    .thread-meta,
+    .post-meta {
+        color: var(--text-secondary);
+    }
+
+    // ==========================================================================
+    // NOTIFICATION BADGE
+    // ==========================================================================
+
+    .notification-badge {
+        background-color: var(--notification-badge-bg);
+        color: var(--text-white);
+    }
+
+    // ==========================================================================
+    // PAGINATION
+    // ==========================================================================
+
+    .pagination {
+        .page-link {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border-primary);
+
+            &:hover {
+                background-color: var(--bg-tertiary);
+            }
+
+            &.active {
+                background-color: var(--link-color);
+                color: var(--text-white);
+            }
+        }
+    }
+
+    // ==========================================================================
+    // STATS
+    // ==========================================================================
+
+    .struct-item-cell--stats {
+        dt {
+            color: var(--text-muted);
+        }
+
+        dd {
+            color: var(--text-primary);
+        }
+    }
+
+    // ==========================================================================
+    // RECENT NAV
+    // ==========================================================================
+
+    .recent-nav-link {
+        color: var(--text-secondary);
+
+        &:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        &.active {
+            color: var(--link-color);
+            border-bottom-color: var(--link-color);
+        }
+    }
+
+    // ==========================================================================
+    // POST PREVIEW
+    // ==========================================================================
+
+    .post-preview {
+        background-color: var(--bg-tertiary);
+        border-left-color: var(--border-primary);
+        color: var(--text-secondary);
+    }
+
+    .view-post-btn {
+        background-color: var(--link-color);
+        color: var(--text-white);
+
+        &:hover {
+            background-color: var(--link-hover);
+        }
+    }
+
+    // ==========================================================================
+    // NO CONTENT MESSAGES
+    // ==========================================================================
+
+    .no-content,
+    .no-forums,
+    .no-threads {
+        color: var(--text-muted);
+    }
+
+    // ==========================================================================
+    // HEADINGS
+    // ==========================================================================
+
+    h1, h2, h3, h4, h5, h6 {
+        color: var(--text-primary);
+    }
+
+    // ==========================================================================
+    // CHARACTER COUNTER
+    // ==========================================================================
+
+    .char-counter {
+        &.char-counter--ok {
+            color: var(--success-text);
+            background-color: var(--success-bg);
+            border-color: var(--success-border);
+        }
+
+        &.char-counter--warning {
+            color: var(--warning-text);
+            background-color: var(--warning-bg);
+            border-color: var(--warning-border);
+        }
+
+        &.char-counter--danger {
+            color: var(--danger-text);
+            background-color: var(--danger-bg);
+            border-color: var(--danger-border);
+        }
+
+        &.char-counter--over {
+            color: var(--text-white);
+            background-color: var(--danger-btn);
+            border-color: var(--danger-btn-dark);
+        }
+    }
+
+    textarea.textarea--over-limit {
+        border-color: var(--danger-btn);
+        background-color: var(--danger-input-bg);
+    }
+
+    // ==========================================================================
+    // @MENTION AUTOCOMPLETE (dropdown, not inline mention links)
+    // ==========================================================================
+
+    .mention-dropdown {
+        background: var(--bg-modal);
+        border-color: var(--border-tertiary);
+        box-shadow: 0 4px 12px var(--shadow-dropdown);
+    }
+
+    .mention-item {
+        &:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        &.mention-item--selected {
+            background-color: var(--accent-selected-bg);
+        }
+    }
+
+    .mention-username {
+        color: var(--text-primary);
+    }
+
+    // ==========================================================================
+    // RECIPIENT AUTOCOMPLETE (CONVERSATIONS)
+    // ==========================================================================
+
+    .recipient-dropdown {
+        background: var(--bg-modal);
+        border-color: var(--border-tertiary);
+        box-shadow: 0 4px 12px var(--shadow-dropdown);
+    }
+
+    .recipient-item {
+        &:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        &.recipient-item--selected {
+            background-color: var(--accent-selected-bg);
+        }
+    }
+
+    .recipient-username {
+        color: var(--text-primary);
+    }
+
+    // ==========================================================================
+    // REPORT BUTTON & MODAL
+    // ==========================================================================
+
+    .report-modal-content {
+        background: var(--bg-modal);
+        border: 1px solid var(--border-secondary);
+    }
+
+    .report-modal-header {
+        border-color: var(--border-secondary);
+
+        h3 {
+            color: var(--text-white);
+        }
+    }
+
+    .report-modal-close {
+        color: var(--text-faint);
+
+        &:hover {
+            color: var(--text-white);
+        }
+    }
+
+    .report-form {
+        .form-group {
+            label {
+                color: var(--text-primary);
+            }
+
+            select,
+            textarea {
+                background-color: var(--bg-input);
+                border-color: var(--border-tertiary);
+                color: var(--text-white);
+
+                &:focus {
+                    border-color: var(--accent-focus);
+                }
+            }
+        }
+
+        .btn-secondary {
+            background: var(--border-tertiary);
+
+            &:hover {
+                background: var(--border-light);
+            }
+        }
+    }
+
+    .report-message {
+        &.report-success {
+            background: var(--success-bg);
+            color: var(--success-text);
+            border-color: var(--success-border);
+        }
+
+        &.report-error {
+            background: var(--danger-bg);
+            color: var(--danger-text);
+            border-color: var(--danger-border);
+        }
+    }
+
+    // ==========================================================================
+    // BBCODE TOOLBAR
+    // ==========================================================================
+
+    .bbcode-toolbar {
+        background: var(--bg-input);
+        border-color: var(--border-tertiary);
+
+        button {
+            background: var(--border-secondary);
+            border-color: var(--border-tertiary);
+            color: var(--text-primary);
+
+            &:hover {
+                background: var(--border-tertiary);
+                border-color: var(--border-light);
+            }
+
+            &:active {
+                background: var(--border-light);
+            }
+        }
+    }
+
+    .toolbar-group {
+        border-color: var(--border-tertiary);
+    }
+
+    .toolbar-group--colors .color-btn {
+        &.color-red { border-color: var(--danger-border-dark); }
+        &.color-green { border-color: var(--success-border-dark); }
+        &.color-blue { border-color: var(--accent-focus-dark); }
+    }
+
+    .bbcode-preview {
+        border-color: var(--border-tertiary);
+        background: var(--bg-modal);
+
+        .preview-header {
+            background: var(--bg-input);
+            border-color: var(--border-tertiary);
+            color: var(--text-hint);
+        }
+
+        .preview-content {
+            color: var(--text-primary);
+        }
+    }
+
+    // ==========================================================================
+    // DRAFT INDICATOR
+    // ==========================================================================
+
+    .draft-indicator {
+        color: var(--text-hint);
+        background: var(--bg-tertiary);
+
+        &.draft-indicator--restored {
+            color: var(--success-text);
+            background: var(--success-bg);
+            border-color: var(--success-border);
+        }
+    }
+
+    .draft-clear-btn {
+        color: var(--danger-text);
+
+        &:hover {
+            color: var(--danger-text-light);
+        }
+    }
+
+    // ==========================================================================
+    // KEYBOARD SHORTCUTS MODAL
+    // ==========================================================================
+
+    .keyboard-help-content {
+        background: var(--bg-modal);
+        border: 1px solid var(--border-secondary);
+    }
+
+    .keyboard-help-header {
+        border-color: var(--border-secondary);
+
+        h3 {
+            color: var(--text-primary);
+        }
+    }
+
+    .keyboard-help-close {
+        color: var(--text-faint);
+
+        &:hover {
+            color: var(--text-white);
+        }
+    }
+
+    .shortcut-group h4 {
+        color: var(--text-hint);
+    }
+
+    .shortcut-row span {
+        color: var(--text-light);
+    }
+
+    kbd {
+        background: var(--bg-tertiary);
+        border-color: var(--border-tertiary);
+        color: var(--text-primary);
+        box-shadow: 0 1px 2px var(--shadow-light);
+    }
+
+    .keyboard-help-footer {
+        border-color: var(--border-secondary);
+        color: var(--text-faint);
+    }
+
+    // ==========================================================================
+    // FOCUSED POST HIGHLIGHT
+    // ==========================================================================
+
+    .message.post-focused {
+        outline-color: var(--accent-selected-border);
+        box-shadow: 0 0 0 3px var(--shadow-focus);
+    }
+
+    // ==========================================================================
+    // MEDIA EMBEDS (audio only - video uses --video-bg in thread.scss)
+    // ==========================================================================
+
+    .ugc {
+        .audio-embed {
+            filter: invert(1) hue-rotate(180deg);
+        }
+    }
+
+    // ==========================================================================
+    // USER INFO
+    // ==========================================================================
+
+    .user-title {
+        color: var(--text-hint);
+    }
+
+    .user-info {
+        color: var(--text-faint);
+    }
+}

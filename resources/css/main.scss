@@ -1,53 +1,9 @@
-// ==========================================================================
-// DUMPSTER FORUM - MAIN STYLESHEET
-// ==========================================================================
-// This is the entry point for all styles.
-//
-// ARCHITECTURE:
-// 1. Tokens - Design tokens (CSS custom properties)
-// 2. Base - Reset, typography, global element styles
-// 3. Components - Reusable UI components
-// 4. Pages - Page-specific styles
-// 5. Legacy - Modules being incrementally migrated
-// 6. Themes - Theme overrides (dark mode)
-//
-// IMPORTANT: All components/pages should use ONLY tokens for colors.
-// Dark mode works by overriding token values only.
-// ==========================================================================
-
-// ==================== 1. DESIGN TOKENS ====================
-// Must come first - defines all CSS custom properties
-@use 'tokens/index' as tokens;
-
-// ==================== 2. BASE STYLES ====================
-// Reset, typography, global element styles
-@use 'base/index' as base;
-
-// Utility classes (accessibility, layout helpers)
-@use 'utilities';
-
-// ==================== 3. COMPONENTS ====================
-// Reusable UI components
-@use 'components/button';
-@use 'components/input';
-@use 'components/card';
-@use 'components/alert';
-@use 'components/pagination';
-@use 'components/breadcrumb';
-
-// ==================== 4. PAGE STYLES ====================
-// Page-specific styles
-@use 'pages/forum';
-@use 'pages/thread';
-@use 'pages/member';
-
-// ==================== 5. LEGACY MODULES ====================
-// These will be incrementally refactored to use tokens
+@use 'var';
 @use 'generic';
 @use 'layout';
 @use 'nav';
 @use 'chat';
-@use 'thread' as thread-posts;
+@use 'thread';
 @use 'form';
 @use 'modal';
 @use 'struct';
@@ -56,7 +12,4 @@
 @use 'unfurl';
 @use 'notifications';
 @use 'wysiwyg';
-
-// ==================== 6. THEMES ====================
-// Theme overrides - dark mode changes token values only
-@use 'themes/dark';
+@use 'dark-mode';

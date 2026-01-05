@@ -1,9 +1,39 @@
-// ==========================================================================
-// LAYOUT STYLES
-// ==========================================================================
-// Page structure, navigation, and responsive grid
+* {
+    box-sizing: border-box;
+}
 
-// ==================== PAGE STRUCTURE ====================
+/* Skip link for keyboard accessibility */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: #000;
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 10000;
+    text-decoration: none;
+    font-weight: 600;
+    transition: top 0.2s;
+
+    &:focus {
+        top: 0;
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+}
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
 
 html,
 body {
@@ -16,11 +46,15 @@ body {
 body {
     display: flex;
     flex-direction: column;
+    font: 1rem / 1.4 sans-serif;
+    font-family: "Open Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    color: var(--text-color);
+    background: var(--page-background, var(--background-color));
 }
 
-// ==================== PAGE WRAPPER ====================
-// Outer container that fills the viewport
-
+/* ==========================================================================
+   Page Wrapper - Outer container that fills the viewport
+   ========================================================================== */
 .page-wrapper {
     flex: 1;
     display: flex;
@@ -30,59 +64,49 @@ body {
     min-height: 100vh;
 }
 
-// ==================== PAGE BOX ====================
-// Main content container (XenForo-style boxed layout)
-
+/* ==========================================================================
+   Page Box - The main content container (XenForo-style boxed layout)
+   ========================================================================== */
 .page-box {
     display: flex;
     flex-direction: column;
     width: 100%;
     max-width: var(--page-box-max-width, 80%);
     min-height: 100vh;
-    background: var(--page-box-background, var(--bg-primary));
-    border-left: var(--page-box-border-side, 1px solid var(--border-primary));
-    border-right: var(--page-box-border-side, 1px solid var(--border-primary));
-    box-shadow: var(--page-box-shadow, var(--shadow-lg));
+    background: var(--page-box-background, var(--bg-primary, #ffffff));
+    border-left: var(--page-box-border-side, 1px solid var(--border-color, #d0d7de));
+    border-right: var(--page-box-border-side, 1px solid var(--border-color, #d0d7de));
+    box-shadow: var(--page-box-shadow, 0 0 8px rgba(0, 0, 0, 0.15));
 }
 
-// ==================== NAVIGATION (p-nav) ====================
-// XenForo-style navigation bar
-
+/* ==========================================================================
+   Navigation (p-nav) - XenForo-style navigation bar
+   ========================================================================== */
 .p-nav {
-    background: var(--nav-background, var(--bg-nav));
-    color: var(--nav-text, var(--text-white));
+    background: var(--nav-background, hsl(210, 10%, 15%));
+    color: var(--nav-text, #ffffff);
     border-bottom: var(--nav-border-bottom, 1px solid rgba(0, 0, 0, 0.2));
-    position: sticky;
-    top: 0;
-    z-index: 100;
 }
 
 .p-nav-inner {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    padding: 0 var(--space-2);
-    min-height: var(--nav-height, 44px);
+    padding: 0 10px;
+    min-height: 44px;
 }
 
 .p-nav-logo {
     color: inherit;
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-lg);
+    font-weight: 700;
+    font-size: 1.1rem;
     text-decoration: none;
-    padding: var(--space-2) var(--space-2) var(--space-2) 0;
+    padding: 8px 10px 8px 0;
     margin-right: auto;
-    transition: opacity var(--duration-fast) var(--easing-default);
 
     &:hover {
         text-decoration: none;
         opacity: 0.9;
-    }
-
-    &:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-        border-radius: var(--radius-sm);
     }
 }
 
@@ -96,7 +120,7 @@ body {
 
     > li {
         display: inline-block;
-        font-size: var(--font-size-base);
+        font-size: 1rem;
     }
 
     &.p-nav-list--right {
@@ -107,31 +131,24 @@ body {
 .p-nav-link {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: 4px;
     color: inherit;
     text-decoration: none;
-    padding: var(--space-2);
-    font-size: var(--font-size-sm);
-    transition: background var(--duration-fast) var(--easing-default),
-                opacity var(--duration-fast) var(--easing-default);
-    border-radius: var(--radius-sm);
+    padding: 10px 10px;
+    font-size: 0.95rem;
+    transition: background 0.15s ease, opacity 0.15s ease;
 
     &:hover {
         text-decoration: none;
         background: rgba(255, 255, 255, 0.08);
     }
 
-    &:focus-visible {
-        outline: var(--focus-ring-width) solid var(--focus-ring-color);
-        outline-offset: var(--focus-ring-offset);
-    }
-
     &.p-nav-link--user {
         .avatar {
             width: 24px;
             height: 24px;
-            border-radius: var(--radius-full);
-            margin-right: var(--space-1);
+            border-radius: 50%;
+            margin-right: 4px;
         }
     }
 }
@@ -149,22 +166,22 @@ body {
     justify-content: center;
     min-width: 18px;
     height: 18px;
-    padding: 0 var(--space-1);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
-    background: var(--badge-bg, var(--danger-btn));
-    color: var(--badge-text, var(--text-white));
-    border-radius: var(--radius-full);
-    margin-left: var(--space-1);
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--badge-bg, #e74c3c);
+    color: var(--badge-text, #ffffff);
+    border-radius: 9px;
+    margin-left: 4px;
 
     &.hidden {
         display: none;
     }
 }
 
-// ==================== BODY (p-body) ====================
-// Main content area
-
+/* ==========================================================================
+   Body (p-body) - Main content area
+   ========================================================================== */
 .p-body {
     flex: 1;
     display: flex;
@@ -175,73 +192,65 @@ body {
     display: flex;
     flex-direction: column;
     width: 100%;
-    padding: var(--body-padding, var(--space-4));
+    padding: var(--body-padding, 16px);
 }
 
 .p-body-content {
     flex: 1;
 }
 
-// Legacy support for main element
+/* Legacy support for main element padding */
 main {
     flex: 1;
 }
 
-// ==================== FOOTER (p-footer) ====================
-
+/* ==========================================================================
+   Footer (p-footer)
+   ========================================================================== */
 .p-footer {
-    background: var(--footer-background, var(--bg-secondary));
-    border-top: 1px solid var(--border-primary);
+    background: var(--footer-background, var(--bg-secondary, rgba(0, 0, 0, 0.03)));
+    border-top: 1px solid var(--border-color, #e0e0e0);
     padding: 0;
 }
 
 .p-footer-inner {
-    padding: var(--footer-padding, var(--space-3) var(--space-4));
-    font-size: var(--font-size-sm);
+    padding: var(--footer-padding, 12px 16px);
+    font-size: 0.85rem;
     text-align: center;
-    color: var(--text-muted);
+    color: var(--text-muted, #666);
 
     p {
-        margin: var(--space-1) 0;
-    }
-
-    a {
-        color: var(--link-color);
-
-        &:hover {
-            text-decoration: underline;
-        }
+        margin: 4px 0;
     }
 }
 
-// ==================== CONTAINER (legacy support) ====================
-
+/* ==========================================================================
+   Container (legacy support)
+   ========================================================================== */
 .container {
     margin: 0 auto;
     width: 100%;
-    max-width: var(--container-max-width, var(--container-max));
-    padding: 0 var(--space-4);
+    max-width: var(--container-max-width, 100%);
+    padding: 0 16px;
 }
 
 .footer-inner {
-    font-size: var(--font-size-xs);
+    font-size: 0.8rem;
     text-align: center;
 }
 
-// ==================== RESPONSIVE: LARGE SCREENS ====================
-
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
 @media (max-width: 1400px) {
     .page-box {
         max-width: 100%;
         border-left: none;
         border-right: none;
-        box-shadow: none;
     }
 }
 
-// ==================== RESPONSIVE: TABLETS ====================
-
-@media (max-width: 768px) {
+@media (max-width: 750px) {
     .p-nav-inner {
         flex-wrap: wrap;
     }
@@ -250,8 +259,8 @@ main {
         width: 100%;
         justify-content: center;
         border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: var(--space-1);
-        margin-top: var(--space-1);
+        padding-top: 4px;
+        margin-top: 4px;
 
         &.p-nav-list--right {
             margin-left: 0;
@@ -262,33 +271,27 @@ main {
     .p-nav-logo {
         width: 100%;
         text-align: center;
-        padding: var(--space-2) 0;
+        padding: 8px 0;
         margin-right: 0;
     }
 
     .p-nav-link {
-        padding: var(--space-2);
-        font-size: var(--font-size-sm);
+        padding: 8px 8px;
+        font-size: 0.85rem;
     }
 
     .p-body-inner {
-        padding: var(--body-padding-mobile, var(--space-3));
+        padding: var(--body-padding-mobile, 12px);
     }
 }
 
-// ==================== RESPONSIVE: MOBILE ====================
-
 @media (max-width: 480px) {
     .p-nav-link {
-        padding: var(--space-1);
-        font-size: var(--font-size-xs);
+        padding: 6px 6px;
+        font-size: 0.8rem;
     }
 
     .p-nav-username {
         display: none;
-    }
-
-    .p-body-inner {
-        padding: var(--space-2);
     }
 }
