@@ -119,22 +119,18 @@ textarea.textarea--over-limit {
 }
 
 // Select
+// Note: We use native browser styling for the dropdown arrow to avoid
+// cross-browser rendering issues. Use appearance: none only when needed.
 select {
     display: block;
     width: 100%;
     padding: var(--space-2) var(--space-3);
-    padding-right: var(--space-8);
     font-size: var(--font-size-base);
     line-height: var(--line-height-base);
     color: var(--text-primary);
     background-color: var(--bg-input, var(--bg-primary));
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right var(--space-3) center;
-    background-size: 16px 12px;
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
-    appearance: none;
     cursor: pointer;
     transition: border-color var(--duration-fast) var(--easing-default),
                 box-shadow var(--duration-fast) var(--easing-default);
@@ -417,10 +413,6 @@ html.dark {
         &::placeholder {
             color: var(--text-hint);
         }
-    }
-
-    select {
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23adb5bd' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
     }
 
     .input-group-prepend,
