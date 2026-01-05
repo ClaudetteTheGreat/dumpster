@@ -1,8 +1,48 @@
+// ==========================================================================
+// BASE INPUT STYLES
+// ==========================================================================
+
 textarea,
-input[type='text'] {
+input[type='text'],
+input[type='email'],
+input[type='password'],
+input[type='search'],
+input[type='url'],
+input[type='number'],
+select {
     display: block;
     width: 100%;
+    padding: 10px 12px;
     margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    font-family: inherit;
+    line-height: 1.5;
+    color: var(--text-primary, #212529);
+    background-color: var(--bg-input, #fff);
+    border: 1px solid var(--border-primary, #dee2e6);
+    border-radius: 6px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &:focus {
+        outline: none;
+        border-color: var(--link-color, #0d6efd);
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+    }
+
+    &:disabled {
+        background-color: var(--bg-tertiary, #f0f2f5);
+        cursor: not-allowed;
+        opacity: 0.7;
+    }
+
+    &::placeholder {
+        color: var(--text-hint, #868e96);
+    }
+}
+
+textarea {
+    min-height: 120px;
+    resize: vertical;
 }
 
 // Form action buttons container (right-aligned)
@@ -14,57 +54,201 @@ input[type='text'] {
 }
 
 textarea.textarea--over-limit {
-    border: 2px solid #dc3545;
-    background-color: #fff5f5;
+    border: 2px solid var(--danger-btn, #dc3545);
+    background-color: var(--danger-input-bg, #fff5f5);
 }
 
-input {
-    font-size: 1.2rem;
-    width: 100%;
+// ==========================================================================
+// BUTTON SYSTEM
+// ==========================================================================
+
+// Base button - all buttons should use this
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    font-family: inherit;
+    line-height: 1.4;
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.3);
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
 }
 
+// Primary button (blue) - main actions
+.btn-primary {
+    background-color: var(--link-color, #0d6efd);
+    border-color: var(--link-color, #0d6efd);
+    color: #fff;
 
+    &:hover:not(:disabled) {
+        background-color: var(--link-hover, #0a58ca);
+        border-color: var(--link-hover, #0a58ca);
+    }
+
+    &:active:not(:disabled) {
+        background-color: #0850b8;
+    }
+}
+
+// Secondary button (gray) - secondary actions
+.btn-secondary {
+    background-color: var(--bg-tertiary, #f0f2f5);
+    border-color: var(--border-primary, #dee2e6);
+    color: var(--text-secondary, #495057);
+
+    &:hover:not(:disabled) {
+        background-color: var(--bg-hover, #e9ecef);
+        border-color: var(--border-secondary, #ced4da);
+    }
+
+    &:active:not(:disabled) {
+        background-color: var(--bg-active, #dee2e6);
+    }
+}
+
+// Success button (green)
+.btn-success {
+    background-color: var(--success-btn, #198754);
+    border-color: var(--success-btn, #198754);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: var(--success-btn-hover, #157347);
+        border-color: var(--success-btn-hover, #157347);
+    }
+
+    &:active:not(:disabled) {
+        background-color: #13653f;
+    }
+}
+
+// Danger button (red) - destructive actions
+.btn-danger {
+    background-color: var(--danger-btn, #dc3545);
+    border-color: var(--danger-btn, #dc3545);
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: var(--danger-btn-dark, #b02a37);
+        border-color: var(--danger-btn-dark, #b02a37);
+    }
+
+    &:active:not(:disabled) {
+        background-color: #a52834;
+    }
+}
+
+// Ghost button (transparent, just text)
+.btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--text-secondary, #495057);
+
+    &:hover:not(:disabled) {
+        background-color: var(--bg-hover, #e9ecef);
+        color: var(--text-primary, #212529);
+    }
+}
+
+// Link-styled button
+.btn-link {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--link-color, #0d6efd);
+    padding-left: 0;
+    padding-right: 0;
+
+    &:hover:not(:disabled) {
+        color: var(--link-hover, #0a58ca);
+        text-decoration: underline;
+    }
+}
+
+// Button sizes
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+.btn-lg {
+    padding: 14px 24px;
+    font-size: 1.1rem;
+}
+
+// Legacy .button class (keep for backwards compatibility)
 .button {
     box-sizing: border-box;
-    background: none;
-    border: none;
-    border-radius: 3px;
-    color: var(--button-text-color);
+    background: var(--bg-tertiary, #f0f2f5);
+    border: 1px solid var(--border-primary, #dee2e6);
+    border-radius: 6px;
+    color: var(--text-secondary, #495057);
     font-size: 14px;
     font-weight: 500;
     outline: none;
-    line-height: 16px;
-    padding: 2px 16px;
+    line-height: 1.4;
+    padding: 8px 16px;
     user-select: none;
     cursor: pointer;
-
-    &:active {
-        background-color: var(--background-mod-active);
-    }
+    transition: background-color 0.15s ease, border-color 0.15s ease;
 
     &:hover {
-        background-color: var(--background-mod-hover);
+        background-color: var(--bg-hover, #e9ecef);
+        border-color: var(--border-secondary, #ced4da);
     }
 
-    /// Dangerous button
+    &:active {
+        background-color: var(--bg-active, #dee2e6);
+    }
+
+    &:focus-visible {
+        box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.3);
+    }
+
+    // Dangerous button
     &.delete {
-        background-color: var(--button-danger-background);
+        background-color: var(--danger-btn, #dc3545);
+        border-color: var(--danger-btn, #dc3545);
+        color: #fff;
+
+        &:hover {
+            background-color: var(--danger-btn-dark, #b02a37);
+            border-color: var(--danger-btn-dark, #b02a37);
+        }
 
         &:active {
-            background-color: var(--button-danger-background-active);
-        }
-
-        &:hover {
-            background-color: var(--button-danger-background-hover);
+            background-color: #a52834;
         }
     }
 
-    /// Plain button
+    // Plain button
     &.cancel {
+        background: transparent;
+        border-color: transparent;
 
-        &:active,
         &:hover {
-            background: none;
+            background: transparent;
             text-decoration: underline;
         }
     }
@@ -75,7 +259,7 @@ input {
     font-size: 0.9em;
     margin: 0.5rem 0 1rem;
     padding: 0.5rem;
-    border-radius: 4px;
+    border-radius: 6px;
     text-align: right;
     font-weight: 500;
 
@@ -84,29 +268,33 @@ input {
     }
 
     &.char-counter--ok {
-        color: #28a745;
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
+        color: var(--success-text, #0f5132);
+        background-color: var(--success-bg, #d4edda);
+        border: 1px solid var(--success-border, #c3e6cb);
     }
 
     &.char-counter--warning {
-        color: #856404;
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
+        color: var(--warning-text, #664d03);
+        background-color: var(--warning-bg, #fff3cd);
+        border: 1px solid var(--warning-border, #ffeeba);
     }
 
     &.char-counter--danger {
-        color: #721c24;
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
+        color: var(--danger-text, #842029);
+        background-color: var(--danger-bg, #f8d7da);
+        border: 1px solid var(--danger-border, #f5c6cb);
     }
 
     &.char-counter--over {
         color: #ffffff;
-        background-color: #dc3545;
-        border: 1px solid #bd2130;
+        background-color: var(--danger-btn, #dc3545);
+        border: 1px solid var(--danger-border-dark, #a52834);
     }
 }
+
+// ==========================================================================
+// AUTOCOMPLETE DROPDOWNS
+// ==========================================================================
 
 // @mention autocomplete dropdown
 .mention-dropdown {
@@ -116,10 +304,10 @@ input {
     max-width: 300px;
     max-height: 250px;
     overflow-y: auto;
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #ddd);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--shadow-dropdown, rgba(0, 0, 0, 0.15));
 }
 
 .mention-item {
@@ -128,17 +316,17 @@ input {
     transition: background-color 0.1s ease;
 
     &:hover {
-        background-color: #f5f5f5;
+        background-color: var(--bg-hover, #f5f5f5);
     }
 
     &.mention-item--selected {
-        background-color: #e3f2fd;
+        background-color: var(--accent-selected-bg, #e3f2fd);
     }
 }
 
 .mention-username {
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary, #333);
 }
 
 // Recipient autocomplete dropdown (for conversation recipients)
@@ -148,10 +336,10 @@ input {
     min-width: 200px;
     max-height: 250px;
     overflow-y: auto;
-    background: #fff;
-    border: 1px solid #ddd;
+    background: var(--bg-primary, #fff);
+    border: 1px solid var(--border-primary, #ddd);
     border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--shadow-dropdown, rgba(0, 0, 0, 0.15));
 }
 
 .recipient-item {
@@ -160,20 +348,23 @@ input {
     transition: background-color 0.1s ease;
 
     &:hover {
-        background-color: #f5f5f5;
+        background-color: var(--bg-hover, #f5f5f5);
     }
 
     &.recipient-item--selected {
-        background-color: #e3f2fd;
+        background-color: var(--accent-selected-bg, #e3f2fd);
     }
 }
 
 .recipient-username {
     font-weight: 500;
-    color: #333;
+    color: var(--text-primary, #333);
 }
 
-// Report Modal
+// ==========================================================================
+// REPORT MODAL
+// ==========================================================================
+
 .report-modal {
     position: fixed;
     top: 0;
@@ -197,9 +388,9 @@ input {
 
 .report-modal-content {
     position: relative;
-    background: #fff;
+    background: var(--bg-primary, #fff);
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--shadow-heavy, rgba(0, 0, 0, 0.3));
     max-width: 500px;
     width: 90%;
     max-height: 90vh;
@@ -210,13 +401,13 @@ input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light, #eee);
 
     h3 {
         margin: 0;
         font-size: 1.2em;
-        color: #333;
+        color: var(--text-primary, #333);
     }
 }
 
@@ -224,13 +415,19 @@ input {
     background: none;
     border: none;
     font-size: 1.5em;
-    color: #999;
+    color: var(--text-muted, #999);
     cursor: pointer;
     padding: 0;
     line-height: 1;
+    transition: color 0.15s ease;
 
     &:hover {
-        color: #333;
+        color: var(--text-primary, #333);
+    }
+
+    &:focus-visible {
+        outline: none;
+        color: var(--link-color, #0d6efd);
     }
 }
 
@@ -238,28 +435,13 @@ input {
     padding: 20px;
 
     .form-group {
-        margin-bottom: 15px;
+        margin-bottom: 16px;
 
         label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-weight: 600;
-            color: #333;
-        }
-
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1em;
-
-            &:focus {
-                border-color: #007bff;
-                outline: none;
-                box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-            }
+            color: var(--text-primary, #333);
         }
     }
 
@@ -269,55 +451,24 @@ input {
         gap: 10px;
         margin-top: 20px;
     }
-
-    .btn {
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 1em;
-    }
-
-    .btn-secondary {
-        background: #6c757d;
-        color: #fff;
-
-        &:hover {
-            background: #5a6268;
-        }
-    }
-
-    .btn-danger {
-        background: #dc3545;
-        color: #fff;
-
-        &:hover {
-            background: #c82333;
-        }
-
-        &:disabled {
-            background: #e57373;
-            cursor: not-allowed;
-        }
-    }
 }
 
 .report-message {
-    margin-top: 15px;
+    margin-top: 16px;
     padding: 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     text-align: center;
 
     &.report-success {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+        background: var(--success-bg, #d4edda);
+        color: var(--success-text, #0f5132);
+        border: 1px solid var(--success-border, #c3e6cb);
     }
 
     &.report-error {
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+        background: var(--danger-bg, #f8d7da);
+        color: var(--danger-text, #842029);
+        border: 1px solid var(--danger-border, #f5c6cb);
     }
 }
 
@@ -647,7 +798,7 @@ input {
     color: var(--btn-secondary-text, #fff);
     background: var(--btn-secondary-bg, #6c757d);
     border: 1px solid var(--btn-secondary-border, #6c757d);
-    border-radius: 4px;
+    border-radius: 6px;
     opacity: 0;
     transition: opacity 0.3s ease;
     vertical-align: middle;
@@ -657,16 +808,16 @@ input {
     }
 
     &.draft-indicator--restored {
-        color: #155724;
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
+        color: var(--success-text, #0f5132);
+        background: var(--success-bg, #d4edda);
+        border: 1px solid var(--success-border, #c3e6cb);
     }
 }
 
 .draft-clear-btn {
     background: none;
     border: none;
-    color: #721c24;
+    color: var(--danger-text-light, #b02a37);
     cursor: pointer;
     font-size: 0.9em;
     text-decoration: underline;
@@ -674,11 +825,19 @@ input {
     margin-left: 8px;
 
     &:hover {
-        color: #491217;
+        color: var(--danger-text, #842029);
+    }
+
+    &:focus-visible {
+        outline: none;
+        color: var(--danger-btn, #dc3545);
     }
 }
 
-// Keyboard shortcuts help modal
+// ==========================================================================
+// KEYBOARD SHORTCUTS HELP MODAL
+// ==========================================================================
+
 .keyboard-help-modal {
     position: fixed;
     top: 0;
@@ -702,9 +861,9 @@ input {
 
 .keyboard-help-content {
     position: relative;
-    background: #fff;
+    background: var(--bg-primary, #fff);
     border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 20px var(--shadow-heavy, rgba(0, 0, 0, 0.3));
     max-width: 500px;
     width: 90%;
     max-height: 80vh;
@@ -715,12 +874,13 @@ input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 20px;
-    border-bottom: 1px solid #eee;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-light, #eee);
 
     h3 {
         margin: 0;
         font-size: 1.2em;
+        color: var(--text-primary, #212529);
     }
 }
 
@@ -728,13 +888,19 @@ input {
     background: none;
     border: none;
     font-size: 1.5em;
-    color: #999;
+    color: var(--text-muted, #999);
     cursor: pointer;
     padding: 0;
     line-height: 1;
+    transition: color 0.15s ease;
 
     &:hover {
-        color: #333;
+        color: var(--text-primary, #333);
+    }
+
+    &:focus-visible {
+        outline: none;
+        color: var(--link-color, #0d6efd);
     }
 }
 
@@ -753,7 +919,7 @@ input {
     h4 {
         margin: 0 0 12px 0;
         font-size: 0.9em;
-        color: #666;
+        color: var(--text-muted, #666);
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -767,26 +933,26 @@ input {
     font-size: 0.95em;
 
     span {
-        color: #555;
+        color: var(--text-secondary, #555);
     }
 }
 
 kbd {
     display: inline-block;
     padding: 3px 8px;
-    font-family: monospace;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
     font-size: 0.9em;
-    background: #f4f4f4;
-    border: 1px solid #ccc;
+    background: var(--bg-tertiary, #f4f4f4);
+    border: 1px solid var(--border-secondary, #ccc);
     border-radius: 4px;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px var(--shadow-light, rgba(0, 0, 0, 0.1));
 }
 
 .keyboard-help-footer {
     padding: 12px 20px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-light, #eee);
     text-align: center;
-    color: #888;
+    color: var(--text-hint, #888);
 
     kbd {
         font-size: 0.8em;
@@ -796,9 +962,9 @@ kbd {
 
 // Focused post highlight (for j/k navigation)
 .message.post-focused {
-    outline: 3px solid #007bff;
+    outline: 3px solid var(--link-color, #0d6efd);
     outline-offset: -3px;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+    box-shadow: 0 0 0 3px var(--shadow-focus, rgba(13, 110, 253, 0.25));
 }
 
 // Inline post edit form
@@ -818,22 +984,6 @@ kbd {
         display: flex;
         gap: 0.5rem;
         margin-top: 0.5rem;
-
-        button {
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-        }
-
-        .edit-cancel-btn {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            border-radius: 3px;
-
-            &:hover {
-                background-color: #5a6268;
-            }
-        }
     }
 }
 
@@ -843,10 +993,10 @@ blockquote.tagQuote {
     position: relative;
     margin: 1rem 0;
     padding: 0.75rem 1rem;
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    border-left: 4px solid #6c757d;
+    background: var(--bg-secondary, #f8f9fa);
+    border: 1px solid var(--border-primary, #dee2e6);
+    border-radius: 6px;
+    border-left: 4px solid var(--text-muted, #6c757d);
 
     .quote-link {
         position: absolute;
@@ -859,15 +1009,20 @@ blockquote.tagQuote {
         height: 1.5rem;
         font-size: 1rem;
         font-weight: bold;
-        color: #6c757d;
+        color: var(--text-muted, #6c757d);
         text-decoration: none;
-        background: #e9ecef;
-        border-radius: 3px;
+        background: var(--bg-hover, #e9ecef);
+        border-radius: 4px;
         transition: background-color 0.15s, color 0.15s;
 
         &:hover {
-            background: #6c757d;
+            background: var(--text-muted, #6c757d);
             color: #fff;
+        }
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--shadow-focus, rgba(13, 110, 253, 0.25));
         }
     }
 
@@ -876,7 +1031,7 @@ blockquote.tagQuote {
         padding-right: 2rem; // Make room for the link
         font-weight: 600;
         font-size: 0.9em;
-        color: #495057;
+        color: var(--text-secondary, #495057);
     }
 
     .quoted {
@@ -886,7 +1041,7 @@ blockquote.tagQuote {
     // Nested quotes
     blockquote.tagQuote {
         margin: 0.5rem 0;
-        background: #f0f0f0;
+        background: var(--bg-tertiary, #f0f0f0);
     }
 }
 
