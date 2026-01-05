@@ -200,8 +200,8 @@ code.hljs {
   }
 }
 
-// Also apply dark theme when body has dark-mode class
-body.dark-mode {
+// Also apply dark theme when html has dark class
+html.dark {
   .hljs {
     color: #c9d1d9;
     background: #161b22;

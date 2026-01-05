@@ -56,7 +56,7 @@
     transition: background-color var(--duration-fast) var(--easing-default);
 
     &:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: var(--surface-hover);
     }
 }
 
@@ -119,11 +119,11 @@
 }
 
 .btn-warning {
-    background: #ffc107;
-    color: #000;
+    background: var(--warning-default);
+    color: var(--color-yellow-900);
 
     &:hover {
-        background: #e0a800;
+        background: var(--warning-hover);
         text-decoration: none;
     }
 }
@@ -471,97 +471,3 @@
     }
 }
 
-// ==================== DARK MODE ====================
-
-html.dark {
-    .member-header {
-        background: var(--bg-tertiary);
-    }
-
-    .follow-stat:hover {
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .follow-count {
-        color: var(--text-primary);
-    }
-
-    .follow-label {
-        color: var(--text-muted);
-    }
-
-    .btn-secondary {
-        background: #495057;
-
-        &:hover {
-            background: #5a6268;
-        }
-    }
-
-    .member-stats,
-    .member-about,
-    .member-badges,
-    .member-social-links,
-    .member-wall {
-        background: var(--bg-tertiary);
-        border-color: var(--border-primary);
-
-        h3 {
-            color: var(--text-primary);
-        }
-    }
-
-    .badge-item {
-        background: var(--bg-secondary);
-
-        &:hover {
-            background: var(--bg-hover);
-        }
-    }
-
-    .badge-name {
-        color: var(--text-primary);
-    }
-
-    .social-link-card {
-        background: var(--bg-secondary);
-
-        &:hover {
-            background: var(--bg-hover);
-        }
-    }
-
-    .social-link-platform {
-        color: var(--text-primary);
-    }
-
-    .social-link-username {
-        color: var(--text-muted);
-    }
-
-    .wall-post-form textarea {
-        background: var(--bg-secondary);
-        border-color: var(--border-secondary);
-        color: var(--text-primary);
-
-        &::placeholder {
-            color: var(--text-hint);
-        }
-    }
-
-    .wall-post {
-        background: var(--bg-secondary);
-    }
-
-    .wall-post-author a {
-        color: #4da6ff;
-    }
-
-    .wall-post-content {
-        color: var(--text-primary);
-    }
-
-    .wall-post-meta {
-        color: var(--text-muted);
-    }
-}

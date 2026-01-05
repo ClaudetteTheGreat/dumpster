@@ -1,9 +1,13 @@
 // ==========================================================================
 // BUTTON COMPONENT
 // ==========================================================================
-// Unified button system with variants, sizes, and states
+// Unified button system using ONLY design tokens.
+// NO hardcoded colors - all values come from tokens.
+// ==========================================================================
 
-// ==================== BASE BUTTON ====================
+// ==========================================================================
+// BASE BUTTON
+// ==========================================================================
 
 .btn {
     display: inline-flex;
@@ -12,9 +16,9 @@
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     font-family: inherit;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    line-height: var(--line-height-tight);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    line-height: var(--leading-tight);
     text-decoration: none;
     white-space: nowrap;
     vertical-align: middle;
@@ -22,10 +26,12 @@
     user-select: none;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
-    transition: background-color var(--duration-fast) var(--easing-default),
-                border-color var(--duration-fast) var(--easing-default),
-                color var(--duration-fast) var(--easing-default),
-                box-shadow var(--duration-fast) var(--easing-default);
+    transition:
+        background-color var(--duration-fast) var(--ease-default),
+        border-color var(--duration-fast) var(--ease-default),
+        color var(--duration-fast) var(--ease-default),
+        box-shadow var(--duration-fast) var(--ease-default),
+        transform var(--duration-fast) var(--ease-default);
 
     &:focus-visible {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
@@ -34,111 +40,133 @@
 
     &:disabled,
     &.disabled {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
         pointer-events: none;
     }
 
-    // Icon-only button adjustment
     svg {
         flex-shrink: 0;
+        width: 1em;
+        height: 1em;
     }
 }
 
-// ==================== BUTTON VARIANTS ====================
+// ==========================================================================
+// BUTTON VARIANTS
+// ==========================================================================
 
-// Primary (default action)
+// Primary (default filled)
 .btn-primary,
 .btn--primary {
-    background-color: var(--link-color);
-    border-color: var(--link-color);
-    color: var(--text-white);
+    background-color: var(--accent-default);
+    border-color: var(--accent-default);
+    color: var(--text-inverse);
 
     &:hover {
-        background-color: var(--link-hover);
-        border-color: var(--link-hover);
+        background-color: var(--accent-hover);
+        border-color: var(--accent-hover);
         text-decoration: none;
     }
 
     &:active {
-        background-color: var(--accent-focus-dark);
-        border-color: var(--accent-focus-dark);
+        background-color: var(--accent-active);
+        border-color: var(--accent-active);
     }
 }
 
-// Secondary (alternative action)
+// Secondary (muted filled)
 .btn-secondary,
 .btn--secondary {
-    background-color: var(--text-muted);
-    border-color: var(--text-muted);
-    color: var(--text-white);
+    background-color: var(--surface-tertiary);
+    border-color: var(--border-default);
+    color: var(--text-secondary);
 
     &:hover {
-        background-color: var(--text-secondary);
-        border-color: var(--text-secondary);
+        background-color: var(--surface-hover);
+        border-color: var(--border-strong);
+        color: var(--text-primary);
         text-decoration: none;
     }
 
     &:active {
-        background-color: #4a5568;
+        background-color: var(--surface-active);
     }
 }
 
-// Success (positive action)
+// Success (green)
 .btn-success,
 .btn--success {
-    background-color: var(--success-btn);
-    border-color: var(--success-btn);
-    color: var(--text-white);
+    background-color: var(--success-default);
+    border-color: var(--success-default);
+    color: var(--text-inverse);
 
     &:hover {
-        background-color: var(--success-btn-hover);
-        border-color: var(--success-btn-hover);
+        background-color: var(--success-hover);
+        border-color: var(--success-hover);
         text-decoration: none;
     }
 
     &:active {
-        background-color: var(--success-border-dark);
+        background-color: var(--success-active);
     }
 }
 
-// Danger (destructive action)
+// Danger (red)
 .btn-danger,
 .btn--danger {
-    background-color: var(--danger-btn);
-    border-color: var(--danger-btn);
-    color: var(--text-white);
+    background-color: var(--danger-default);
+    border-color: var(--danger-default);
+    color: var(--text-inverse);
 
     &:hover {
-        background-color: var(--danger-btn-dark);
-        border-color: var(--danger-btn-dark);
+        background-color: var(--danger-hover);
+        border-color: var(--danger-hover);
         text-decoration: none;
     }
 
     &:active {
-        background-color: var(--danger-border-dark);
+        background-color: var(--danger-active);
     }
 }
 
-// Warning (caution action)
+// Warning (yellow)
 .btn-warning,
 .btn--warning {
-    background-color: #ffc107;
-    border-color: #ffc107;
-    color: #212529;
+    background-color: var(--warning-default);
+    border-color: var(--warning-default);
+    color: var(--color-yellow-900);
 
     &:hover {
-        background-color: #e0a800;
-        border-color: #d39e00;
+        background-color: var(--warning-hover);
+        border-color: var(--warning-hover);
         text-decoration: none;
     }
 
     &:active {
-        background-color: #c69500;
+        background-color: var(--warning-active);
     }
 }
 
-// Ghost (minimal, transparent)
+// Info (cyan)
+.btn-info,
+.btn--info {
+    background-color: var(--info-default);
+    border-color: var(--info-default);
+    color: var(--text-inverse);
+
+    &:hover {
+        background-color: var(--info-hover);
+        border-color: var(--info-hover);
+        text-decoration: none;
+    }
+
+    &:active {
+        background-color: var(--info-active);
+    }
+}
+
+// Ghost (transparent)
 .btn-ghost,
 .btn--ghost {
     background-color: transparent;
@@ -146,32 +174,32 @@
     color: var(--text-secondary);
 
     &:hover {
-        background-color: var(--bg-hover);
+        background-color: var(--surface-hover);
         color: var(--text-primary);
         text-decoration: none;
     }
 
     &:active {
-        background-color: var(--bg-active);
+        background-color: var(--surface-active);
     }
 }
 
-// Outline (bordered, no fill)
+// Outline (bordered)
 .btn-outline,
 .btn--outline {
     background-color: transparent;
-    border-color: var(--border-secondary);
+    border-color: var(--border-strong);
     color: var(--text-secondary);
 
     &:hover {
-        background-color: var(--bg-hover);
-        border-color: var(--border-tertiary);
+        background-color: var(--surface-hover);
+        border-color: var(--border-strong);
         color: var(--text-primary);
         text-decoration: none;
     }
 
     &:active {
-        background-color: var(--bg-active);
+        background-color: var(--surface-active);
     }
 }
 
@@ -179,12 +207,12 @@
 .btn-outline-primary,
 .btn--outline-primary {
     background-color: transparent;
-    border-color: var(--link-color);
-    color: var(--link-color);
+    border-color: var(--accent-default);
+    color: var(--accent-default);
 
     &:hover {
-        background-color: var(--link-color);
-        color: var(--text-white);
+        background-color: var(--accent-default);
+        color: var(--text-inverse);
         text-decoration: none;
     }
 }
@@ -193,22 +221,22 @@
 .btn-outline-danger,
 .btn--outline-danger {
     background-color: transparent;
-    border-color: var(--danger-btn);
-    color: var(--danger-btn);
+    border-color: var(--danger-default);
+    color: var(--danger-default);
 
     &:hover {
-        background-color: var(--danger-btn);
-        color: var(--text-white);
+        background-color: var(--danger-default);
+        color: var(--text-inverse);
         text-decoration: none;
     }
 }
 
-// Link style (looks like a link)
+// Link style
 .btn-link,
 .btn--link {
     background-color: transparent;
     border-color: transparent;
-    color: var(--link-color);
+    color: var(--link-default);
     padding-left: 0;
     padding-right: 0;
 
@@ -218,36 +246,40 @@
     }
 }
 
-// ==================== BUTTON SIZES ====================
+// ==========================================================================
+// BUTTON SIZES
+// ==========================================================================
 
 .btn-xs,
 .btn--xs {
     padding: var(--space-1) var(--space-2);
-    font-size: var(--font-size-xs);
+    font-size: var(--text-xs);
     border-radius: var(--radius-sm);
 }
 
 .btn-sm,
 .btn--sm {
-    padding: var(--space-1) var(--space-3);
-    font-size: var(--font-size-xs);
+    padding: var(--space-1-5) var(--space-3);
+    font-size: var(--text-xs);
 }
 
 .btn-lg,
 .btn--lg {
     padding: var(--space-3) var(--space-6);
-    font-size: var(--font-size-lg);
+    font-size: var(--text-lg);
     border-radius: var(--radius-lg);
 }
 
 .btn-xl,
 .btn--xl {
     padding: var(--space-4) var(--space-8);
-    font-size: var(--font-size-xl);
+    font-size: var(--text-xl);
     border-radius: var(--radius-lg);
 }
 
-// ==================== BUTTON MODIFIERS ====================
+// ==========================================================================
+// BUTTON MODIFIERS
+// ==========================================================================
 
 // Full width
 .btn-block,
@@ -264,7 +296,7 @@
 
     &.btn-sm,
     &.btn--sm {
-        padding: var(--space-1);
+        padding: var(--space-1-5);
     }
 
     &.btn-lg,
@@ -293,7 +325,7 @@
         border-radius: var(--radius-full);
         animation: btn-spinner 0.75s linear infinite;
         opacity: 1;
-        color: var(--text-white);
+        color: var(--text-inverse);
     }
 }
 
@@ -303,7 +335,9 @@
     }
 }
 
-// ==================== BUTTON GROUPS ====================
+// ==========================================================================
+// BUTTON GROUPS
+// ==========================================================================
 
 .btn-group {
     display: inline-flex;
@@ -332,7 +366,9 @@
     }
 }
 
-// ==================== LEGACY BUTTON STYLES ====================
+// ==========================================================================
+// LEGACY BUTTON STYLES
+// ==========================================================================
 // For backward compatibility with existing .button class
 
 .button {
@@ -345,20 +381,20 @@
     background: none;
     border: none;
     border-radius: var(--radius-sm);
-    color: var(--button-text-color, var(--text-white));
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    line-height: var(--line-height-base);
+    color: var(--text-inverse);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    line-height: var(--leading-normal);
     cursor: pointer;
     user-select: none;
-    transition: background-color var(--duration-fast) var(--easing-default);
+    transition: background-color var(--duration-fast) var(--ease-default);
 
     &:hover {
-        background-color: var(--background-mod-hover);
+        background-color: var(--surface-hover);
     }
 
     &:active {
-        background-color: var(--background-mod-active);
+        background-color: var(--surface-active);
     }
 
     &:focus-visible {
@@ -366,23 +402,21 @@
         outline-offset: var(--focus-ring-offset);
     }
 
-    // Danger variant
     &.delete {
-        background-color: var(--button-danger-background, var(--danger-btn));
+        background-color: var(--danger-default);
 
         &:hover {
-            background-color: var(--button-danger-background-hover, var(--danger-btn-dark));
+            background-color: var(--danger-hover);
         }
 
         &:active {
-            background-color: var(--button-danger-background-active, var(--danger-border-dark));
+            background-color: var(--danger-active);
         }
     }
 
-    // Cancel/plain variant
     &.cancel {
-        &:hover,
-        &:active {
+        &:active,
+        &:hover {
             background: none;
             text-decoration: underline;
         }
@@ -395,14 +429,14 @@
     margin: var(--space-2) 0;
     border: none;
     border-radius: var(--radius-sm);
-    background: var(--accent-focus, var(--link-color));
-    color: var(--text-white);
-    font-size: var(--font-size-base);
+    background: var(--accent-default);
+    color: var(--text-inverse);
+    font-size: var(--text-base);
     cursor: pointer;
-    transition: background-color var(--duration-fast) var(--easing-default);
+    transition: background-color var(--duration-fast) var(--ease-default);
 
     &:hover {
-        background: var(--accent-focus-dark, var(--link-hover));
+        background: var(--accent-hover);
     }
 
     &:focus-visible {
@@ -415,9 +449,9 @@
 .btn-delete {
     background: none;
     border: none;
-    color: var(--danger-btn);
+    color: var(--danger-default);
     cursor: pointer;
-    font-size: var(--font-size-xs);
+    font-size: var(--text-xs);
     padding: 0;
 
     &:hover {
@@ -427,39 +461,5 @@
     &:focus-visible {
         outline: var(--focus-ring-width) solid var(--focus-ring-color);
         outline-offset: var(--focus-ring-offset);
-    }
-}
-
-// ==================== DARK MODE ====================
-
-html.dark {
-    .btn-secondary,
-    .btn--secondary {
-        background-color: #495057;
-
-        &:hover {
-            background-color: #5a6268;
-        }
-    }
-
-    .btn-ghost,
-    .btn--ghost {
-        color: var(--text-muted);
-
-        &:hover {
-            background-color: var(--bg-hover);
-            color: var(--text-primary);
-        }
-    }
-
-    .btn-outline,
-    .btn--outline {
-        border-color: var(--border-secondary);
-        color: var(--text-muted);
-
-        &:hover {
-            background-color: var(--bg-hover);
-            color: var(--text-primary);
-        }
     }
 }

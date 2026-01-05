@@ -53,8 +53,8 @@
 }
 
 .thread-badge--pinned {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning-default);
+    color: var(--color-yellow-900);
 }
 
 .thread-badge--locked {
@@ -182,7 +182,7 @@
 
 .clear-filter {
     margin-left: auto;
-    color: var(--danger-btn);
+    color: var(--danger-default);
     text-decoration: none;
     font-size: var(--font-size-sm);
     padding: var(--space-1) var(--space-2);
@@ -190,7 +190,7 @@
     transition: background var(--duration-fast) var(--easing-default);
 
     &:hover {
-        background: rgba(220, 53, 69, 0.1);
+        background: var(--danger-subtle);
         text-decoration: none;
     }
 }
@@ -526,50 +526,3 @@
     }
 }
 
-// ==================== DARK MODE ====================
-// Most styles use CSS custom properties that automatically adapt.
-// These overrides handle specific dark mode adjustments.
-
-html.dark {
-    .struct-item--subforum {
-        border-left-color: #444;
-        background-color: var(--bg-primary);
-    }
-
-    .struct-item--unread {
-        border-left-color: #6ea8fe;
-    }
-    .thread-prefix {
-        background: #555;
-    }
-
-    .active-filter {
-        background: #1a237e;
-        border-color: #3949ab;
-    }
-
-    .active-filter-label {
-        color: #90caf9;
-    }
-
-    .clear-filter {
-        color: #ef5350;
-
-        &:hover {
-            background: rgba(239, 83, 80, 0.2);
-        }
-    }
-
-    .struct-item--subforum-inline {
-        background-color: var(--bg-primary);
-        border-left-color: #555;
-    }
-
-    .btn-new-thread {
-        background: #218838;
-
-        &:hover {
-            background: #1e7e34;
-        }
-    }
-}

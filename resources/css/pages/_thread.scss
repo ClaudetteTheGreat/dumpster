@@ -31,8 +31,8 @@
 }
 
 .thread-badge--pinned {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning-default);
+    color: var(--color-yellow-900);
 }
 
 .thread-badge--locked {
@@ -113,10 +113,10 @@
     }
 
     &.watching {
-        background: #4a90e2;
+        background: var(--info-default);
 
         &:hover {
-            background: #357abd;
+            background: var(--info-hover);
         }
     }
 
@@ -183,11 +183,11 @@
 }
 
 .mod-button--pin {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning-default);
+    color: var(--color-yellow-900);
 
     &:hover {
-        background: #e0a800;
+        background: var(--warning-hover);
     }
 }
 
@@ -200,11 +200,11 @@
 }
 
 .mod-button--move {
-    background: #17a2b8;
+    background: var(--info-default);
     text-decoration: none;
 
     &:hover {
-        background: #138496;
+        background: var(--info-hover);
     }
 }
 
@@ -266,8 +266,8 @@
 }
 
 .poll-status--closing {
-    background: #ffc107;
-    color: #212529;
+    background: var(--warning-default);
+    color: var(--color-yellow-900);
 }
 
 .poll-options {
@@ -485,73 +485,3 @@
     }
 }
 
-// ==================== DARK MODE ====================
-
-html.dark {
-    .thread-header {
-        background: var(--bg-tertiary);
-        border-color: var(--border-primary);
-    }
-
-    .moderation-tools {
-        background: #3a3520;
-        border-color: #8a7520;
-
-        h3 {
-            color: #ffc107;
-        }
-    }
-
-    .poll-container {
-        background: var(--bg-tertiary);
-        border-color: var(--border-primary);
-    }
-
-    .poll-option {
-        background: var(--bg-secondary);
-        border-color: var(--border-secondary);
-
-        &:hover {
-            background: var(--bg-tertiary);
-            border-color: #0088ff;
-        }
-    }
-
-    .poll-option--selected {
-        background: #1a3a5c;
-        border-color: #0088ff;
-    }
-
-    .poll-options--readonly .poll-option {
-        &:hover {
-            background: var(--bg-secondary);
-            border-color: var(--border-secondary);
-        }
-
-        &.poll-option--selected {
-            background: #1a3a5c;
-            border-color: #0088ff;
-        }
-    }
-
-    .poll-results {
-        background: var(--bg-hover);
-    }
-
-    .poll-footer {
-        border-top-color: var(--border-primary);
-    }
-
-    .similar-threads {
-        background: var(--bg-tertiary);
-        border-color: var(--border-primary);
-
-        h3 {
-            color: var(--text-primary);
-        }
-    }
-
-    .similar-thread-item {
-        border-bottom-color: var(--border-primary);
-    }
-}

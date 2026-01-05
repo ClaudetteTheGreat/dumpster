@@ -1,9 +1,13 @@
 // ==========================================================================
 // ALERT COMPONENT
 // ==========================================================================
-// Status messages, notifications, and feedback alerts
+// Status messages, notifications, and feedback alerts using ONLY tokens.
+// NO hardcoded colors - all values come from tokens.
+// ==========================================================================
 
-// ==================== BASE ALERT ====================
+// ==========================================================================
+// BASE ALERT
+// ==========================================================================
 
 .alert {
     display: flex;
@@ -12,8 +16,8 @@
     padding: var(--space-3) var(--space-4);
     border: 1px solid transparent;
     border-radius: var(--radius-md);
-    font-size: var(--font-size-sm);
-    line-height: var(--line-height-base);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
 
     p {
         margin: 0;
@@ -26,7 +30,7 @@
 
 .alert-icon {
     flex-shrink: 0;
-    font-size: var(--font-size-lg);
+    font-size: var(--text-lg);
 }
 
 .alert-content {
@@ -35,7 +39,7 @@
 }
 
 .alert-title {
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-semibold);
     margin-bottom: var(--space-1);
 }
 
@@ -48,12 +52,13 @@
     opacity: 0.7;
     cursor: pointer;
     border-radius: var(--radius-sm);
-    transition: opacity var(--duration-fast) var(--easing-default),
-                background-color var(--duration-fast) var(--easing-default);
+    transition:
+        opacity var(--duration-fast) var(--ease-default),
+        background-color var(--duration-fast) var(--ease-default);
 
     &:hover {
         opacity: 1;
-        background-color: rgba(0, 0, 0, 0.1);
+        background-color: var(--surface-hover);
     }
 
     &:focus-visible {
@@ -62,17 +67,19 @@
     }
 }
 
-// ==================== ALERT VARIANTS ====================
+// ==========================================================================
+// ALERT VARIANTS
+// ==========================================================================
 
 // Info (default)
 .alert-info,
 .alert--info {
-    color: #0c5460;
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
+    color: var(--info-text);
+    background-color: var(--info-subtle);
+    border-color: var(--info-border);
 
     .alert-icon {
-        color: #17a2b8;
+        color: var(--info-default);
     }
 }
 
@@ -80,11 +87,11 @@
 .alert-success,
 .alert--success {
     color: var(--success-text);
-    background-color: var(--success-bg);
+    background-color: var(--success-subtle);
     border-color: var(--success-border);
 
     .alert-icon {
-        color: var(--success-icon);
+        color: var(--success-default);
     }
 }
 
@@ -92,11 +99,11 @@
 .alert-warning,
 .alert--warning {
     color: var(--warning-text);
-    background-color: var(--warning-bg);
+    background-color: var(--warning-subtle);
     border-color: var(--warning-border);
 
     .alert-icon {
-        color: #856404;
+        color: var(--warning-default);
     }
 }
 
@@ -106,27 +113,31 @@
 .alert-error,
 .alert--error {
     color: var(--danger-text);
-    background-color: var(--danger-bg);
+    background-color: var(--danger-subtle);
     border-color: var(--danger-border);
 
     .alert-icon {
-        color: var(--danger-btn);
+        color: var(--danger-default);
     }
 }
 
-// ==================== COMPACT ALERT ====================
+// ==========================================================================
+// COMPACT ALERT
+// ==========================================================================
 
 .alert--compact {
     padding: var(--space-2) var(--space-3);
-    font-size: var(--font-size-xs);
+    font-size: var(--text-xs);
     gap: var(--space-2);
 
     .alert-icon {
-        font-size: var(--font-size-base);
+        font-size: var(--text-base);
     }
 }
 
-// ==================== INLINE ALERT ====================
+// ==========================================================================
+// INLINE ALERT
+// ==========================================================================
 
 .alert--inline {
     display: inline-flex;
@@ -134,15 +145,16 @@
     border-radius: var(--radius-sm);
 }
 
-// ==================== TOAST NOTIFICATIONS ====================
+// ==========================================================================
+// TOAST NOTIFICATIONS
+// ==========================================================================
 
 .toast-container {
     position: fixed;
-    z-index: 1050;
+    z-index: var(--z-toast);
     padding: var(--space-4);
     pointer-events: none;
 
-    // Position variants
     &.toast-container--top-right {
         top: 0;
         right: 0;
@@ -184,15 +196,15 @@
     max-width: 100%;
     padding: var(--space-3) var(--space-4);
     margin-bottom: var(--space-2);
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-primary);
+    background-color: var(--surface-elevated);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
     pointer-events: auto;
-    animation: toast-slide-in var(--duration-normal) var(--easing-out);
+    animation: toast-slide-in var(--duration-normal) var(--ease-out);
 
     &.toast--dismissing {
-        animation: toast-slide-out var(--duration-fast) var(--easing-in) forwards;
+        animation: toast-slide-out var(--duration-fast) var(--ease-in) forwards;
     }
 }
 
@@ -220,7 +232,7 @@
 
 .toast-icon {
     flex-shrink: 0;
-    font-size: var(--font-size-xl);
+    font-size: var(--text-xl);
 }
 
 .toast-content {
@@ -229,13 +241,13 @@
 }
 
 .toast-title {
-    font-weight: var(--font-weight-semibold);
+    font-weight: var(--font-semibold);
     color: var(--text-primary);
     margin-bottom: var(--space-1);
 }
 
 .toast-message {
-    font-size: var(--font-size-sm);
+    font-size: var(--text-sm);
     color: var(--text-secondary);
 }
 
@@ -247,50 +259,53 @@
     color: var(--text-muted);
     cursor: pointer;
     border-radius: var(--radius-sm);
-    transition: color var(--duration-fast) var(--easing-default),
-                background-color var(--duration-fast) var(--easing-default);
+    transition:
+        color var(--duration-fast) var(--ease-default),
+        background-color var(--duration-fast) var(--ease-default);
 
     &:hover {
         color: var(--text-primary);
-        background-color: var(--bg-hover);
+        background-color: var(--surface-hover);
     }
 }
 
 // Toast variants
 .toast--success {
-    border-left: 4px solid var(--success-btn);
+    border-left: 4px solid var(--success-default);
 
     .toast-icon {
-        color: var(--success-btn);
+        color: var(--success-default);
     }
 }
 
 .toast--warning {
-    border-left: 4px solid #ffc107;
+    border-left: 4px solid var(--warning-default);
 
     .toast-icon {
-        color: #ffc107;
+        color: var(--warning-default);
     }
 }
 
 .toast--danger,
 .toast--error {
-    border-left: 4px solid var(--danger-btn);
+    border-left: 4px solid var(--danger-default);
 
     .toast-icon {
-        color: var(--danger-btn);
+        color: var(--danger-default);
     }
 }
 
 .toast--info {
-    border-left: 4px solid #17a2b8;
+    border-left: 4px solid var(--info-default);
 
     .toast-icon {
-        color: #17a2b8;
+        color: var(--info-default);
     }
 }
 
-// ==================== LEGACY REPORT MESSAGE ====================
+// ==========================================================================
+// LEGACY REPORT MESSAGE
+// ==========================================================================
 
 .report-message {
     margin-top: var(--space-4);
@@ -299,61 +314,14 @@
     text-align: center;
 
     &.report-success {
-        background: var(--success-bg);
+        background: var(--success-subtle);
         color: var(--success-text);
         border: 1px solid var(--success-border);
     }
 
     &.report-error {
-        background: var(--danger-bg);
+        background: var(--danger-subtle);
         color: var(--danger-text);
         border: 1px solid var(--danger-border);
-    }
-}
-
-// ==================== DARK MODE ====================
-
-html.dark {
-    .alert-info,
-    .alert--info {
-        color: #6edff6;
-        background-color: rgba(23, 162, 184, 0.2);
-        border-color: rgba(23, 162, 184, 0.4);
-    }
-
-    .alert-success,
-    .alert--success {
-        color: #75b798;
-        background-color: rgba(25, 135, 84, 0.2);
-        border-color: rgba(25, 135, 84, 0.4);
-    }
-
-    .alert-warning,
-    .alert--warning {
-        color: #ffda6a;
-        background-color: rgba(255, 193, 7, 0.2);
-        border-color: rgba(255, 193, 7, 0.4);
-    }
-
-    .alert-danger,
-    .alert--danger,
-    .alert-error,
-    .alert--error {
-        color: #ea868f;
-        background-color: rgba(220, 53, 69, 0.2);
-        border-color: rgba(220, 53, 69, 0.4);
-    }
-
-    .toast {
-        background-color: var(--bg-tertiary);
-        border-color: var(--border-primary);
-    }
-
-    .toast-title {
-        color: var(--text-primary);
-    }
-
-    .toast-message {
-        color: var(--text-muted);
     }
 }

@@ -1,0 +1,265 @@
+// ==========================================================================
+// DARK THEME - TOKEN OVERRIDES ONLY
+// ==========================================================================
+// This file contains ONLY token value overrides for dark mode.
+// NO component-specific styles allowed here.
+//
+// To create a new theme, copy this file and modify the token values.
+// ==========================================================================
+
+html.dark {
+    // ==========================================================================
+    // COLOR PRIMITIVES - DARK PALETTE
+    // ==========================================================================
+
+    // Gray scale (inverted for dark mode)
+    --color-gray-50: #18181b;
+    --color-gray-100: #27272a;
+    --color-gray-200: #3f3f46;
+    --color-gray-300: #52525b;
+    --color-gray-400: #71717a;
+    --color-gray-500: #a1a1aa;
+    --color-gray-600: #d4d4d8;
+    --color-gray-700: #e4e4e7;
+    --color-gray-800: #f4f4f5;
+    --color-gray-900: #fafafa;
+    --color-gray-950: #ffffff;
+
+    // Blue (slightly brighter for dark backgrounds)
+    --color-blue-50: #172554;
+    --color-blue-100: #1e3a8a;
+    --color-blue-200: #1e40af;
+    --color-blue-300: #1d4ed8;
+    --color-blue-400: #2563eb;
+    --color-blue-500: #3b82f6;
+    --color-blue-600: #60a5fa;
+    --color-blue-700: #93c5fd;
+    --color-blue-800: #bfdbfe;
+    --color-blue-900: #dbeafe;
+
+    // Green (adjusted for dark)
+    --color-green-50: #052e16;
+    --color-green-100: #14532d;
+    --color-green-200: #166534;
+    --color-green-300: #15803d;
+    --color-green-400: #16a34a;
+    --color-green-500: #22c55e;
+    --color-green-600: #4ade80;
+    --color-green-700: #86efac;
+    --color-green-800: #bbf7d0;
+    --color-green-900: #dcfce7;
+
+    // Red (adjusted for dark)
+    --color-red-50: #450a0a;
+    --color-red-100: #7f1d1d;
+    --color-red-200: #991b1b;
+    --color-red-300: #b91c1c;
+    --color-red-400: #dc2626;
+    --color-red-500: #ef4444;
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+    --color-red-800: #fecaca;
+    --color-red-900: #fee2e2;
+
+    // Yellow (adjusted for dark)
+    --color-yellow-50: #422006;
+    --color-yellow-100: #78350f;
+    --color-yellow-200: #92400e;
+    --color-yellow-300: #b45309;
+    --color-yellow-400: #d97706;
+    --color-yellow-500: #f59e0b;
+    --color-yellow-600: #fbbf24;
+    --color-yellow-700: #fcd34d;
+    --color-yellow-800: #fde68a;
+    --color-yellow-900: #fef3c7;
+
+    // Cyan (adjusted for dark)
+    --color-cyan-50: #083344;
+    --color-cyan-100: #164e63;
+    --color-cyan-200: #155e75;
+    --color-cyan-300: #0e7490;
+    --color-cyan-400: #0891b2;
+    --color-cyan-500: #06b6d4;
+    --color-cyan-600: #22d3ee;
+    --color-cyan-700: #67e8f9;
+    --color-cyan-800: #a5f3fc;
+    --color-cyan-900: #cffafe;
+
+    // ==========================================================================
+    // SEMANTIC COLORS - SURFACES
+    // ==========================================================================
+
+    --surface-page: #0f0f0f;
+    --surface-primary: #18181b;
+    --surface-secondary: #1f1f23;
+    --surface-tertiary: #27272a;
+    --surface-elevated: #2d2d31;
+    --surface-hover: #3f3f46;
+    --surface-active: #52525b;
+    --surface-selected: #1e3a5f;
+
+    // ==========================================================================
+    // SEMANTIC COLORS - TEXT
+    // ==========================================================================
+
+    --text-primary: #fafafa;
+    --text-secondary: #d4d4d8;
+    --text-muted: #a1a1aa;
+    --text-disabled: #71717a;
+    --text-inverse: #18181b;
+
+    // ==========================================================================
+    // SEMANTIC COLORS - BORDERS
+    // ==========================================================================
+
+    --border-default: #3f3f46;
+    --border-subtle: #27272a;
+    --border-strong: #52525b;
+    --border-focus: #60a5fa;
+
+    // ==========================================================================
+    // SEMANTIC COLORS - ACCENT
+    // ==========================================================================
+
+    --accent-default: #60a5fa;
+    --accent-hover: #93c5fd;
+    --accent-active: #bfdbfe;
+    --accent-subtle: #172554;
+    --accent-subtle-hover: #1e3a8a;
+
+    // ==========================================================================
+    // SEMANTIC COLORS - FEEDBACK STATES
+    // ==========================================================================
+
+    // Success
+    --success-default: #4ade80;
+    --success-hover: #86efac;
+    --success-active: #bbf7d0;
+    --success-subtle: #052e16;
+    --success-text: #86efac;
+    --success-border: #166534;
+
+    // Warning
+    --warning-default: #fbbf24;
+    --warning-hover: #fcd34d;
+    --warning-active: #fde68a;
+    --warning-subtle: #422006;
+    --warning-text: #fcd34d;
+    --warning-border: #92400e;
+
+    // Danger
+    --danger-default: #f87171;
+    --danger-hover: #fca5a5;
+    --danger-active: #fecaca;
+    --danger-subtle: #450a0a;
+    --danger-text: #fca5a5;
+    --danger-border: #991b1b;
+
+    // Info
+    --info-default: #22d3ee;
+    --info-hover: #67e8f9;
+    --info-active: #a5f3fc;
+    --info-subtle: #083344;
+    --info-text: #67e8f9;
+    --info-border: #155e75;
+
+    // ==========================================================================
+    // COMPONENT-SPECIFIC COLORS
+    // ==========================================================================
+
+    // Navigation
+    --nav-bg: #0f0f0f;
+    --nav-text: #d4d4d8;
+    --nav-text-hover: #fafafa;
+    --nav-hover-bg: rgba(255, 255, 255, 0.08);
+    --nav-active-bg: rgba(255, 255, 255, 0.12);
+
+    // Links
+    --link-default: #60a5fa;
+    --link-hover: #93c5fd;
+    --link-visited: #93c5fd;
+
+    // Inputs
+    --input-bg: #27272a;
+    --input-border: #3f3f46;
+    --input-border-hover: #52525b;
+    --input-border-focus: #60a5fa;
+    --input-placeholder: #71717a;
+    --input-disabled-bg: #1f1f23;
+
+    // Code blocks
+    --code-bg: #1f1f23;
+    --code-border: #3f3f46;
+    --code-text: #e4e4e7;
+    --code-header-bg: #27272a;
+
+    // Inline code
+    --inline-code-bg: #27272a;
+    --inline-code-border: #3f3f46;
+    --inline-code-text: #f87171;
+
+    // Quotes
+    --quote-bg: #1f1f23;
+    --quote-border: #52525b;
+    --quote-text: #d4d4d8;
+
+    // Tables
+    --table-header-bg: #27272a;
+    --table-border: #3f3f46;
+    --table-row-hover: #27272a;
+    --table-row-striped: #1f1f23;
+
+    // Reactions
+    --reaction-bg: #27272a;
+    --reaction-border: #3f3f46;
+    --reaction-hover-bg: #3f3f46;
+    --reaction-active-bg: #1e3a5f;
+    --reaction-active-border: #3b82f6;
+    --reaction-text: #d4d4d8;
+
+    // Mentions
+    --mention-bg: #172554;
+    --mention-text: #93c5fd;
+    --mention-hover-bg: #1e3a8a;
+
+    // Badges
+    --badge-bg: #52525b;
+    --badge-text: #fafafa;
+    --badge-notification-bg: #f87171;
+
+    // Modal/Overlay
+    --overlay-bg: rgba(0, 0, 0, 0.75);
+    --modal-bg: #27272a;
+
+    // Scrollbar
+    --scrollbar-track: #1f1f23;
+    --scrollbar-thumb: #3f3f46;
+    --scrollbar-thumb-hover: #52525b;
+
+    // Skeleton loading
+    --skeleton-base: #27272a;
+    --skeleton-shine: #3f3f46;
+
+    // ==========================================================================
+    // SHADOWS (darker for dark mode)
+    // ==========================================================================
+
+    --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+    --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+    --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+
+    // Colored shadows for dark mode
+    --shadow-accent: 0 4px 14px 0 rgba(59, 130, 246, 0.3);
+    --shadow-danger: 0 4px 14px 0 rgba(239, 68, 68, 0.3);
+    --shadow-success: 0 4px 14px 0 rgba(34, 197, 94, 0.3);
+
+    // ==========================================================================
+    // FOCUS RING (brighter for visibility)
+    // ==========================================================================
+
+    --focus-ring-color: #60a5fa;
+}

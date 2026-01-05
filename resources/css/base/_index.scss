@@ -1,0 +1,475 @@
+// ==========================================================================
+// BASE STYLES
+// ==========================================================================
+// Reset, typography, and global element styles using design tokens.
+// All styles here use ONLY tokens - no hardcoded values.
+// ==========================================================================
+
+// ==========================================================================
+// CSS RESET (Modern Normalize)
+// ==========================================================================
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+* {
+    margin: 0;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+    tab-size: 4;
+}
+
+body {
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    color: var(--text-primary);
+    background-color: var(--surface-page);
+    min-height: 100vh;
+}
+
+// Improve media defaults
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+// Remove built-in form typography styles
+input,
+button,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+// Avoid text overflows
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    overflow-wrap: break-word;
+}
+
+// Create root stacking context
+#root,
+#__next {
+    isolation: isolate;
+}
+
+// Remove list styles on ul, ol elements
+ul[role="list"],
+ol[role="list"] {
+    list-style: none;
+    padding: 0;
+}
+
+// ==========================================================================
+// TYPOGRAPHY
+// ==========================================================================
+
+// Headings
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    color: var(--text-primary);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+}
+
+h1 {
+    font-size: var(--text-3xl);
+    margin-bottom: var(--space-6);
+
+    @media (max-width: 640px) {
+        font-size: var(--text-2xl);
+    }
+}
+
+h2 {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-5);
+
+    @media (max-width: 640px) {
+        font-size: var(--text-xl);
+    }
+}
+
+h3 {
+    font-size: var(--text-xl);
+    margin-bottom: var(--space-4);
+}
+
+h4 {
+    font-size: var(--text-lg);
+    margin-bottom: var(--space-3);
+}
+
+h5 {
+    font-size: var(--text-base);
+    margin-bottom: var(--space-2);
+}
+
+h6 {
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+}
+
+// Body text
+p {
+    margin-bottom: var(--space-4);
+    line-height: var(--leading-relaxed);
+}
+
+// Small text
+small {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+// Strong/bold
+strong,
+b {
+    font-weight: var(--font-semibold);
+}
+
+// Emphasis
+em,
+i {
+    font-style: italic;
+}
+
+// ==========================================================================
+// LINKS
+// ==========================================================================
+
+a {
+    color: var(--link-default);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-default);
+
+    &:hover {
+        color: var(--link-hover);
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: var(--focus-ring-width) solid var(--focus-ring-color);
+        outline-offset: var(--focus-ring-offset);
+        border-radius: var(--radius-sm);
+    }
+}
+
+// ==========================================================================
+// LISTS
+// ==========================================================================
+
+ul,
+ol {
+    padding-left: var(--space-6);
+    margin-bottom: var(--space-4);
+}
+
+li {
+    margin-bottom: var(--space-1);
+}
+
+// Nested lists
+ul ul,
+ul ol,
+ol ul,
+ol ol {
+    margin-bottom: 0;
+    margin-top: var(--space-1);
+}
+
+// Definition lists
+dl {
+    margin-bottom: var(--space-4);
+}
+
+dt {
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+}
+
+dd {
+    margin-left: var(--space-4);
+    margin-bottom: var(--space-2);
+    color: var(--text-secondary);
+}
+
+// ==========================================================================
+// CODE
+// ==========================================================================
+
+code,
+kbd,
+samp {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+}
+
+// Inline code
+:not(pre) > code {
+    padding: var(--space-0-5) var(--space-1-5);
+    background-color: var(--inline-code-bg);
+    border: 1px solid var(--inline-code-border);
+    border-radius: var(--radius-sm);
+    color: var(--inline-code-text);
+    white-space: nowrap;
+}
+
+// Code blocks
+pre {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+    background-color: var(--code-bg);
+    border: 1px solid var(--code-border);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    overflow-x: auto;
+    margin-bottom: var(--space-4);
+
+    code {
+        padding: 0;
+        background: none;
+        border: none;
+        border-radius: 0;
+        white-space: pre;
+        color: var(--code-text);
+    }
+}
+
+// Keyboard input
+kbd {
+    display: inline-block;
+    padding: var(--space-0-5) var(--space-2);
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    background-color: var(--surface-tertiary);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 1px 0 var(--border-strong);
+}
+
+// ==========================================================================
+// QUOTES
+// ==========================================================================
+
+blockquote {
+    margin: var(--space-4) 0;
+    padding: var(--space-4) var(--space-5);
+    border-left: 4px solid var(--quote-border);
+    background-color: var(--quote-bg);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    color: var(--quote-text);
+
+    p:last-child {
+        margin-bottom: 0;
+    }
+
+    cite {
+        display: block;
+        margin-top: var(--space-2);
+        font-size: var(--text-sm);
+        color: var(--text-muted);
+        font-style: normal;
+
+        &::before {
+            content: "— ";
+        }
+    }
+}
+
+// ==========================================================================
+// HORIZONTAL RULE
+// ==========================================================================
+
+hr {
+    height: 0;
+    border: 0;
+    border-top: 1px solid var(--border-default);
+    margin: var(--space-8) 0;
+}
+
+// ==========================================================================
+// TABLES
+// ==========================================================================
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    margin-bottom: var(--space-4);
+    font-size: var(--text-sm);
+}
+
+th,
+td {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-bottom: 1px solid var(--table-border);
+}
+
+th {
+    font-weight: var(--font-semibold);
+    background-color: var(--table-header-bg);
+    color: var(--text-primary);
+}
+
+tbody tr:hover {
+    background-color: var(--table-row-hover);
+}
+
+// Striped tables
+table.striped tbody tr:nth-child(even) {
+    background-color: var(--table-row-striped);
+}
+
+// ==========================================================================
+// IMAGES & MEDIA
+// ==========================================================================
+
+img {
+    height: auto;
+}
+
+figure {
+    margin: var(--space-4) 0;
+}
+
+figcaption {
+    margin-top: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    text-align: center;
+}
+
+// ==========================================================================
+// SELECTION
+// ==========================================================================
+
+::selection {
+    background-color: var(--accent-subtle);
+    color: var(--text-primary);
+}
+
+// ==========================================================================
+// FOCUS STYLES
+// ==========================================================================
+
+// Global focus-visible styles
+:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+}
+
+// Remove focus ring for non-keyboard focus
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+// Skip to content link
+.skip-link {
+    position: absolute;
+    top: var(--space-2);
+    left: var(--space-2);
+    z-index: var(--z-toast);
+    padding: var(--space-2) var(--space-4);
+    background-color: var(--accent-default);
+    color: var(--text-inverse);
+    font-weight: var(--font-medium);
+    border-radius: var(--radius-md);
+    transform: translateY(-200%);
+    transition: transform var(--duration-fast) var(--ease-default);
+
+    &:focus {
+        transform: translateY(0);
+    }
+}
+
+// ==========================================================================
+// SCROLLBAR STYLING
+// ==========================================================================
+
+// Webkit browsers
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-full);
+    border: 2px solid var(--scrollbar-track);
+
+    &:hover {
+        background: var(--scrollbar-thumb-hover);
+    }
+}
+
+// Firefox
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+// ==========================================================================
+// REDUCED MOTION
+// ==========================================================================
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+// ==========================================================================
+// SCREEN READER ONLY
+// ==========================================================================
+
+.sr-only,
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}

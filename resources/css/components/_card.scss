@@ -1,34 +1,40 @@
 // ==========================================================================
 // CARD COMPONENT
 // ==========================================================================
-// Reusable card container for content sections
+// Reusable card container using ONLY design tokens.
+// NO hardcoded colors - all values come from tokens.
+// ==========================================================================
 
-// ==================== BASE CARD ====================
+// ==========================================================================
+// BASE CARD
+// ==========================================================================
 
 .card {
     display: flex;
     flex-direction: column;
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-primary);
+    background-color: var(--surface-primary);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-sm);
     overflow: hidden;
 }
 
-// ==================== CARD SECTIONS ====================
+// ==========================================================================
+// CARD SECTIONS
+// ==========================================================================
 
 .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: var(--space-4);
-    background-color: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
+    background-color: var(--surface-secondary);
+    border-bottom: 1px solid var(--border-default);
 
     h2, h3, h4 {
         margin: 0;
-        font-size: var(--font-size-lg);
-        font-weight: var(--font-weight-semibold);
+        font-size: var(--text-lg);
+        font-weight: var(--font-semibold);
     }
 }
 
@@ -48,11 +54,13 @@
     justify-content: flex-end;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-4);
-    background-color: var(--bg-secondary);
-    border-top: 1px solid var(--border-primary);
+    background-color: var(--surface-secondary);
+    border-top: 1px solid var(--border-default);
 }
 
-// ==================== CARD VARIANTS ====================
+// ==========================================================================
+// CARD VARIANTS
+// ==========================================================================
 
 // Compact card (less padding)
 .card--compact {
@@ -87,13 +95,14 @@
 // Interactive card (hover effect)
 .card--interactive {
     cursor: pointer;
-    transition: box-shadow var(--duration-fast) var(--easing-default),
-                border-color var(--duration-fast) var(--easing-default),
-                transform var(--duration-fast) var(--easing-default);
+    transition:
+        box-shadow var(--duration-fast) var(--ease-default),
+        border-color var(--duration-fast) var(--ease-default),
+        transform var(--duration-fast) var(--ease-default);
 
     &:hover {
         box-shadow: var(--shadow-md);
-        border-color: var(--border-secondary);
+        border-color: var(--border-strong);
     }
 
     &:active {
@@ -108,22 +117,28 @@
 
 // Highlighted card (accent border)
 .card--highlighted {
-    border-left: 4px solid var(--link-color);
+    border-left: 4px solid var(--accent-default);
 }
 
 .card--success {
-    border-left: 4px solid var(--success-btn);
+    border-left: 4px solid var(--success-default);
 }
 
 .card--warning {
-    border-left: 4px solid #ffc107;
+    border-left: 4px solid var(--warning-default);
 }
 
 .card--danger {
-    border-left: 4px solid var(--danger-btn);
+    border-left: 4px solid var(--danger-default);
 }
 
-// ==================== CARD GRID ====================
+.card--info {
+    border-left: 4px solid var(--info-default);
+}
+
+// ==========================================================================
+// CARD GRID
+// ==========================================================================
 
 .card-grid {
     display: grid;
@@ -151,7 +166,9 @@
     }
 }
 
-// ==================== CARD LIST ====================
+// ==========================================================================
+// CARD LIST
+// ==========================================================================
 
 .card-list {
     display: flex;
@@ -164,13 +181,13 @@
     align-items: center;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    background-color: var(--bg-primary);
-    border: 1px solid var(--border-primary);
+    background-color: var(--surface-primary);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
-    transition: background-color var(--duration-fast) var(--easing-default);
+    transition: background-color var(--duration-fast) var(--ease-default);
 
     &:hover {
-        background-color: var(--bg-hover);
+        background-color: var(--surface-hover);
     }
 }
 
@@ -181,7 +198,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: var(--font-size-xl);
+    font-size: var(--text-xl);
     color: var(--text-muted);
 }
 
@@ -191,13 +208,13 @@
 }
 
 .card-list-item-title {
-    font-weight: var(--font-weight-medium);
+    font-weight: var(--font-medium);
     color: var(--text-primary);
     margin-bottom: var(--space-1);
 }
 
 .card-list-item-description {
-    font-size: var(--font-size-sm);
+    font-size: var(--text-sm);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -208,32 +225,4 @@
     flex-shrink: 0;
     display: flex;
     gap: var(--space-2);
-}
-
-// ==================== DARK MODE ====================
-
-html.dark {
-    .card {
-        background-color: var(--bg-tertiary);
-        border-color: var(--border-primary);
-    }
-
-    .card-header {
-        background-color: var(--bg-secondary);
-        border-color: var(--border-primary);
-    }
-
-    .card-footer {
-        background-color: var(--bg-secondary);
-        border-color: var(--border-primary);
-    }
-
-    .card-list-item {
-        background-color: var(--bg-tertiary);
-        border-color: var(--border-primary);
-
-        &:hover {
-            background-color: var(--bg-hover);
-        }
-    }
 }
