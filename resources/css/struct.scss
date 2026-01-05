@@ -1,12 +1,17 @@
+// ==========================================================================
+// STRUCT CONTAINER - List/table structures for forums, threads, etc.
+// ==========================================================================
+
 .struct-container {
     border-collapse: collapse;
     list-style: none;
     margin: 0;
     padding: 0;
     width: 100%;
-    border: 1px solid var(--border-color, #ddd);
-    border-radius: 4px;
+    border: 1px solid var(--border-primary, #dee2e6);
+    border-radius: 6px;
     overflow: hidden;
+    box-shadow: 0 1px 3px var(--shadow-light, rgba(0, 0, 0, 0.08));
 }
 
 .struct-item {
@@ -18,79 +23,103 @@
     padding: 0;
     width: 100%;
     background: var(--bg-primary, #fff);
-    border-bottom: 1px solid var(--border-color, #ddd);
+    border-bottom: 1px solid var(--border-light, #e9ecef);
+    transition: background-color 0.1s ease;
 
     &:last-child {
         border-bottom: none;
     }
 
     &:hover {
-        background: var(--bg-hover, #f5f5f5);
+        background: var(--bg-hover, #f8f9fa);
     }
 }
 
 .struct-item-cell {
     display: table-cell;
     vertical-align: top;
-    padding: 8px;
+    padding: 12px;
 }
+
 .struct-item-cell--icon {
     width: 50px;
+    padding-right: 8px;
 }
+
 .struct-item-cell--main {
-    //
+    // Main content cell
 }
+
 .struct-item-cell--latest {
     width: 190px;
+    font-size: 0.9rem;
+    color: var(--text-secondary, #495057);
 }
+
 .struct-item-cell--meta {
     font-size: 0.85rem;
     width: 180px;
+    color: var(--text-muted, #6c757d);
 }
 
-/* Alert messages */
+// ==========================================================================
+// ALERT MESSAGES
+// ==========================================================================
+
 .alert {
-    padding: 10px 15px;
-    margin: 10px 0;
-    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 6px;
     border: 1px solid;
+    font-size: 0.95rem;
 }
 
 .alert-success {
-    background-color: var(--alert-success-bg, #d4edda);
-    color: var(--alert-success-text, #155724);
-    border-color: var(--alert-success-border, #c3e6cb);
+    background-color: var(--success-bg, #d1e7dd);
+    color: var(--success-text, #0f5132);
+    border-color: var(--success-border, #badbcc);
 }
 
 .alert-warning {
-    background-color: var(--alert-warning-bg, #fff3cd);
-    color: var(--alert-warning-text, #856404);
-    border-color: var(--alert-warning-border, #ffeeba);
+    background-color: var(--warning-bg, #fff3cd);
+    color: var(--warning-text, #664d03);
+    border-color: var(--warning-border, #ffecb5);
 }
 
 .alert-error {
-    background-color: var(--alert-error-bg, #f8d7da);
-    color: var(--alert-error-text, #721c24);
-    border-color: var(--alert-error-border, #f5c6cb);
+    background-color: var(--danger-bg, #f8d7da);
+    color: var(--danger-text, #842029);
+    border-color: var(--danger-border, #f5c2c7);
 }
 
-/* Badge styles */
+.alert-info {
+    background-color: var(--accent-selected-bg, #cfe2ff);
+    color: var(--link-hover, #0a58ca);
+    border-color: var(--accent-selected-border, #b6d4fe);
+}
+
+// ==========================================================================
+// BADGES
+// ==========================================================================
+
 .badge {
-    display: inline-block;
-    padding: 3px 8px;
-    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
     font-size: 0.75em;
     font-weight: 600;
+    line-height: 1;
 }
 
 .badge-success {
-    background: var(--success-btn, #28a745);
+    background: var(--success-btn, #198754);
     color: #fff;
 }
 
 .badge-warning {
-    background: var(--badge-warning-bg, #ffc107);
-    color: var(--badge-warning-text, #000);
+    background: var(--warning-bg, #ffc107);
+    color: var(--warning-text, #664d03);
 }
 
 .badge-danger {
@@ -99,28 +128,40 @@
 }
 
 .badge-secondary {
-    background: var(--badge-secondary-bg, #6c757d);
+    background: var(--text-muted, #6c757d);
     color: #fff;
 }
 
 .badge-info {
-    background: var(--badge-info-bg, #17a2b8);
+    background: var(--link-color, #0d6efd);
     color: #fff;
 }
 
-/* ==========================================================================
-   Responsive Adjustments
-   ========================================================================== */
+.badge-primary {
+    background: var(--link-color, #0d6efd);
+    color: #fff;
+}
 
-/* Tablet: Hide meta column */
+// ==========================================================================
+// RESPONSIVE ADJUSTMENTS
+// ==========================================================================
+
+// Tablet: Hide meta column
 @media (max-width: 900px) {
     .struct-item-cell--meta {
         display: none;
     }
 }
 
-/* Mobile: Stack layout, hide extra columns */
+// Mobile: Stack layout, hide extra columns
 @media (max-width: 600px) {
+    .struct-container {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        box-shadow: none;
+    }
+
     .struct-item {
         display: flex;
         flex-direction: row;
@@ -130,12 +171,13 @@
 
     .struct-item-cell {
         display: block;
-        padding: 8px;
+        padding: 10px;
     }
 
     .struct-item-cell--icon {
         width: 40px;
         flex-shrink: 0;
+        padding-right: 8px;
     }
 
     .struct-item-cell--main {
