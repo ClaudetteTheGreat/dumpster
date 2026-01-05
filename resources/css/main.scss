@@ -21,6 +21,7 @@
 // ==================== PAGES ====================
 // Page-specific styles
 @use 'pages/forum';
+@use 'pages/thread';
 
 // ==================== LEGACY MODULES ====================
 // These will be incrementally refactored into components/pages
@@ -28,7 +29,7 @@
 @use 'layout';
 @use 'nav';
 @use 'chat';
-@use 'thread';
+@use 'thread' as thread-posts;
 @use 'form';
 @use 'modal';
 @use 'struct';
