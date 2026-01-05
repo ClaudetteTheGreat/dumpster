@@ -15,6 +15,10 @@
 
 // ==================== COMPONENTS ====================
 // Extracted component styles
+@use 'components/button';
+@use 'components/input';
+@use 'components/card';
+@use 'components/alert';
 @use 'components/pagination';
 @use 'components/breadcrumb';
 
